@@ -251,6 +251,23 @@ class MarkPaymentRequest(BaseModel):
     amount: Optional[float] = Field(None, gt=0, description="Amount paid (defaults to the scheduled EMI).")
 
 
+class InsuranceClaimRequest(BaseModel):
+    """A parametric-weather damage claim raised from the Weather & Crop Risk page."""
+    damage_type: str = Field(..., description="One of: excess_rain, hailstorm, drought_deficit, heat_wave, wind.")
+    area_acres: float = Field(..., gt=0, le=500, description="Affected area in acres.")
+    mobile: Optional[str] = Field(None, pattern=r"^\d{10}$", description="10-digit mobile for claim updates.")
+    note: Optional[str] = Field(None, max_length=400, description="Short damage description.")
+
+
+class ReminderRequest(BaseModel):
+    """A field reminder (SMS/call/push) scheduled from the weather page."""
+    kind: str = Field("sms", pattern=r"^(sms|call|push)$", description="Delivery channel.")
+    contact: str = Field(..., min_length=3, max_length=40, description="Mobile number or channel handle.")
+    target_date: str = Field(..., description="ISO date the reminder fires (the chosen spray window day).")
+    time_slot: str = Field("06:30 AM – 10:30 AM", max_length=60, description="Suggested time window.")
+    note: Optional[str] = Field(None, max_length=300, description="What the reminder is about.")
+
+
 class RepaymentEntryResponse(BaseModel):
     """A scheduled monthly instalment with its payment status."""
     month: int

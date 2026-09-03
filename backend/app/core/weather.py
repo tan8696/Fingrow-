@@ -13,7 +13,10 @@ Coordinates come from the location name via Nominatim (see geocoder.py), and
 fall back to the Akola/Vidarbha district centroid when geocoding fails.
 """
 
+import copy
 import logging
+import threading
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
@@ -268,11 +271,28 @@ def resolve_coordinates(location: Optional[str] = None) -> Tuple[float, float, s
     return DEFAULT_COORDS["latitude"], DEFAULT_COORDS["longitude"], DEFAULT_COORDS["display_name"]
 
 
+_cache: Dict[Any, Tuple[float, Dict[str, Any]]] = {}
+_cache_lock = threading.Lock()
+_CACHE_TTL_SECONDS = 300
+
+
 def get_weather(location: Optional[str] = None, days: int = 5) -> Dict[str, Any]:
-    """Full weather payload for a location name (geocode -> Open-Meteo)."""
+    """
+    Full weather payload for a location name (geocode -> Open-Meteo).
+
+    Results are cached for 5 minutes (per location + horizon) so the dashboard,
+    insurance-policy and spray-protocol views never stampede the live feed.
+    """
+    key = (location or "", int(max(1, min(days, 7))))
+    now = time.time()
+    with _cache_lock:
+        cached = _cache.get(key)
+        if cached and now - cached[0] < _CACHE_TTL_SECONDS:
+            return copy.deepcopy(cached[1])
+
     latitude, longitude, display_name = resolve_coordinates(location)
-    forecast = fetch_forecast(latitude, longitude, days=days)
-    return {
+    forecast = fetch_forecast(latitude, longitude, days=key[1])
+    payload = {
         "location": {
             "name": display_name,
             "latitude": latitude,
@@ -280,3 +300,6 @@ def get_weather(location: Optional[str] = None, days: int = 5) -> Dict[str, Any]
         },
         **forecast,
     }
+    with _cache_lock:
+        _cache[key] = (now, copy.deepcopy(payload))
+    return payload

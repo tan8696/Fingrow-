@@ -642,3 +642,136 @@ def test_notifications_include_weather_alert(monkeypatch):
     response = client.get("/api/notifications")
     data = response.json()
     assert any(n["type"] == "weather" for n in data["notifications"])
+
+
+# ---------------------------------------------------------------------------
+# Weather & Crop Risk — insurance policy, claims, reminders, protocol
+# ---------------------------------------------------------------------------
+
+_FAKE_DAILY = [
+    {"date": "2026-09-10", "weather_code": 1, "precipitation_probability_max": 20.0,
+     "precipitation_sum": 0.0, "wind_speed_10m_max": 9.0, "relative_humidity_2m_mean": 58.0,
+     "temperature_2m_max": 31.0, "temperature_2m_min": 22.0},
+    {"date": "2026-09-11", "weather_code": 3, "precipitation_probability_max": 45.0,
+     "precipitation_sum": 3.0, "wind_speed_10m_max": 14.0, "relative_humidity_2m_mean": 66.0,
+     "temperature_2m_max": 30.0, "temperature_2m_min": 22.0},
+    {"date": "2026-09-12", "weather_code": 61, "precipitation_probability_max": 80.0,
+     "precipitation_sum": 12.0, "wind_speed_10m_max": 18.0, "relative_humidity_2m_mean": 74.0,
+     "temperature_2m_max": 28.0, "temperature_2m_min": 21.0},
+]
+
+_FAKE_WEATHER_PAYLOAD = {
+    "fetched_at": "2026-09-10T06:00:00Z",
+    "location": {"name": "Akola, Maharashtra", "latitude": 20.7, "longitude": 77.0},
+    "current": {"temperature_c": 27, "humidity_pct": 62, "wind_kph": 10,
+                "condition": {"label": "Partly cloudy", "icon": "partly_cloudy_day"}},
+    "daily": _FAKE_DAILY,
+    "risk": {"score": 4, "level": "Moderate", "factors": [], "advisories": []},
+}
+
+
+def _stub_weather(monkeypatch, payload=None):
+    def fake_get_weather(location=None, days=5):
+        return payload if payload is not None else _FAKE_WEATHER_PAYLOAD
+    monkeypatch.setattr("app.api.routes.get_weather", fake_get_weather)
+
+
+def test_insurance_policy_returns_triggers(monkeypatch):
+    _stub_weather(monkeypatch)
+    response = client.get("/api/insurance/policy")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["policy"]["sum_insured"] == 850000
+    assert len(data["triggers"]) == 3
+    assert any(t["key"] == "excess_rain" and t["status"] == "SAFE" for t in data["triggers"])
+    assert data["payout_history"][0]["amount"] == 42000
+    assert data["weather_error"] is None
+
+
+def test_insurance_policy_degrades_when_weather_offline(monkeypatch):
+    from app.core.weather import WeatherUnavailableError
+
+    def boom(location=None, days=5):
+        raise WeatherUnavailableError("Weather service unavailable: timeout")
+    monkeypatch.setattr("app.api.routes.get_weather", boom)
+    response = client.get("/api/insurance/policy")
+    assert response.status_code == 200
+    data = response.json()
+    assert all(t["status"] == "Offline" for t in data["triggers"])
+    assert data["weather_error"]
+
+
+def test_insurance_claim_roundtrip(monkeypatch):
+    _stub_weather(monkeypatch)
+    response = client.post("/api/insurance/claims", json={
+        "damage_type": "hailstorm", "area_acres": 4.0, "mobile": "9876543210",
+        "note": "Hail damage to soybean pods",
+    })
+    assert response.status_code == 200
+    claim = response.json()
+    assert claim["id"].startswith("CLM-")
+    assert claim["status"] == "Submitted"
+    assert claim["estimate_amount"] > 0
+
+    listed = client.get("/api/insurance/policy").json()
+    assert any(c["id"] == claim["id"] for c in listed["claims"])
+
+    deleted = client.delete(f"/api/insurance/claims/{claim['id']}")
+    assert deleted.status_code == 200
+
+
+def test_insurance_claim_rejects_unknown_damage_type():
+    response = client.post("/api/insurance/claims", json={
+        "damage_type": "alien_invasion", "area_acres": 2.0,
+    })
+    assert response.status_code == 422
+
+
+def test_reminders_crud():
+    created = client.post("/api/reminders", json={
+        "kind": "sms", "contact": "9876543210", "target_date": "2026-09-11",
+        "time_slot": "06:30 AM – 10:30 AM", "note": "Foliar zinc spray",
+    })
+    assert created.status_code == 200
+    reminder = created.json()
+    assert reminder["id"].startswith("RM-")
+
+    listed = client.get("/api/reminders").json()
+    assert any(r["id"] == reminder["id"] for r in listed["reminders"])
+
+    deleted = client.delete(f"/api/reminders/{reminder['id']}")
+    assert deleted.status_code == 200
+    assert client.delete(f"/api/reminders/{reminder['id']}").status_code == 404
+
+
+def test_weather_protocol_download(monkeypatch):
+    _stub_weather(monkeypatch)
+    response = client.get("/api/weather/protocol")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "attachment" in response.headers["content-disposition"]
+    body = response.text
+    assert "Akola, Maharashtra" in body
+    assert "1800-180-1551" in body
+
+
+def test_weather_protocol_502_when_offline(monkeypatch):
+    from app.core.weather import WeatherUnavailableError
+
+    def boom(location=None, days=5):
+        raise WeatherUnavailableError("Weather service unavailable: timeout")
+    monkeypatch.setattr("app.api.routes.get_weather", boom)
+    assert client.get("/api/weather/protocol").status_code == 502
+
+
+def test_notifications_include_weather_claims(monkeypatch):
+    claim = {"id": "CLM-2099", "damage_type": "excess_rain",
+             "area_acres": 5.0, "estimate_amount": 37280.70, "status": "Submitted"}
+    monkeypatch.setattr("app.api.routes.list_applications", lambda: [])
+    monkeypatch.setattr("app.api.routes._cached_weather_notification", lambda: None)
+    monkeypatch.setattr("app.api.routes.list_claims", lambda: [claim])
+
+    response = client.get("/api/notifications")
+    data = response.json()
+    assert any(n["type"] == "claim" and n["title"].startswith("Weather claim CLM-2099") for n in data["notifications"])
+

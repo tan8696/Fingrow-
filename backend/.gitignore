@@ -12,6 +12,7 @@ venv/
 sessions.db
 loans.db
 harvest.db
+advisory.db
 *.sqlite3
 
 # Logs

@@ -10,7 +10,7 @@ The /calculate endpoint works without ANY external API keys (useful for demos).
 import logging
 import random
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, HTTPException, status
@@ -24,16 +24,35 @@ from app.api.models import (
     ErrorResponse,
     FullReportResponse,
     HarvestRequest,
+    InsuranceClaimRequest,
     LoanApplicationRequest,
     LoanApplicationResponse,
     LoanApprovalRequest,
     LoanApprovalResponse,
     MarkPaymentRequest,
     OSMSummaryResponse,
+    ReminderRequest,
     SUPPORTED_CATEGORIES,
     SUPPORTED_LANGUAGES,
     RepaymentStatusResponse,
     SchemeResultResponse,
+)
+from app.core.advisory_store import (
+    delete_claim,
+    delete_reminder,
+    list_claims,
+    list_reminders,
+    save_claim,
+    save_reminder,
+)
+from app.core.agro import (
+    CLAIM_FACTORS,
+    DAMAGE_TYPES,
+    PAYOUT_HISTORY,
+    POLICY as INSURANCE_POLICY,
+    estimate_claim,
+    evaluate_triggers,
+    protocol_document,
 )
 from app.core.amortization import generate_schedule
 from app.core.calculator import SchemeError, calculate_finances
@@ -961,5 +980,193 @@ async def get_notifications() -> dict:
     if weather_alert:
         items.append(weather_alert)
 
+    for claim in list_claims()[:3]:
+        items.append({
+            "id": f"claim-{claim.get('id')}",
+            "type": "claim",
+            "title": f"Weather claim {claim.get('id')} submitted",
+            "body": f"₹{float(claim.get('estimate_amount') or 0):,.0f} estimated for {claim.get('damage_type', 'damage')} — track it in Weather & Crop Risk.",
+            "time": "Now",
+            "view": "weather",
+        })
+
     items.sort(key=lambda n: 0 if n.get("time") in ("Now", "Live", "today") else 1)
     return {"notifications": items[:10], "unread": len(items)}
+
+
+# ---------------------------------------------------------------------------
+# Weather & Crop Risk — insurance, reminders & protocol
+# ---------------------------------------------------------------------------
+
+@router.get(
+    "/insurance/policy",
+    tags=["Weather & Crop Risk"],
+    summary="Parametric insurance policy with live trigger evaluation & claims",
+)
+async def insurance_policy(location: Optional[str] = None) -> dict:
+    """
+    Policy facts plus trigger meters evaluated against the live 7-day forecast,
+    and any claims the user has filed. Degrades gracefully when the weather
+    feed is unreachable (triggers report 'Offline').
+    """
+    try:
+        weather = get_weather(location=location, days=7)
+        triggers = evaluate_triggers(weather)
+        weather_error = None
+    except WeatherUnavailableError as e:
+        weather = {}
+        triggers = evaluate_triggers(weather)
+        triggers["triggers"] = [dict(t, status="Offline", note="Live feed unreachable — recheck later.") for t in triggers["triggers"]]
+        weather_error = str(e)
+
+    claims = list_claims()
+    for claim in claims:
+        claim["estimate"] = estimate_claim(claim.get("damage_type", "excess_rain"), float(claim.get("area_acres") or 0))
+
+    return {
+        "policy": INSURANCE_POLICY,
+        "damage_types": DAMAGE_TYPES,
+        "claim_factors": CLAIM_FACTORS,
+        "payout_history": PAYOUT_HISTORY,
+        "triggers": triggers.get("triggers", []),
+        "policy_health": triggers.get("policy_health", "Offline"),
+        "claims": claims,
+        "weather_error": weather_error,
+        "fetched_at": (weather or {}).get("fetched_at") or datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@router.post(
+    "/insurance/claims",
+    tags=["Weather & Crop Risk"],
+    summary="File a parametric weather damage claim",
+)
+async def add_insurance_claim(req: InsuranceClaimRequest) -> dict:
+    """
+    Persists a claim with a deterministic payout estimate and returns the
+    filed record (a notification is raised so the claim surfaces in the bell).
+    """
+    payload = req.model_dump()
+    if payload.get("damage_type") not in CLAIM_FACTORS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Unsupported damage type '{payload['damage_type']}'. Choose from {list(CLAIM_FACTORS)}.",
+        )
+
+    estimate = estimate_claim(payload["damage_type"], float(payload["area_acres"]))
+
+    claim_id = None
+    for _ in range(20):
+        candidate = f"CLM-{datetime.now().year}-{random.randint(1000, 9999)}"
+        record = dict(
+            payload,
+            id=candidate,
+            status="Submitted",
+            created_at=datetime.now().isoformat(timespec="seconds"),
+            estimate_amount=estimate["estimate_amount"],
+            basis=estimate["basis"],
+        )
+        if save_claim(candidate, record):
+            claim_id = candidate
+            break
+
+    if claim_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not allocate a claim reference. Please try again.",
+        )
+
+    logger.info(
+        "Filed weather claim %s: %s over %.1f acres — est Rs%.0f",
+        claim_id, payload["damage_type"], payload["area_acres"], estimate["estimate_amount"],
+    )
+    return record
+
+
+@router.delete(
+    "/insurance/claims/{claim_id}",
+    tags=["Weather & Crop Risk"],
+    summary="Withdraw a submitted claim",
+)
+async def remove_insurance_claim(claim_id: str) -> dict:
+    """Removes a mistakenly filed claim."""
+    if not delete_claim(claim_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Claim '{claim_id}' not found.",
+        )
+    return {"deleted": claim_id}
+
+
+@router.get(
+    "/reminders",
+    tags=["Weather & Crop Risk"],
+    summary="List scheduled field reminders",
+)
+async def get_reminders() -> dict:
+    """Return stored SMS/call/push field reminders, newest first."""
+    return {"reminders": list_reminders()}
+
+
+@router.post(
+    "/reminders",
+    tags=["Weather & Crop Risk"],
+    summary="Schedule a spray/field reminder",
+)
+async def add_reminder(req: ReminderRequest) -> dict:
+    """Persist a field reminder for the chosen spray window."""
+    reminder_id = None
+    for _ in range(20):
+        candidate = f"RM-{datetime.now().year}-{random.randint(1000, 9999)}"
+        record = dict(req.model_dump(), id=candidate, created_at=datetime.now().isoformat(timespec="seconds"))
+        if save_reminder(candidate, record):
+            reminder_id = candidate
+            break
+    if reminder_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not allocate a reminder reference. Please try again.",
+        )
+    logger.info("Scheduled %s reminder %s for %s", req.kind, reminder_id, req.target_date)
+    return record
+
+
+@router.delete(
+    "/reminders/{reminder_id}",
+    tags=["Weather & Crop Risk"],
+    summary="Cancel a scheduled reminder",
+)
+async def remove_reminder(reminder_id: str) -> dict:
+    """Cancel a previously scheduled reminder."""
+    if not delete_reminder(reminder_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Reminder '{reminder_id}' not found.",
+        )
+    return {"deleted": reminder_id}
+
+
+@router.get(
+    "/weather/protocol",
+    tags=["Weather & Crop Risk"],
+    summary="Download the generated spray-protocol document (HTML, print to PDF)",
+)
+async def weather_protocol(location: Optional[str] = None) -> Response:
+    """
+    Renders a printable crop-protection protocol from the live forecast.
+    Served as a file download; open it in a browser and 'Print → Save as PDF'.
+    """
+    try:
+        weather = get_weather(location=location, days=7)
+    except WeatherUnavailableError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(e),
+        )
+    doc = protocol_document(weather)
+    return Response(
+        content=doc["html"].encode("utf-8"),
+        media_type="text/html; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{doc["filename"]}"'},
+    )
+

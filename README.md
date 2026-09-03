@@ -175,17 +175,38 @@ Open your browser at: [http://localhost:5173](http://localhost:5173)
 `GET /api/loan-history`
 - Returns stored applications (newest first — pending and active, with EMI terms and the actual next due date once approved) followed by simulated demo loans.
 
+### 5. Weather & Crop Risk (Live Forecast, Insurance & Field Operations)
+`GET /api/weather?location=…&days=5`
+- Live district forecast via Open-Meteo (no API key): current conditions, a 5–7 day daily forecast, a deterministic 0–10 crop-risk score with rule-based advisories. Results are cached server-side for 5 minutes.
+
+`GET /api/insurance/policy`
+- Parametric-insurance policy facts plus trigger meters (excess rain / dry spell / heat) evaluated live against the 7-day forecast, historical DBT payouts, and any filed claims. Degrades to `Offline` trigger states when the weather feed is unreachable.
+
+`POST /api/insurance/claims` / `DELETE /api/insurance/claims/{claim_id}`
+- Files a weather damage claim with a deterministic payout estimate (share of the sum insured scaled by affected acres) or withdraws one. Claims persist in SQLite and surface as bell notifications.
+
+`GET /api/reminders` / `POST /api/reminders` / `DELETE /api/reminders/{reminder_id}`
+- Schedule and manage SMS/call/push field reminders for the best forecast spray windows (persisted across restarts).
+
+`GET /api/weather/protocol`
+- Downloads a printable spray-protocol document (HTML — open & print to PDF) rendered from the live forecast, spray windows, pest outlook and advisories.
+
+### 6. Dashboard Intelligence (Harvest, Portfolio, Cluster & Notifications)
+`GET /api/harvest` / `POST /api/harvest` / `DELETE /api/harvest/{harvest_id}` · `GET /api/portfolio` · `GET /api/portfolio/cashflow` · `GET /api/cluster/activity` · `GET /api/notifications`
+- Dashboard home is data-backed: harvest lots with revenue summaries, aggregated loan/EMI portfolio figures, a co-op activity feed built from real portal events (applications, approvals, repayments, harvests), and notifications assembled from genuine state (due EMIs, sanction queue, live weather risk, filed claims).
+
 ---
 
 ## 🧪 Test Coverage Summary
 
-The test suite includes 77 automated unit and integration tests:
+The test suite includes 131 automated unit and integration tests:
 - **Amortization Tests (`test_amortization.py`)**: Validates 3-month and 6-month moratorium interest-only schedules, final zero balance, sequential balance continuity, reducing-balance formulas.
 - **Financial Engine Tests (`test_calculator.py`)**: Tests exact ₹14,000 threshold boundary, ₹14,001 crossover, 10× project cost multiplier, 90% loan calculation, and ₹50L upper cap.
-- **API Tests (`test_api.py`)**: Tests `/health`, `/categories`, `/languages`, `/calculate`, and 422 error boundaries.
+- **Loan Store, Schedule & API Tests (`test_loan_store.py`, `test_loan_schedule.py`, `test_api.py`)**: Validate persistence, monthly EMI math, CSV statements, apply → approve (officer overrides & conflicts) → repayment tracking (in-order validation, duplicates, payoff) and the merged loan-history response.
+- **Weather & Agro Tests (`test_weather.py`, `test_agro.py`)**: Cover WMO code mapping, crop-risk rules, spray-window classification, pest-threat estimates, insurance trigger evaluation (SAFE/WATCHLIST/TRIGGERED), claim payout math, protocol rendering, and the SQLite claims/reminder store.
+- **Harvest & Portfolio Tests (`test_harvest_store.py`, `test_portfolio.py`)**: Validate harvest persistence/revenue summaries and portfolio aggregation (outstanding balances, EMI commitments, subsidy totals, next-due calculations).
+- **API Tests (`test_api.py`)**: Additionally cover `/insurance/policy` (incl. graceful offline degradation), claim round-trips, reminders CRUD, protocol download, and notification assembly — all with the live weather feed stubbed out.
 - **Session Store Tests (`test_session_store.py`)**: Validates SQLite persistence of generated reports, including survival across new connections (server restarts) and unknown-session handling.
-- **Loan Store & Schedule Tests (`test_loan_store.py`, `test_loan_schedule.py`)**: Validate loan application persistence, the monthly EMI schedule math (zero final balance, consistent totals), and CSV statement rendering.
-- **Loan API Tests (`test_api.py`)**: Cover apply → approve (with officer overrides and conflict handling) → repayment tracking (in-order validation, duplicates, full payoff) → statement download and the merged loan-history response (including next-due dates after payments).
 - **Report Tests (`test_report.py`)**: Validates SVG chart generation, HTML report rendering, and ReportLab vector PDF compilation.
 
 To execute tests:

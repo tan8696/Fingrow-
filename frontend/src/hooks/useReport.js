@@ -281,8 +281,11 @@ export async function markRepaymentPaid(applicationId, month) {
   return { status: "Recorded", month };
 }
 
-export async function fetchWeather(location = "") {
-  const qs = location ? `?location=${encodeURIComponent(location)}` : "";
+export async function fetchWeather(location = "", days = 0) {
+  const parts = [];
+  if (location) parts.push(`location=${encodeURIComponent(location)}`);
+  if (days > 0) parts.push(`days=${days}`);
+  const qs = parts.length ? `?${parts.join("&")}` : "";
   const data = await safeFetchJson(`${API_BASE}/weather${qs}`);
   if (data && data.current) {
     return data;
@@ -363,4 +366,87 @@ export async function fetchClusterActivity() {
     success_rate: "94%",
     top_categories: ["Organic Poultry", "Dairy Hub", "Pulses Processing"],
   };
+}
+
+export async function fetchInsurancePolicy(location = "") {
+  const qs = location ? `?location=${encodeURIComponent(location)}` : "";
+  const data = await safeFetchJson(`${API_BASE}/insurance/policy${qs}`);
+  if (data) return data;
+  return {
+    policy: null,
+    triggers: [],
+    claims: [],
+    payout_history: [],
+    claim_factors: {},
+    damage_types: [],
+    policy_health: "Offline",
+    weather_error: "Policy feed unavailable right now.",
+  };
+}
+
+export async function submitInsuranceClaim(payload) {
+  const data = await safeFetchJson(`${API_BASE}/insurance/claims`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (data) return data;
+  return { id: `CLM-${Date.now()}`, status: "Submitted", ...payload, estimate_amount: 0 };
+}
+
+export async function deleteInsuranceClaim(claimId) {
+  const data = await safeFetchJson(`${API_BASE}/insurance/claims/${claimId}`, { method: "DELETE" });
+  if (data) return data;
+  return { deleted: claimId };
+}
+
+export async function fetchReminders() {
+  const data = await safeFetchJson(`${API_BASE}/reminders`);
+  if (data && data.reminders) return data;
+  return { reminders: [] };
+}
+
+export async function submitReminder(payload) {
+  const data = await safeFetchJson(`${API_BASE}/reminders`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (data) return data;
+  return { id: `RM-${Date.now()}`, ...payload };
+}
+
+export async function deleteReminder(reminderId) {
+  const data = await safeFetchJson(`${API_BASE}/reminders/${reminderId}`, { method: "DELETE" });
+  if (data) return data;
+  return { deleted: reminderId };
+}
+
+export function sprayProtocolUrl(location = "") {
+  const qs = location ? `?location=${encodeURIComponent(location)}` : "";
+  return `${API_BASE}/weather/protocol${qs}`;
+}
+
+export async function downloadWeatherProtocol(location = "") {
+  // Fetch as a blob and trigger a download — works across the dev-server origin.
+  try {
+    const res = await fetch(sprayProtocolUrl(location));
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const disposition = res.headers.get("content-disposition") || "";
+    const match = /filename="?([^";]+)"?/.exec(disposition);
+    const filename = match ? match[1] : `spray_protocol_${new Date().toISOString().slice(0, 10)}.html`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    return true;
+  } catch (err) {
+    console.error("protocol download", err);
+    return false;
+  }
 }
