@@ -285,7 +285,16 @@ export default function WeatherRisk({ locationText = '' }) {
 
     const windows = daily.map((d, i) => ({ ...d, dayLabel: fmtDay(d.date, i), w: windowStatus(d) }));
     const best = windows.find(d => (d.w.key === 'optimal' || d.w.key === 'good')) || null;
-    const advisories = risk.advisories || [];
+    const rawAdvisories = risk.advisories || [];
+    const advisories = rawAdvisories.map(a =>
+      typeof a === 'string'
+        ? { title: 'Tahsildar & KVK Advisory', detail: a, severity: 'info' }
+        : {
+            title: a?.title || 'Tahsildar & KVK Advisory',
+            detail: a?.detail || a?.text || a?.message || String(a || ''),
+            severity: a?.severity || 'info',
+          }
+    );
     const topAdvisory = advisories.find(a => a.severity !== 'info') || advisories[0] || null;
 
     const pol = policy?.policy || null;
@@ -322,7 +331,7 @@ export default function WeatherRisk({ locationText = '' }) {
 
   const {
     current = {}, risk = { score: 0, level: 'Low', advisories: [] }, pest, levelMeta, totalRain,
-    moisture, moistureMeta, spike, windows, best, pol, triggers, claims, payoutHistory,
+    avgHum = 0, moisture, moistureMeta, spike, windows, best, topAdvisory, pol, triggers, claims, payoutHistory,
     claimFactors, damageTypes, policyHealth, steps, damageTypeMeta,
   } = derived;
 
@@ -436,9 +445,16 @@ export default function WeatherRisk({ locationText = '' }) {
     );
   }
 
-  const farmRiskLevel = LEVEL_META[risk.level] || LEVEL_META.Low;
-  const topFactor = (risk.factors || [])[0];
-  const riskNote = topFactor || (risk.advisories?.[0]?.detail) || `No major weather triggers in the forecast window.`;
+  const farmRiskLevel = LEVEL_META[risk?.level] || LEVEL_META.Low;
+  const topFactor = (risk?.factors || [])[0];
+  const factorText = typeof topFactor === 'string'
+    ? topFactor
+    : topFactor?.name
+      ? `${topFactor.name} (${topFactor.status || topFactor.level || 'Normal'})`
+      : null;
+  const firstAdv = (risk?.advisories || [])[0];
+  const advText = typeof firstAdv === 'string' ? firstAdv : firstAdv?.detail || firstAdv?.title || null;
+  const riskNote = factorText || advText || `No major weather triggers in the forecast window.`;
   const fetched = weather?.fetched_at ? new Date(weather.fetched_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '';
   const preferred = windows.filter(d => d.w.key === 'optimal' || d.w.key === 'good');
   const dayChoices = (preferred.length ? preferred : windows).slice(0, 3);
@@ -500,9 +516,9 @@ export default function WeatherRisk({ locationText = '' }) {
           </div>
           <div className="flex flex-col min-w-0">
             <span className="font-label-lg text-label-lg text-primary font-semibold">
-              {pest.level >= 3 ? `Advisory — ${pest.vector}` : risk.advisories?.[0]?.title || 'Tahsildar & KVK Advisory (Akola West)'}
+              {pest.level >= 3 ? `Advisory — ${pest.vector}` : (topAdvisory?.title || 'Tahsildar & KVK Advisory (Akola West)')}
             </span>
-            <span className="font-label-sm text-label-sm text-on-surface-variant truncate">{risk.advisories?.[0]?.detail || riskNote}</span>
+            <span className="font-label-sm text-label-sm text-on-surface-variant truncate">{topAdvisory?.detail || String(riskNote)}</span>
           </div>
         </div>
         <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-lowest text-on-surface font-label-sm text-label-sm shadow-sm shrink-0">
@@ -518,7 +534,7 @@ export default function WeatherRisk({ locationText = '' }) {
           value={<><span className="text-primary">{risk.score}</span><span className="font-body-md text-on-surface-variant"> /10</span></>}
           sub={<span className="inline-flex items-center gap-1 text-primary font-semibold"><span className="material-symbols-outlined text-[15px]">insights</span>{levelMeta.text}</span>}
           barPct={risk.score * 10} barCls={levelMeta.bar}
-          footer={<span className="bg-surface-container-low px-2.5 py-1.5 rounded-lg font-label-sm text-label-sm text-on-surface-variant leading-snug">{riskNote.slice(0, 110)}{riskNote.length > 110 ? '…' : ''}</span>}
+          footer={<span className="bg-surface-container-low px-2.5 py-1.5 rounded-lg font-label-sm text-label-sm text-on-surface-variant leading-snug">{String(riskNote).slice(0, 110)}{String(riskNote).length > 110 ? '…' : ''}</span>}
         />
         <KpiCard
           icon="rainy" iconBg="bg-secondary-container text-on-secondary-fixed" label="7-Day Rain & Moisture"
