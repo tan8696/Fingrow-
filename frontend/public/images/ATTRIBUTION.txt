@@ -1,0 +1,29 @@
+FILE: login-teashop.jpg
+  Title: File:A village tea shop in Kerala.jpg
+  Author: href="//commons.wikimedia.org/wiki/User:Shagil_Kannur" class="mw-redirect" title="User:Shagil Kannur" Shagil Kannur</a 
+  License: CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0)
+  Source: https://commons.wikimedia.org/wiki/File:A_village_tea_shop_in_Kerala.jpg
+
+FILE: login-vegetables.jpg
+  Title: File:An elderly woman selling vegetables at Chanditala bazaar.jpg
+  Author: href="//commons.wikimedia.org/wiki/User:Billjones94" title="User:Billjones94" Billjones94</a 
+  License: CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0)
+  Source: https://commons.wikimedia.org/wiki/File:An_elderly_woman_selling_vegetables_at_Chanditala_bazaar.jpg
+
+FILE: login-farmer.jpg
+  Title: File:Farmer manually harvesting rice in Raichur, Karnataka.jpg
+  Author: href="//commons.wikimedia.org/w/index.php?title=Nanditha_Gogate,_WELL_Labs&amp;action=edit&amp;redlink=1" class="new" title="Nanditha Gogate, WELL Labs (page does not exist)" Nanditha Gogate, WELL Lab
+  License: CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0)
+  Source: https://commons.wikimedia.org/wiki/File:Farmer_manually_harvesting_rice_in_Raichur,_Karnataka.jpg
+
+FILE: profile-ramesha.jpg
+  Title: File:Elderly man in traditional turban and shawl in rural India.jpg
+  Author: The open draft
+  License: CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0)
+  Source: https://commons.wikimedia.org/wiki/File%3AElderly_man_in_traditional_turban_and_shawl_in_rural_India.jpg
+
+FILE: hero-farm.jpg
+  Title: File:Agriculture in India, Sunrise time at a village.jpg
+  Author: Abhijit Kar Gupta
+  License: CC BY 2.0 (https://creativecommons.org/licenses/by/2.0)
+  Source: https://commons.wikimedia.org/wiki/File%3AAgriculture_in_India%2C_Sunrise_time_at_a_village.jpg

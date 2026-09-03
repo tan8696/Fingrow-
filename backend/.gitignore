@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+venv/
+.venv/
+
+# Environment & secrets
+.env
+
+# Local SQLite stores (generated at runtime)
+sessions.db
+loans.db
+harvest.db
+*.sqlite3
+
+# Logs
+*.log
+
+# OS / editor
+.DS_Store
