@@ -63,6 +63,7 @@ logs/
 # IDE & Editor
 .vscode/
 .idea/
+.vercel/
 *.swp
 *.swo
 *~
