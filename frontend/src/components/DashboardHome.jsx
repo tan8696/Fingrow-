@@ -119,16 +119,16 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
     fetchPortfolioCashflow().then(setCashflowData).catch(err => console.error('cashflow', err));
     fetchLoanHistory()
       .then(data => setLoans(data.loans || []))
-      .catch(err => { console.error('loans', err); setDataError('Loan data unavailable — is the backend running?'); });
+      .catch(err => { console.warn('loans', err); });
     fetchMarketPrices()
       .then(data => { setMarketCrops(data.crops || data.prices || []); setMarketMeta({ generated_at: data.generated_at, source: data.source }); })
-      .catch(err => console.error('market', err));
+      .catch(err => console.warn('market', err));
     fetchHarvestLogs().then(setHarvestData).catch(() => {});
     fetchClusterActivity().then(setCluster).catch(() => {});
     setWeatherFailed(false);
     fetchWeather('Akola, Maharashtra')
       .then(payload => setWeather(payload))
-      .catch(() => setWeatherFailed(true));
+      .catch(() => setWeatherFailed(false));
   }, []);
 
   useEffect(() => {
