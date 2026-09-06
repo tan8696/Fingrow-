@@ -350,7 +350,7 @@ export default function Dashboard({ currentView, setCurrentView, onLogout, userP
                 <button
                   key={code}
                   onClick={() => setLanguage(code)}
-                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg font-label-sm text-label-sm transition-all ${
+                  className={`px-2 md:px-3 py-1 md:py-1.5 rounded-lg text-[11px] md:font-label-sm md:text-label-sm transition-all ${
                     userLanguage === code ? 'bg-primary text-on-primary font-bold shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
                   }`}
                   aria-label={`Switch language to ${code === 'en' ? 'English' : code === 'mr' ? 'Marathi' : 'Hindi'}`}
@@ -364,9 +364,9 @@ export default function Dashboard({ currentView, setCurrentView, onLogout, userP
 
             <div className="flex items-center gap-3 pl-1 md:pl-2">
               <div className="relative">
-                <img src={PROFILE_AVATAR} alt="Ramesh Rao" className="w-9 h-9 md:w-10 md:h-10 rounded-full object-cover ring-2 ring-surface" />
-                <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center justify-center ring-2 ring-surface" title="KYC Verified">
-                  <span className="material-symbols-outlined text-[12px]">verified</span>
+                <img src={PROFILE_AVATAR} alt="Ramesh Rao" className="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover ring-2 ring-surface" />
+                <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 md:w-4 md:h-4 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center justify-center ring-2 ring-surface" title="KYC Verified">
+                  <span className="material-symbols-outlined text-[10px] md:text-[12px]">verified</span>
                 </span>
               </div>
               <div className="hidden xl:flex flex-col">
@@ -489,8 +489,8 @@ export default function Dashboard({ currentView, setCurrentView, onLogout, userP
               currentView === item.id ? 'text-primary' : 'text-on-surface-variant'
             }`}
           >
-            <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: currentView === item.id ? "'FILL' 1" : "'FILL' 0" }}>{item.icon}</span>
-            <span className="font-label-sm text-label-sm truncate max-w-full">{item.label}</span>
+            <span className="material-symbols-outlined text-[20px] md:text-[22px]" style={{ fontVariationSettings: currentView === item.id ? "'FILL' 1" : "'FILL' 0" }}>{item.icon}</span>
+            <span className="font-label-sm text-[10px] md:text-label-sm truncate max-w-full">{item.label}</span>
           </button>
         ))}
       </nav>

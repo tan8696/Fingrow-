@@ -439,10 +439,10 @@ export default function FloatingVoiceAgent({ onNavigate, setMargin, language, on
       {/* Floating Action Button */}
       <button 
         onClick={toggleOverlay}
-        className="fixed right-6 bottom-24 md:bottom-10 w-16 h-16 rounded-full bg-primary text-on-primary shadow-xl flex items-center justify-center hover:bg-primary-container hover:text-on-primary-container hover:scale-105 transition-all duration-200 z-40"
+        className="fixed right-4 md:right-6 bottom-[84px] md:bottom-10 w-14 h-14 md:w-16 md:h-16 rounded-full bg-primary text-on-primary shadow-xl flex items-center justify-center hover:bg-primary-container hover:text-on-primary-container hover:scale-105 transition-all duration-200 z-40"
         aria-label="Voice Assistant"
       >
-        <span className="material-symbols-outlined" style={{ fontSize: '32px' }}>mic</span>
+        <span className="material-symbols-outlined text-[28px] md:text-[32px]">mic</span>
       </button>
 
       {/* Voice / Chat Agent Overlay */}
