@@ -7,10 +7,23 @@ export default function Settings({ userLanguage, setUserLanguage, locationText, 
   const { t } = useTranslation();
   const [prefs, setPrefs] = useState({ smsAlerts: true, emailAlerts: false, voiceAssistant: true, marketTrends: true });
   const [toast, setToast] = useState(null);
+  const [darkMode, setDarkMode] = useState(() => document.documentElement.classList.contains('dark'));
 
   const showToast = (msg) => {
     setToast(msg);
     window.setTimeout(() => setToast(null), 3000);
+  };
+
+  const toggleDarkMode = () => {
+    const nextDark = !darkMode;
+    setDarkMode(nextDark);
+    if (nextDark) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
   };
 
   const togglePref = (key) => {
@@ -100,6 +113,7 @@ export default function Settings({ userLanguage, setUserLanguage, locationText, 
         </div>
         <p className="font-body-md text-body-md text-on-surface-variant mb-4">{t('settings.preferences_desc')}</p>
         <div className="divide-y divide-surface-variant">
+          <PreferenceRow title="Dark Mode" desc="Enable high-contrast dark theme" checked={darkMode} onChange={toggleDarkMode} />
           <PreferenceRow title={t('settings.sms_alerts')} desc={t('settings.sms_alerts_desc')} checked={prefs.smsAlerts} onChange={() => togglePref('smsAlerts')} />
           <PreferenceRow title={t('settings.email_alerts')} desc={t('settings.email_alerts_desc')} checked={prefs.emailAlerts} onChange={() => togglePref('emailAlerts')} />
           <PreferenceRow title={t('settings.voice_assistant')} desc={t('settings.voice_assistant_desc')} checked={prefs.voiceAssistant} onChange={() => togglePref('voiceAssistant')} />

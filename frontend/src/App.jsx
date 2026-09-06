@@ -12,6 +12,12 @@ function App() {
     return saved ? JSON.parse(saved) : null;
   });
 
+  useEffect(() => {
+    if (localStorage.getItem('theme') === 'dark') {
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
+
   // Simple routing for the test harness
   if (window.location.pathname === '/test') {
     return <AdversarialHarness />;
