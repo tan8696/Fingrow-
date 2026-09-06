@@ -80,6 +80,7 @@ const NOTIF_ICONS = {
 };
 
 function NotificationsPanel({ onNavigate }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -126,17 +127,17 @@ function NotificationsPanel({ onNavigate }) {
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div ref={panelRef} className="absolute right-0 top-12 z-50 w-[340px] max-w-[calc(100vw-2rem)] bg-surface-container-lowest rounded-2xl shadow-2xl border border-surface-variant overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-surface-variant bg-surface">
-              <h3 className="font-label-lg text-label-lg font-bold text-on-surface">Notifications</h3>
-              <span className="font-label-sm text-label-sm text-on-surface-variant">{items.length} new</span>
+              <h3 className="font-label-lg text-label-lg font-bold text-on-surface">{t('notifications.title')}</h3>
+              <span className="font-label-sm text-label-sm text-on-surface-variant">{items.length} {t('notifications.new')}</span>
             </div>
             <div className="max-h-[380px] overflow-y-auto divide-y divide-surface-container">
               {items.length === 0 && loaded && (
-                <div className="px-5 py-8 text-center text-on-surface-variant font-body-md text-body-md text-sm">You're all caught up.</div>
+                <div className="px-5 py-8 text-center text-on-surface-variant font-body-md text-body-md text-sm">{t('notifications.caught_up')}</div>
               )}
               {items.length === 0 && !loaded && (
                 <div className="px-5 py-8 text-center text-on-surface-variant flex flex-col items-center gap-2">
                   <span className="material-symbols-outlined animate-spin text-primary">progress_activity</span>
-                  <span className="font-label-sm text-label-sm">Loading…</span>
+                  <span className="font-label-sm text-label-sm">{t('notifications.loading')}</span>
                 </div>
               )}
               {items.map((notif, i) => (
@@ -161,14 +162,45 @@ function NotificationsPanel({ onNavigate }) {
   );
 }
 
-export default function Dashboard({ currentView, setCurrentView, onLogout }) {
-  const { i18n } = useTranslation();
+export default function Dashboard({ currentView, setCurrentView, onLogout, userProfile }) {
+  const { t, i18n } = useTranslation();
   const [margin, setMargin] = useState(50000);
   const [locationText, setLocationText] = useState('Vidarbha, MH');
   const [reportData, setReportData] = useState(null);
   const [showWizard, setShowWizard] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [userLanguage, setUserLanguage] = useState('en');
+  const [userLanguage, setUserLanguage] = useState(i18n.language || 'en');
+
+  useEffect(() => {
+    if (i18n.language && i18n.language !== userLanguage) {
+      setUserLanguage(i18n.language);
+    }
+  }, [i18n.language, userLanguage]);
+
+  const isFarmer = userProfile?.type === 'farmer';
+
+  let navItems = [
+    { id: 'dashboard', icon: 'grid_view', label: t('nav.dashboard') },
+    { id: 'feasibility', icon: 'assessment', label: t('nav.feasibility') },
+    { id: 'history', icon: 'account_balance', label: t('nav.history') },
+    { id: 'market', icon: 'storefront', label: isFarmer ? t('nav.market') : t('dashboard.market_nav') },
+    { id: 'weather', icon: 'thunderstorm', label: t('nav.weather') },
+    { id: 'settings', icon: 'settings', label: t('nav.settings') },
+  ];
+
+  let mobileNavItems = [
+    { id: 'dashboard', icon: 'grid_view', label: t('nav.dashboard') },
+    { id: 'feasibility', icon: 'assessment', label: t('nav.feasibility') },
+    { id: 'history', icon: 'account_balance', label: t('nav.history') },
+    { id: 'market', icon: 'storefront', label: isFarmer ? t('nav.market') : t('dashboard.market_nav') },
+    { id: 'weather', icon: 'thunderstorm', label: t('nav.weather') },
+    { id: 'settings', icon: 'settings', label: t('nav.settings') },
+  ];
+
+  if (!isFarmer) {
+    navItems = navItems.filter(item => item.id !== 'weather');
+    mobileNavItems = mobileNavItems.filter(item => item.id !== 'weather');
+  }
 
   useEffect(() => {
     if ('geolocation' in navigator) {
@@ -247,12 +279,12 @@ export default function Dashboard({ currentView, setCurrentView, onLogout }) {
             </div>
             <div className="flex flex-col">
               <span className="font-headline-md text-headline-md text-primary tracking-tight">FinGrow</span>
-              <span className="font-label-sm text-label-sm text-on-surface-variant leading-none">Empowering Rural Growth</span>
+              <span className="font-label-sm text-label-sm text-on-surface-variant leading-none">{t('nav.tagline')}</span>
             </div>
           </div>
 
           <nav className="flex flex-col gap-1">
-            {NAV_ITEMS.map(item => (
+            {navItems.map(item => (
               <button
                 key={item.id}
                 onClick={() => setCurrentView(item.id)}
@@ -276,8 +308,8 @@ export default function Dashboard({ currentView, setCurrentView, onLogout }) {
               <div className="flex items-center gap-3">
                 <span className="material-symbols-outlined text-[22px]">support_agent</span>
                 <div className="flex flex-col text-left">
-                  <span className="font-label-lg text-label-lg leading-tight">Ask Advisory Bot</span>
-                  <span className="font-label-sm text-label-sm text-primary-fixed-dim leading-none">Instant Agri Assistance</span>
+                  <span className="font-label-lg text-label-lg leading-tight">{t('nav.ask_bot')}</span>
+                  <span className="font-label-sm text-label-sm text-primary-fixed-dim leading-none">{t('nav.instant_help')}</span>
                 </div>
               </div>
               <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
@@ -287,7 +319,7 @@ export default function Dashboard({ currentView, setCurrentView, onLogout }) {
               className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container hover:text-error transition-colors font-label-sm text-label-sm"
             >
               <span className="material-symbols-outlined text-[18px]">logout</span>
-              Sign out
+              {t('nav.sign_out')}
             </button>
           </div>
         </div>
@@ -306,21 +338,22 @@ export default function Dashboard({ currentView, setCurrentView, onLogout }) {
               <span className="font-headline-md text-[18px] text-primary tracking-tight">FinGrow</span>
             </div>
             <div className="hidden md:flex flex-col min-w-0">
-              <span className="font-label-lg text-label-lg text-on-surface">Namaste, Ramesh</span>
-              <span className="font-label-sm text-label-sm text-on-surface-variant">Vidarbha Agri Cluster (Lead Officer)</span>
+              <span className="font-label-lg text-label-lg text-on-surface">{t('nav.greeting')}</span>
+              <span className="font-label-sm text-label-sm text-on-surface-variant">{t('nav.cluster_role')}</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 md:gap-4">
-            {/* Language segmented control */}
-            <div className="hidden sm:flex items-center bg-surface-container-low rounded-xl p-1 gap-1">
+          <div className="flex items-center gap-2 md:gap-4">
+            {/* Language segmented control - visible on all devices */}
+            <div className="flex items-center bg-surface-container-low rounded-xl p-1 gap-1 border border-outline-variant">
               {['en', 'mr', 'hi'].map(code => (
                 <button
                   key={code}
                   onClick={() => setLanguage(code)}
-                  className={`px-3 py-1.5 rounded-lg font-label-sm text-label-sm transition-colors ${
-                    userLanguage === code ? 'bg-surface-container-lowest text-primary font-semibold shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg font-label-sm text-label-sm transition-all ${
+                    userLanguage === code ? 'bg-primary text-on-primary font-bold shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
                   }`}
+                  aria-label={`Switch language to ${code === 'en' ? 'English' : code === 'mr' ? 'Marathi' : 'Hindi'}`}
                 >
                   {code === 'en' ? 'EN' : code === 'mr' ? 'मराठी' : 'हिन्दी'}
                 </button>
@@ -339,7 +372,7 @@ export default function Dashboard({ currentView, setCurrentView, onLogout }) {
               <div className="hidden xl:flex flex-col">
                 <span className="font-label-sm text-label-sm text-on-surface font-semibold">Ramesh Rao</span>
                 <span className="font-label-sm text-label-sm text-primary flex items-center gap-0.5">
-                  <span className="material-symbols-outlined text-[12px]">check_circle</span> KYC Verified
+                  <span className="material-symbols-outlined text-[12px]">check_circle</span> {t('nav.kyc_verified')}
                 </span>
               </div>
             </div>
@@ -354,6 +387,7 @@ export default function Dashboard({ currentView, setCurrentView, onLogout }) {
               onNewReport={startNewReport}
               report={reportData}
               hasLiveReport={!!reportData}
+              userProfile={userProfile}
             />
           )}
 
@@ -375,26 +409,26 @@ export default function Dashboard({ currentView, setCurrentView, onLogout }) {
                       <span className="material-symbols-outlined">arrow_back</span>
                     </button>
                     <div>
-                      <h2 className="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface font-bold">New Feasibility Analysis</h2>
-                      <p className="font-body-md text-body-md text-on-surface-variant">Tell us where and what you want to build — we handle the rest.</p>
+                      <h2 className="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface font-bold">{t('wizard.title')}</h2>
+                      <p className="font-body-md text-body-md text-on-surface-variant">{t('dashboard.new_village_analysis_desc')}</p>
                     </div>
                   </div>
                   <InputWizard
                     t={{
-                      title: 'Feasibility Analysis',
-                      locationLabel: '📍 Your Location',
-                      locationPlaceholder: 'e.g., Akola, Maharashtra',
-                      locationHint: 'Include village, block/tehsil, district and state for accuracy.',
-                      capitalLabel: '💰 Your Available Margin Capital',
-                      capitalHint: 'Your own money — the scheme funds up to 90% of project cost.',
-                      projectCost: 'Total Project Cost',
-                      loanAmount: 'Government Loan',
-                      yourCapital: 'Your Capital',
-                      categoryLabel: '🏪 Select Your Business Category',
-                      generate: 'Generate Feasibility Report',
-                      generating: 'Analysing…',
-                      back: '← Back',
-                      next: 'Continue →',
+                      title: t('wizard.title'),
+                      locationLabel: t('wizard.location_label'),
+                      locationPlaceholder: t('wizard.location_placeholder'),
+                      locationHint: t('wizard.location_hint'),
+                      capitalLabel: t('wizard.capital_label'),
+                      capitalHint: t('wizard.capital_hint'),
+                      projectCost: t('wizard.project_cost'),
+                      loanAmount: t('wizard.gov_loan'),
+                      yourCapital: t('wizard.your_equity'),
+                      categoryLabel: t('wizard.category_label'),
+                      generate: t('wizard.generate_btn'),
+                      generating: t('wizard.generating'),
+                      back: t('wizard.back_btn'),
+                      next: t('wizard.continue_btn'),
                     }}
                     onSubmit={handleGenerateReport}
                     loading={isGenerating}
@@ -447,7 +481,7 @@ export default function Dashboard({ currentView, setCurrentView, onLogout }) {
 
       {/* Mobile bottom nav */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface-container-lowest border-t border-surface-variant shadow-[0_-2px_10px_rgba(0,0,0,0.05)] flex justify-around items-center px-1 pb-[env(safe-area-inset-bottom)]">
-        {MOBILE_NAV.map(item => (
+        {mobileNavItems.map(item => (
           <button
             key={item.id}
             onClick={() => setCurrentView(item.id)}
@@ -461,8 +495,13 @@ export default function Dashboard({ currentView, setCurrentView, onLogout }) {
         ))}
       </nav>
 
-      {/* Voice assistant overlay + FAB */}
-      <FloatingVoiceAgent onNavigate={setCurrentView} setMargin={setMargin} />
+      {/* Voice assistant overlay + FAB with active language */}
+      <FloatingVoiceAgent 
+        onNavigate={setCurrentView} 
+        setMargin={setMargin} 
+        language={userLanguage}
+        onLanguageChange={setLanguage}
+      />
     </div>
   );
 }

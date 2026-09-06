@@ -1,0 +1,949 @@
+====================================================================================================
+               FINGROW ADVISORY: COMPLETE SYSTEM ARCHITECTURE & ENGINEERING MANUAL
+====================================================================================================
+Project Name    : FinGrow Advisory / Smart Business Advisory & Scheme Calculator
+Event / Origin  : Smart India Hackathon (SIH)
+Target Audience : Rural Micro-Entrepreneurs, Marginal Farmers, Self-Help Groups (SHGs), Co-operatives
+Documentation   : Full Features, Languages, Logics, Voice Assistant, APIs & Persistence Breakdown
+Generated Date  : September 2026
+====================================================================================================
+
+TABLE OF CONTENTS:
+----------------------------------------------------------------------------------------------------
+ 1. PROJECT EXECUTIVE SUMMARY & OBJECTIVES
+ 2. PROGRAMMING LANGUAGES, FRAMEWORKS & COMPLETE TECH STACK
+    2.1 Frontend Architecture & Dependencies
+    2.2 Backend Architecture & Dependencies
+    2.3 AI / Machine Learning & Translation Engines
+    2.4 Geospatial & Meteorological External Infrastructure
+ 3. COMPLETE FEATURE-BY-FEATURE BREAKDOWN
+    3.1 Feature 1: Standalone Deterministic Scheme Calculator & Scenario Simulator
+    3.2 Feature 2: 3-Step Feasibility Input Wizard & Dynamic Business Plan Generator
+    3.3 Feature 3: Geospatial Competitor Radar & POI Density Mapping
+    3.4 Feature 4: Strictly-Bounded AI Advisory & SWOT Generator
+    3.5 Feature 5: Bank-Ready Vector PDF Feasibility Report Export
+    3.6 Feature 6: End-to-End Loan Application, Sanctioning & Repayment Tracker
+    3.7 Feature 7: Live Open-Meteo Weather & Deterministic Crop-Risk Advisory
+    3.8 Feature 8: Parametric Weather Insurance, Live Triggers & Claims Management
+    3.9 Feature 9: Smart Agricultural Spray Window Protocol & Field Reminders
+    3.10 Feature 10: Harvest Lot Logging Ledger & Revenue Aggregator
+    3.11 Feature 11: Co-operative Cluster Pulse & Activity Feed
+    3.12 Feature 12: Real-Time APMC Mandi Commodity Market Prices Feed
+    3.13 Feature 13: Real-Time Event-Driven Notification Engine
+    3.14 Feature 14: Multilingual i18n Localization (11 Regional Indian Languages)
+    3.15 Feature 15: Dual-Mode Voice Assistant & Real-Time "Voice Surfing"
+ 4. DEEP-DIVE INTO CORE BUSINESS LOGICS & MATHEMATICAL FORMULAS
+    4.1 The 10% Margin Capital & 90% Loan Sizing Model
+    4.2 Government Scheme Routing Gates & Eligibility Bounds
+    4.3 Moratorium (Grace Period / Nap Time) Mechanics
+    4.4 Reducing-Balance Quarterly & Monthly Amortization Formula
+    4.5 Government Capital Subsidy Formula & Capping Logic
+    4.6 OpenStreetMap Competitor Density Classification Algorithm
+    4.7 Market Viability Score (90% Green Circle Algorithm)
+    4.8 Deterministic Weather & Crop-Risk 0-10 Index Rules
+    4.9 Pest Threat Estimation Algorithm (Humidity & Rain Thresholds)
+    4.10 Agricultural Spray-Window Classification Rules
+    4.11 Parametric Insurance Trigger Evaluation & Payout Estimation
+    4.12 Fail-Safe Geocoding & Internal Indian District Gazetteer Fallback
+    4.13 Anti-Hallucination Prompt Engineering Constraints
+ 5. VOICE ASSISTANCE ARCHITECTURE (CLIENT-SIDE & WEBSOCKET STREAMING)
+    5.1 Client-Side Web Speech Recognition & Acoustic Processing
+    5.2 Intent Classification, Pattern Matching & Parameter Extraction
+    5.3 Speech Synthesis (TTS) & Acoustic Customization
+    5.4 Built-In Offline Domain Knowledge Base
+    5.5 Server-Side WebSocket Audio Streaming (/ws/voice)
+ 6. COMPLETE API SPECIFICATION & REFERENCE
+    6.1 Internal REST Endpoints (FastAPI)
+    6.2 Internal WebSocket Endpoints
+    6.3 External Third-Party APIs Integrated
+ 7. DATABASE ARCHITECTURE & SQLITE SCHEMAS
+ 8. DEPLOYMENT, ENVIRONMENT CONFIGURATION & REPRODUCTION GUIDE
+====================================================================================================
+
+
+====================================================================================================
+1. PROJECT EXECUTIVE SUMMARY & OBJECTIVES
+====================================================================================================
+FinGrow Advisory is an institutional-grade, multilingual rural micro-enterprise feasibility analysis,
+credit structuring, and agro-climatic risk advisory platform built for the Smart India Hackathon (SIH).
+
+THE CORE PROBLEM:
+Prospective rural micro-entrepreneurs and marginal farmers across India face critical barriers:
+1. Inability to navigate complex government concessional lending schemes (NABARD, PMEGP, SCA/CA).
+2. Risk of starting saturated businesses without knowing local market competition.
+3. Language barriers, as institutional banking guidelines and appraisal forms are predominantly in English.
+4. Agricultural vulnerability to sudden climate shocks, unseasonal rainfall, and pest attacks.
+5. Inability to communicate via traditional keyboards or complex graphical interfaces.
+
+THE FINGROW SOLUTION:
+The platform allows rural entrepreneurs to provide three basic inputs:
+- Geographic Location (Village, Gram Panchayat, Block, District, State)
+- Available Margin Capital (The user's own cash contribution in Rupees)
+- Proposed Business Category (e.g., Organic Poultry, Dairy, Flour Mill, Cold Storage, Grocery)
+
+Within seconds, the platform executes a synchronized pipeline:
+1. Normalizes the location to geographic GPS coordinates.
+2. Fires a spatial radar query across OpenStreetMap to detect active local competitors within 5-10 km.
+3. Applies deterministic financial arithmetic (zero AI hallucination) to size project costs and amortize loans.
+4. Prompts a strictly bounded Large Language Model (Groq / Gemini) to draft hyper-local SWOT, pricing,
+   and supply chain advice using the real competitor count as immutable ground truth.
+5. Translates the analysis into regional Indian languages (Hindi, Marathi, Bengali, Telugu, etc.).
+6. Generates a bank-ready, vector PDF Feasibility Report with official audit tables.
+7. Empowers the user to operate the entire portal through an Indian-accented bilingual Voice Assistant.
+
+
+====================================================================================================
+2. PROGRAMMING LANGUAGES, FRAMEWORKS & COMPLETE TECH STACK
+====================================================================================================
+
+2.1 FRONTEND ARCHITECTURE
+-------------------------
+- Core Language:
+  * JavaScript (ES2022+ / Modern ECMAScript)
+  * TypeScript (Typings, type definitions, counter / main configurations)
+  * JSX (React Component Structure)
+- Framework & Core Libraries:
+  * React 19 (v19.2.8): Modern concurrent component architecture, hooks (useState, useEffect,
+    useCallback, useRef, useMemo).
+  * Vite 8 (v8.2.2): Next-generation ultra-fast frontend build tool and dev server.
+  * Vite Plugin PWA (v1.3.0): Progressive Web App support for offline asset caching and mobile installation.
+- Styling & User Interface:
+  * Tailwind CSS v4 (v4.3.3) with @tailwindcss/postcss: Utility-first CSS engine using modern color tokens,
+    dark/light responsive surfaces, glassmorphism backdrops, and mobile-first typography.
+  * PostCSS (v8.5.26) & Autoprefixer (v10.5.4): Modern CSS processing pipeline.
+  * Google Material Symbols Outlined: Vector iconography for agricultural, meteorological, and banking icons.
+  * SplitText.jsx: Dynamic typography and smooth text-revealing effects.
+- Motion & Animation:
+  * GSAP (GreenSock Animation Platform v3.15.0): Hardware-accelerated UI transitions and entrance effects.
+- Data Visualization & Charting:
+  * Recharts (v3.10.1): Responsive SVG AreaCharts, BarCharts, PieCharts, and customized tooltips for cashflow,
+    amortization curves, and competitor breakdowns.
+- Internationalization (i18n):
+  * i18next (v26.4.1) & react-i18next (v17.0.13): Zero-reload in-memory translation switching between
+    English, Marathi, and Hindi, persisting user preferences in browser localStorage.
+- Client-Side Voice & Audio:
+  * Web Speech Recognition API (SpeechRecognition / webkitSpeechRecognition): Client-side speech-to-text.
+  * Web SpeechSynthesis API: Browser-native text-to-speech voice playback.
+  * Web Audio & MediaDevices API: Audio stream capture for WebSocket transmission.
+
+2.2 BACKEND ARCHITECTURE
+------------------------
+- Core Language:
+  * Python 3.10+ (Utilizing modern type hinting, dataclasses, pattern matching, async/await coroutines).
+- Server & API Framework:
+  * FastAPI (v0.115.0+): High-performance, asynchronous REST & WebSocket framework.
+  * Uvicorn (v0.30.0+): Lightning-fast ASGI web server implementation.
+- Data Serialization & Validation:
+  * Pydantic v2 (v2.7.0+): Strict schema enforcement, input validation, and serialization.
+- Networking & HTTP Clients:
+  * HTTPX (v0.27.0+): High-performance asynchronous and synchronous HTTP client with connection pooling
+    and timeout controls.
+- Document & Report Generation:
+  * ReportLab (v4.0.0+): Programmatic vector PDF creation with custom tables, flowable paragraphs,
+    color palettes, and mathematical amortization ledgers.
+  * WeasyPrint (v62.0+): HTML/CSS-to-PDF rendering engine for printable agro-protocols.
+- Persistence Layer:
+  * Python SQLite3 Standard Library: Zero-dependency, file-based relational storage with thread-safe
+    connection pooling and auto-schema migrations.
+- Automated Testing Framework:
+  * Pytest (v8.0.0+) & Pytest-Asyncio (v0.23.0+): Test runner covering 131+ automated unit and integration tests.
+
+2.3 AI / MACHINE LEARNING & TRANSLATION ENGINES
+-----------------------------------------------
+- Groq Cloud Python SDK (groq v0.11.0+):
+  * Ultra-low-latency LPU inference executing Llama-3.3-70B-Versatile / OpenAI gpt-oss-120b.
+  * Enforced JSON mode output (response_format={"type": "json_object"}).
+- Google Generative AI (google-generativeai v0.7.0+):
+  * Gemini 1.5 Flash integration for high-context analytical evaluation.
+- Multilingual Translation Pipeline:
+  * Primary: MyMemory Free Translation API (Free tier, zero API key required, supporting 11 Indian languages).
+  * Secondary / Enterprise: Bhashini ULCA Pipeline (Government of India Ministry of Electronics and IT).
+  * Graceful Fallback: Deterministic English passthrough to ensure 100% service uptime.
+
+2.4 GEOSPATIAL & METEOROLOGICAL EXTERNAL INFRASTRUCTURE
+-------------------------------------------------------
+- OpenStreetMap Nominatim API: Free global address geocoding with Indian bounding box biases.
+- OpenStreetMap Overpass API: Spatial query engine executing Overpass QL against live OpenStreetMap nodes/ways.
+- Open-Meteo API: High-resolution numerical weather prediction model feeds (WMO compliant, zero key required).
+
+
+====================================================================================================
+3. COMPLETE FEATURE-BY-FEATURE BREAKDOWN
+====================================================================================================
+
+3.1 FEATURE 1: STANDALONE DETERMINISTIC SCHEME CALCULATOR & SCENARIO SIMULATOR
+-------------------------------------------------------------------------------
+- Purpose: Provides an instant, offline-capable financial evaluation of an entrepreneur's borrowing capacity.
+- Frontend Files: frontend/src/components/SchemeCalculator.jsx, ScenarioCalculator.jsx
+- Backend Files : backend/app/core/calculator.py, backend/app/core/amortization.py
+- Key Capabilities:
+  * Real-time sliders allowing the user to adjust their Margin Capital from ₹5,000 to ₹5,00,000+.
+  * Instant automatic categorization into either "Micro Finance Scheme" or "Term Loan Scheme".
+  * Instant rendering of Total Project Cost, Sanctioned Bank Loan, Interest Rate, Tenure, and Moratorium.
+  * "What-If" Scenario Simulator: Lets borrowers test what happens to their monthly obligations if the
+    interest rate increases by 1% or if loan tenure is shortened by 24 months.
+
+3.2 FEATURE 2: 3-STEP FEASIBILITY INPUT WIZARD & DYNAMIC BUSINESS PLAN GENERATOR
+--------------------------------------------------------------------------------
+- Purpose: Step-by-step onboarding for non-technical rural users to build a complete bank appraisal report.
+- Frontend Files: frontend/src/components/InputWizard.jsx, MarketReport.jsx
+- Backend Files : backend/app/api/routes.py (POST /api/generate-report)
+- Steps:
+  * Step 1 (Location): Pinpoint village, block, or district (or tap the GPS auto-detect button).
+  * Step 2 (Capital): Enter cash in hand (Piggy bank / Margin money).
+  * Step 3 (Category): Select business type from 19 supported rural micro-enterprise domains (Dairy, Poultry,
+    Flour Mill, Tailoring, Cold Storage, Grocery, etc.).
+- Output: A comprehensive visual dashboard displaying a 90% Market Viability circular gauge, SWOT matrix,
+  quarterly reducing amortization curves, hyper-local threats, and pricing advice.
+
+3.3 FEATURE 3: GEOSPATIAL COMPETITOR RADAR & POI DENSITY MAPPING
+----------------------------------------------------------------
+- Purpose: Ground-truth market validation to prevent rural business overcrowding and failure.
+- Frontend Files: frontend/src/components/MarketReport.jsx (OSM Summary Card)
+- Backend Files : backend/app/core/geocoder.py, backend/app/core/osm_fetcher.py
+- Key Capabilities:
+  * Normalizes human-typed village names into exact WGS-84 latitude and longitude coordinates.
+  * Fires a 5 km to 10 km radial query over the OpenStreetMap database for matching tags.
+  * Aggregates real competitors and categorizes local saturation as "None", "Sparse", "Moderate", or "Dense".
+  * Identifies first-mover advantage opportunities in underserved rural panchayats.
+
+3.4 FEATURE 4: STRICTLY-BOUNDED AI ADVISORY & SWOT GENERATOR
+------------------------------------------------------------
+- Purpose: Delivers commercial bank-manager quality feasibility reasoning without hallucination risks.
+- Backend Files: backend/app/core/advisory.py
+- Key Capabilities:
+  * Bounded system prompt injecting real calculated financial figures and real OSM competitor counts.
+  * Explicit guardrails prohibiting the AI from fabricating demographics, creating fake competitors, or
+    attempting financial math.
+  * Outputs structured JSON conforming strictly to Pydantic validation schemas.
+  * Generates actionable SWOT analysis, rural distribution channels (weekly haats, mandis), and margin-based
+    pricing strategies.
+
+3.5 FEATURE 5: BANK-READY VECTOR PDF FEASIBILITY REPORT EXPORT
+--------------------------------------------------------------
+- Purpose: Generates an official, printable document that a rural entrepreneur can take directly to a bank branch.
+- Backend Files: backend/app/report/pdf.py, backend/app/api/routes.py (GET /api/report/{session_id}/pdf)
+- Key Capabilities:
+  * Formatted with official header banners, timestamped session IDs, and regional context.
+  * Includes executive summary tables, capital structure breakdowns, and government subsidy annotations.
+  * Contains full multi-year quarterly amortization ledgers displaying Opening Balance, Principal, Interest,
+    Total Payment, and Closing Balance.
+  * Vector-sharp typography and layout generated using Python ReportLab.
+
+3.6 FEATURE 6: END-TO-END LOAN APPLICATION, SANCTIONING & REPAYMENT TRACKER
+----------------------------------------------------------------------------
+- Purpose: Full lifecycle management of micro-enterprise loans from application to full payoff.
+- Frontend Files: frontend/src/components/LoanHistory.jsx, RepaymentTracker.jsx
+- Backend Files : backend/app/core/loan_store.py, backend/app/core/loan_schedule.py, backend/app/api/routes.py
+- Key Capabilities:
+  * Apply for Loan: Direct one-click application submission from the Feasibility Report, generating unique
+    tracking IDs (e.g., LN-2026-4821).
+  * Bank Officer Approval Action: Dedicated workflow allowing officers to review pending applications, adjust
+    sanctioned amounts, customize interest rates, and issue sanctions.
+  * Monthly Repayment Tracker: Visual calendar with paid/unpaid status badges, next due date alerts, and
+    outstanding principal balance tracking.
+  * In-Order Repayment Enforcement: Rejects out-of-order or duplicate payments with strict HTTP 409 Conflict checks.
+  * Downloadable Statement: Generates and downloads full CSV statements of the approved repayment schedule.
+
+3.7 FEATURE 7: LIVE OPEN-METEO WEATHER & DETERMINISTIC CROP-RISK ADVISORY
+-------------------------------------------------------------------------
+- Purpose: Real-time agro-climatic intelligence to safeguard rural enterprises and agricultural production.
+- Frontend Files: frontend/src/components/WeatherRisk.jsx
+- Backend Files : backend/app/core/weather.py
+- Key Capabilities:
+  * Live district forecast via Open-Meteo API (temperature, humidity, wind, rainfall probability, precipitation sum).
+  * Deterministic 0 to 10 Crop-Risk Index scoring current conditions from "Low" to "Severe".
+  * Automated contextual advisories covering irrigation planning, heat-stress precautions, storm watches,
+    and spraying feasibility.
+  * In-memory 5-minute caching to eliminate unnecessary external API latency.
+
+3.8 FEATURE 8: PARAMETRIC WEATHER INSURANCE, LIVE TRIGGERS & CLAIMS MANAGEMENT
+------------------------------------------------------------------------------
+- Purpose: Direct integration with automated parametric weather insurance (PMFBY / AWS-linked policies).
+- Frontend Files: frontend/src/components/WeatherRisk.jsx (Parametric Insurance Tab)
+- Backend Files : backend/app/core/agro.py, backend/app/core/advisory_store.py
+- Key Capabilities:
+  * Live Trigger Evaluation: Automatically tests 7-day forecasts against policy trigger thresholds:
+    1. Excess Precipitation (> 65 mm in 24 hours).
+    2. Prolonged Dry Spell / Drought (> 21 consecutive rainless days).
+    3. Thermal Inversion / Heat Wave (> 3 consecutive days above 41°C during flowering).
+  * Trigger Statuses: Categorized into "SAFE", "WATCHLIST", or "TRIGGERED".
+  * Direct Claim Submission: Farmers can file a claim specifying damage type and affected acreage.
+  * Deterministic Payout Estimation: Pre-calculates exact DBT compensation based on policy sum insured.
+  * SQLite persistence for claims, surfacing unread claim filings directly in the dashboard notification bell.
+
+3.9 FEATURE 9: SMART AGRICULTURAL SPRAY WINDOW PROTOCOL & FIELD REMINDERS
+--------------------------------------------------------------------------
+- Purpose: Prevent chemical fertilizer/pesticide waste by calculating optimal spray windows.
+- Frontend Files: frontend/src/components/WeatherRisk.jsx (Spray Windows & Field Reminders)
+- Backend Files : backend/app/core/agro.py, backend/app/core/advisory_store.py
+- Key Capabilities:
+  * Daily Spray Classification: Flags each day as "Optimal Spray", "Good Window", "Marginal", or "Avoid Spray"
+    based on precipitation probability, wind drift, and rainfall mm.
+  * Best Spray Window Recommendation: Recommends precise morning time slots (e.g., 06:30 AM – 10:30 AM).
+  * Printable Protection Protocol Document: Generates and serves a formatted HTML protocol document ready to
+    print or save as PDF.
+  * Field Reminder Scheduler: Allows farmers to set SMS/Call/Push reminders for spray days, stored in SQLite.
+
+3.10 FEATURE 10: HARVEST LOT LOGGING LEDGER & REVENUE AGGREGATOR
+----------------------------------------------------------------
+- Purpose: Enables farmers and co-operatives to record commodity harvests and track agricultural cash revenue.
+- Frontend Files: frontend/src/components/DashboardHome.jsx (Harvest Logging Modal & Table)
+- Backend Files : backend/app/core/harvest_store.py, backend/app/api/routes.py
+- Key Capabilities:
+  * Record produce name, acreage, harvest date, quantity in quintals, and realized price per quintal.
+  * Automatically calculates total lot revenue (`quantity_qtl * price_per_qtl`).
+  * Real-time dashboard summaries computing Total Harvested Quintals, Total Realized Revenue, and Average
+    Price per Quintal across the entire season.
+  * Instant deletion and audit trail management.
+
+3.11 FEATURE 11: CO-OPERATIVE CLUSTER PULSE & ACTIVITY FEED
+-----------------------------------------------------------
+- Purpose: Fosters rural cooperative transparency by broadcasting real portal activities.
+- Frontend Files: frontend/src/components/DashboardHome.jsx (Cluster Activity Card)
+- Backend Files : backend/app/core/cluster.py
+- Key Capabilities:
+  * Assembles genuine, real-time activity events across the cluster:
+    - New loan applications submitted
+    - Sanctions approved by bank officers
+    - Monthly repayments recorded
+    - Harvest lots logged by neighboring members
+  * Anonymizes member identities while creating institutional trust and community motivation.
+
+3.12 FEATURE 12: REAL-TIME APMC MANDI COMMODITY MARKET PRICES FEED
+------------------------------------------------------------------
+- Purpose: Protects rural entrepreneurs from distress selling by showing live APMC market rates.
+- Frontend Files: frontend/src/components/MarketPrices.jsx
+- Backend Files : backend/app/api/routes.py (GET /api/market-prices)
+- Key Capabilities:
+  * Tracks key regional commodities: Soybean, Cotton, Tur (Arhar Dal), Wheat, Basmati Rice, Onion, Chana.
+  * Tracks APMC Mandis: Nagpur, Akola, Rajkot, Karnal, Lasalgaon.
+  * Dynamic price fluctuation simulation modeling intra-day mandi arrivals and price changes.
+  * Visual indicators for High Demand (bullish green), Low Demand (bearish red), and Stable rates.
+
+3.13 FEATURE 13: REAL-TIME EVENT-DRIVEN NOTIFICATION ENGINE
+-----------------------------------------------------------
+- Purpose: Centralized action hub keeping farmers and loan officers alerted to critical deadlines.
+- Frontend Files: frontend/src/components/Dashboard.jsx (NotificationsPanel)
+- Backend Files : backend/app/api/routes.py (GET /api/notifications)
+- Notification Sources (Zero Mock Data):
+  1. EMI Due Alerts: Scans all active loans for instalments due within the next 7 days.
+  2. Loan Sanction Queue: Alerts loan officers when pending applications require approval.
+  3. Weather Risk Alerts: Triggers an urgent notification whenever the district crop risk score is >= 5.
+  4. Insurance Claims: Alerts the user upon successful submission of parametric damage claims.
+
+3.14 FEATURE 14: MULTILINGUAL I18N LOCALIZATION (11 REGIONAL INDIAN LANGUAGES)
+------------------------------------------------------------------------------
+- Purpose: Total linguistic democratization for rural users who do not read English.
+- Frontend Files: frontend/src/i18n.js, frontend/src/locales/en.json, hi.json, mr.json
+- Backend Files : backend/app/core/translator.py
+- Key Capabilities:
+  * In-browser instant language switching for UI elements between English, Marathi (मराठी), and Hindi (हिन्दी).
+  * Persistent storage of language selection in localStorage.
+  * Server-side dynamic translation for LLM reports supporting 11 languages:
+    Hindi (hi), Marathi (mr), Bengali (bn), Telugu (te), Tamil (ta), Gujarati (gu),
+    Kannada (kn), Malayalam (ml), Punjabi (pa), Odia (or), and English (en).
+
+3.15 FEATURE 15: DUAL-MODE VOICE ASSISTANT & REAL-TIME "VOICE SURFING"
+----------------------------------------------------------------------
+- Purpose: Hands-free navigation and consultation for rural users with low digital literacy.
+- Detailed in Section 5 below.
+
+
+====================================================================================================
+4. DEEP-DIVE INTO CORE BUSINESS LOGICS & MATHEMATICAL FORMULAS
+====================================================================================================
+
+4.1 THE 10% MARGIN CAPITAL & 90% LOAN SIZING MODEL
+--------------------------------------------------
+Under national rural micro-enterprise guidelines (NABARD, PMEGP, State Credit Agencies), the prospective
+entrepreneur is required to contribute a minimum equity stake of 10% (Margin Capital). The institutional
+lender provides 90% debt financing.
+
+Mathematical Formulation:
+  Margin Capital (M) = Provided by user (₹)
+  Margin Percentage  = 10% (0.10)
+  Debt Percentage    = 90% (0.90)
+
+  Total Project Cost (P_cost) = M / 0.10
+  Bank Loan Amount   (L)      = P_cost * 0.90 = (M / 0.10) * 0.90 = M * 9.0
+
+Example:
+  User enters Margin Capital = ₹50,000
+  Total Project Cost = ₹50,000 / 0.10 = ₹5,00,000
+  Sanctioned Loan    = ₹5,00,000 * 0.90 = ₹4,50,000
+
+4.2 GOVERNMENT SCHEME ROUTING GATES & ELIGIBILITY BOUNDS
+--------------------------------------------------------
+In `backend/app/core/calculator.py`, routing is completely deterministic:
+
+  Condition 1: Margin Capital <= 0
+    -> ACTION: REJECT with ValueError("Margin capital must be positive.")
+
+  Condition 2: Total Project Cost <= ₹1,40,000 (Margin Capital <= ₹14,000)
+    -> ROUTE TO: "Micro Finance Scheme"
+    -> Annual Interest Rate : 6.50% p.a.
+    -> Loan Tenure          : 36 Months (3 Years / 12 Quarters)
+    -> Moratorium (Grace)   : 3 Months (1 Quarter)
+    -> Repayment Unit       : Quarterly Reducing Balance
+
+  Condition 3: ₹1,40,000 < Total Project Cost <= ₹50,00,000 (₹14,000 < Margin <= ₹5,00,000)
+    -> ROUTE TO: "Term Loan Scheme"
+    -> Annual Interest Rate : 8.00% p.a. (Eligible for subvention down to 7.00%)
+    -> Loan Tenure          : 84 Months (7 Years / 28 Quarters)
+    -> Moratorium (Grace)   : 6 Months (2 Quarters)
+    -> Repayment Unit       : Quarterly Reducing Balance
+
+  Condition 4: Total Project Cost > ₹50,00,000 (Margin Capital > ₹5,00,000)
+    -> ACTION: REJECT with SchemeError("Project cost exceeds maximum limit of ₹50,00,000.")
+
+4.3 MORATORIUM (GRACE PERIOD) MECHANICS
+---------------------------------------
+Micro-enterprises (such as livestock, dairy, poultry, crops) require gestation time before generating revenue.
+During the Moratorium:
+- Principal Repayment = ₹0.00
+- Borrower pays ONLY the accrued interest for that period.
+- Amortization begins strictly after the moratorium ends.
+
+4.4 REDUCING-BALANCE AMORTIZATION FORMULAS
+------------------------------------------
+
+A) Quarterly Amortization (Report Engine — `amortization.py`):
+   Total Quarters (Q_total) = Tenure Months / 3
+   Moratorium Quarters (Q_mora) = Moratorium Months / 3
+   Repayment Quarters (Q_repay) = Q_total - Q_mora
+
+   Quarterly Interest Rate:
+     r_q = (Annual Interest Rate / 100) / 4
+
+   During Moratorium (Quarters 1 to Q_mora):
+     Interest Payment  = Loan Amount * r_q
+     Principal Payment = 0
+     Total Payment     = Interest Payment
+     Closing Balance   = Opening Balance = Loan Amount
+
+   Post-Moratorium (Quarters Q_mora + 1 to Q_total):
+     Quarterly EMI = L * [ r_q * (1 + r_q)^Q_repay ] / [ (1 + r_q)^Q_repay - 1 ]
+     For each quarter:
+       Interest Component  = Opening Balance * r_q
+       Principal Component = Quarterly EMI - Interest Component
+       Closing Balance     = Opening Balance - Principal Component
+       (On the final quarter, Principal Component absorbs any rounding delta to ensure Closing Balance = 0.00)
+
+B) Monthly Amortization (Loan Approval & Repayment Tracking — `loan_schedule.py`):
+   Monthly Interest Rate:
+     r_m = (Annual Interest Rate / 100) / 12
+
+   Monthly EMI:
+     EMI = L * [ r_m * (1 + r_m)^n ] / [ (1 + r_m)^n - 1 ]
+     where n = Tenure Months
+
+4.5 GOVERNMENT CAPITAL SUBSIDY FORMULA & CAPPING LOGIC
+------------------------------------------------------
+Under priority sector agricultural initiatives (e.g., Agriculture Infrastructure Fund - AIF):
+  Subsidy Rate = 25% of Total Project Cost
+  Subsidy Cap  = ₹5,00,000 (Maximum Backend Credit)
+
+  Subsidy Amount = MIN(Project Cost * 0.25, 500000)
+
+Example 1: Project Cost = ₹1,20,000
+  Subsidy = MIN(120000 * 0.25, 500000) = MIN(30000, 500000) = ₹30,000
+
+Example 2: Project Cost = ₹30,00,000
+  Subsidy = MIN(3000000 * 0.25, 500000) = MIN(750000, 500000) = ₹5,00,000 (Capped)
+
+4.6 OPENSTREETMAP COMPETITOR DENSITY CLASSIFICATION ALGORITHM
+-------------------------------------------------------------
+In `backend/app/core/osm_fetcher.py`, the Overpass API executes an around-radius spatial scan:
+  Count = Number of matching POI nodes and ways within radius_km (default 10 km).
+
+Classification Rules:
+  - Count == 0         : "None (First-Mover Opportunity)"
+  - 1 <= Count <= 3    : "Sparse"
+  - 4 <= Count <= 10   : "Moderate"
+  - Count > 10         : "Dense (Saturated)"
+
+4.7 MARKET VIABILITY SCORE (90% GREEN CIRCLE ALGORITHM)
+-------------------------------------------------------
+In `frontend/src/components/MarketReport.jsx`, the viability gauge is computed deterministically:
+  Baseline Score = 85
+
+  Modifier Based on Density:
+    If Density is "None" or "Sparse" : Modifier = +5  -> Final = 90% (High Potential)
+    If Density is "Moderate"         : Modifier = -10 -> Final = 75% (Moderate Potential)
+    If Density is "Dense"            : Modifier = -20 -> Final = 65% (High Competition)
+
+  Score Clamping:
+    Viability Score = MAX(20, MIN(100, Baseline + Modifier))
+
+4.8 DETERMINISTIC WEATHER & CROP-RISK 0-10 INDEX RULES
+------------------------------------------------------
+In `backend/app/core/weather.py`, risk scoring is rule-based:
+  Base Score = 1
+
+  Rule 1 (Rain Probability):
+    If any day in forecast has rain probability >= 60%:
+      Score += 3
+      Add advisory: "Plan around incoming rain; delay irrigation and harvesting."
+
+  Rule 2 (Humidity & Fungal Threat):
+    If mean 7-day relative humidity >= 70%:
+      Score += 2
+      Add advisory: "Scout for pest & fungal pressure (bollworm, blight)."
+
+  Rule 3 (Extreme Heat Stress):
+    If maximum temperature >= 38°C:
+      Score += 3
+      Add advisory: "Heat-stress management; irrigate early morning/evening, shelter livestock."
+
+  Rule 4 (Wind Drift):
+    If maximum wind speed >= 35 km/h:
+      Score += 1
+      Add advisory: "Hold off on spraying; high wind causes chemical drift."
+
+  Rule 5 (Thunderstorm Hazard):
+    If any day has WMO code >= 95 (Thunderstorm):
+      Score += 1
+      Add advisory: "Storm watch; secure polyhouses and shade nets."
+
+  Final Risk Score = MAX(0, MIN(10, Computed Score))
+  Classification:
+    0 - 2 : "Low Risk"
+    3 - 5 : "Moderate Risk"
+    6 - 7 : "High Risk"
+    8 - 10: "Severe Risk"
+
+4.9 PEST THREAT ESTIMATION ALGORITHM
+------------------------------------
+In `backend/app/core/agro.py`, pest vector outbreaks are calculated from humidity and rainfall:
+  Average Humidity = Mean(relative_humidity_2m_mean across daily forecast)
+  Rainy Days Count = Count(days with precipitation_sum >= 1.0 mm)
+
+  Level 3 Alert (Pink Bollworm & Yellow Mosaic Virus):
+    Trigger: Average Humidity >= 70% AND Rainy Days >= 2
+    Risk Percentage: MIN(95, 35 + (Average Humidity - 70) * 4)
+    Action Protocol: Deploy 5 pheromone traps/acre; release Trichogramma bactrae.
+
+  Level 2 Watch (Stem Fly & Charcoal Rot Blight):
+    Trigger: Average Humidity >= 60%
+    Risk Percentage: MIN(70, 30 + (Average Humidity - 60) * 3)
+    Action Protocol: Spray Chlorantraniliprole 18.5 SC @ 3 ml/10 L water; Trichoderma at stem base.
+
+  Level 1 Low (Aphids / Thrips - Low):
+    Trigger: Average Humidity < 60%
+    Risk Percentage: MAX(15, 35 - (60 - Average Humidity) * 1.5)
+    Action Protocol: Routine weekly scouting; keep neem-based foliar spray ready.
+
+4.10 AGRICULTURAL SPRAY-WINDOW CLASSIFICATION RULES
+---------------------------------------------------
+For each daily forecast day:
+  - Precipitation Probability = P_rain (%)
+  - Wind Speed 10m Max        = W (km/h)
+  - Weather Code              = C (WMO integer)
+  - Precipitation Sum         = R (mm)
+
+  Classification Hierarchy:
+    1. AVOID SPRAY:
+       If C >= 95 OR P_rain >= 85% OR (R >= 10 mm AND P_rain >= 60%)
+    2. OPTIMAL SPRAY:
+       If P_rain < 35% AND W < 15 km/h
+    3. GOOD WINDOW:
+       If P_rain < 60% AND W < 20 km/h
+    4. MARGINAL:
+       All other combinations.
+
+4.11 PARAMETRIC INSURANCE TRIGGER EVALUATION & PAYOUT ESTIMATION
+----------------------------------------------------------------
+In `backend/app/core/agro.py`:
+- Sum Insured = ₹8,50,000 across 28.5 Acres (Base Policy: PMFBY-AIC-MHA-89218)
+- Payout Claim Factors:
+  * Excess Rain (> 65 mm in 24h)     : 25% of Sum Insured
+  * Hailstorm / High-Wind Damage     : 35% of Sum Insured
+  * Prolonged Drought (> 21 dry days): 20% of Sum Insured
+  * Heat Wave (> 3 days > 41°C)      : 15% of Sum Insured
+  * High-Wind Lodging                : 15% of Sum Insured
+
+- Pro-Rata Acreage Payout Formula:
+  Acre Fraction = MIN(1.0, Area Acres / 28.5)
+  Estimated Payout = Sum Insured * Claim Factor * Acre Fraction
+
+  Example: Excess Rain on 14.25 Acres:
+    Acre Fraction = 14.25 / 28.5 = 0.50
+    Estimated Payout = ₹8,50,000 * 0.25 * 0.50 = ₹1,06,250
+
+4.12 FAIL-SAFE GEOCODING & INTERNAL INDIAN DISTRICT GAZETTEER FALLBACK
+----------------------------------------------------------------------
+To ensure the platform never halts when international OpenStreetMap servers experience latency,
+`backend/app/core/geocoder.py` embeds a 40-district offline Indian gazetteer covering:
+- Vidarbha / Maharashtra (Akola, Nagpur, Amravati, Wardha, Yavatmal, Chandrapur, Bhandara, Gondia, etc.)
+- Rest of Maharashtra (Pune, Mumbai, Nashik, Chhatrapati Sambhajinagar, Kolhapur, Solapur, Latur, etc.)
+- North & Central India (Barabanki, Rampur, Lucknow, Varanasi, Jaipur, Bhopal, Indore, Patna, etc.)
+If Nominatim fails or times out (> 6s), the internal gazetteer resolves coordinates instantly in 0 milliseconds.
+
+4.13 ANTI-HALLUCINATION PROMPT ENGINEERING CONSTRAINTS
+------------------------------------------------------
+In `backend/app/core/advisory.py`:
+- Rule 1: The model is NEVER allowed to calculate or alter financial amounts (Project Cost, Loan, EMI).
+- Rule 2: Competitor figures from OSM are injected as immutable ground truth.
+- Rule 3: The model is strictly instructed: "Do NOT invent demographic statistics, population figures,
+  or income data."
+- Rule 4: Output is validated via Pydantic; if schema parsing fails, an automated single-retry is executed.
+
+
+====================================================================================================
+5. VOICE ASSISTANCE ARCHITECTURE (CLIENT-SIDE & WEBSOCKET STREAMING)
+====================================================================================================
+FinGrow features a dual-layer voice architecture designed for high availability, Indian accents,
+and instant UI responsiveness.
+
+5.1 CLIENT-SIDE WEB SPEECH RECOGNITION (BROWSER-NATIVE)
+-------------------------------------------------------
+- Component: `frontend/src/components/FloatingVoiceAgent.jsx` & `hooks/useVoiceAndLocation.js`
+- API Used: `window.SpeechRecognition || window.webkitSpeechRecognition`
+- Configuration:
+  * `recognition.continuous = true` (Keeps mic stream open during conversational pauses)
+  * `recognition.interimResults = true` (Displays live words as the farmer speaks)
+  * `recognition.lang = 'en-IN'` (Configured for Indian English accents and Hinglish pronunciations)
+- Stream Resolution:
+  * Interim results are appended with an ellipsis ("…") to provide visual feedback.
+  * Finalized transcripts are parsed by the intent routing engine.
+
+5.2 INTENT CLASSIFICATION, PATTERN MATCHING & "VOICE SURFING"
+-------------------------------------------------------------
+The user can navigate the entire application by voice without clicking a single button:
+
+1. Navigation Intents:
+   - User says: "Open scheme calculator" / "calculate loan"
+     -> Calls `onNavigate('calculator')`
+     -> Regex match: `\b(\d{4,})\b`
+     -> If user says "Open calculator with 100000", it automatically parses ₹1,00,000 and sets the slider!
+   - User says: "Show feasibility report" / "business plan"
+     -> Calls `onNavigate('feasibility')`
+   - User says: "Check my loan history" / "my active loans"
+     -> Calls `onNavigate('history')`
+   - User says: "Show mandi rates" / "market prices"
+     -> Calls `onNavigate('market')`
+   - User says: "Go to dashboard" / "take me home"
+     -> Calls `onNavigate('dashboard')`
+
+2. Modal Interaction & Accessibility:
+   - Dismissible via UI close button, clicking the backdrop, or pressing the `Escape` key.
+   - Global event listeners (`open-voice-agent`, `open-chat-support`, `open-chat-with`) allow any card in the
+     app to open the voice assistant with prefilled queries.
+
+5.3 SPEECH SYNTHESIS (TTS) & ACOUSTIC CUSTOMIZATION
+---------------------------------------------------
+- API Used: `window.speechSynthesis` & `SpeechSynthesisUtterance`
+- Configuration:
+  * Language: `'en-IN'`
+  * Speech Rate: `1.0` (Natural conversational cadence)
+  * Pitch: `1.0`
+  * Prior to speaking, `synth.cancel()` is called to flush any queued utterances and prevent voice stutter.
+
+5.4 BUILT-IN OFFLINE DOMAIN KNOWLEDGE BASE
+------------------------------------------
+If the user asks an informational question (rather than a navigation command), the assistant consults an
+embedded expert rural knowledge base (`KNOWLEDGE_BASE`):
+- Keyword "subsidy" -> Explains Maha-Krushi 25% capital subsidy and NABARD priority norms.
+- Keyword "poultry" -> Explains Vidarbha organic poultry viability (85% score, 18-month break-even).
+- Keyword "interest" / "emi" -> Explains priority sector 7.00% p.a. terms and 6-month moratorium.
+- Keyword "eligibility" -> Explains 15% equity margin, 7/12 land records, and Udyam registration.
+- Keyword "market" -> Points to live APMC organic commodity rates.
+
+5.5 SERVER-SIDE WEBSOCKET AUDIO STREAMING (`/ws/voice`)
+-------------------------------------------------------
+- Backend Skill Location: `backend/agent/skills/websocket-voice-stream/voice_server.py`
+- Protocol: Asynchronous Full-Duplex WebSocket (`ws://localhost:8000/ws/voice`)
+- Pipeline:
+  1. Frontend captures binary audio chunks using the browser `MediaRecorder` API.
+  2. Binary audio frames are transmitted over the open WebSocket.
+  3. Server-side Regional STT Integration: Transcribes raw audio frames to text (integrates Sarvam AI /
+     Bhashini speech models).
+  4. Instant Transcript Broadcast: Emits `{"transcript": "..."}` back to the client for immediate UI rendering.
+  5. LLM Business Logic Processing: Evaluates the transcript against business rules.
+  6. Server-side Regional TTS Integration: Synthesizes high-fidelity regional Indian voice audio bytes.
+  7. Audio Streaming: Server sends binary audio back to the frontend for zero-latency audio playback.
+
+
+====================================================================================================
+6. COMPLETE API SPECIFICATION & REFERENCE
+====================================================================================================
+
+6.1 INTERNAL REST ENDPOINTS (FASTAPI)
+-------------------------------------
+
+[SYSTEM & REFERENCE]
+- GET /api/health
+  * Tag: System
+  * Purpose: Liveness probe. Returns `{"status": "ok", "service": "AI Business Advisory Assistant"}`.
+- GET /api/categories
+  * Tag: Reference
+  * Purpose: Returns all 19 supported rural micro-enterprise categories.
+- GET /api/languages
+  * Tag: Reference
+  * Purpose: Returns all supported output language codes (en, hi, mr, bn, te, ta, gu, kn, ml, pa, or).
+
+[FINANCIAL CALCULATOR]
+- POST /api/calculate
+  * Tag: Financial Calculator
+  * Purpose: Pure deterministic math. Zero external keys required.
+  * Request Body: `{"margin_capital": 25000}`
+  * Response: Project cost, loan amount, selected scheme, rate, tenure, moratorium, and full quarterly
+    reducing-balance amortization schedule.
+
+[FULL ADVISORY REPORT & PDF]
+- POST /api/generate-report
+  * Tag: Full Advisory Report
+  * Purpose: Orchestrates Nominatim Geocoding -> OSM Competitor Radar -> Financial Calculation -> Groq LLM
+    Advisory -> Multilingual Translation -> SQLite Session Storage.
+  * Request Body:
+    {
+      "location": "Barabanki, Uttar Pradesh",
+      "margin_capital": 25000,
+      "business_category": "dairy",
+      "language": "hi",
+      "radius_km": 10.0
+    }
+  * Response: `FullReportResponse` with session_id, financials, amortization, OSM competitor density summary,
+    and translated SWOT report.
+- GET /api/report/{session_id}/pdf
+  * Tag: Full Advisory Report
+  * Purpose: Compiles and streams a vector PDF report generated via ReportLab.
+
+[LOAN APPLICATIONS & REPAYMENT LIFECYCLE]
+- POST /api/loans/apply
+  * Tag: Loan Applications
+  * Purpose: Submits a new loan application. Generates reference ID (e.g., `LN-2026-4821`). Persists in `loans.db`.
+- POST /api/loans/{application_id}/approve
+  * Tag: Loan Applications
+  * Purpose: Bank-officer approval action. Transitions status from "Pending" to "Active" and generates
+    a monthly EMI repayment calendar.
+  * Optional Body: `{"approved_amount": 450000, "annual_rate_pct": 7.0, "tenure_months": 84, "officer_note": "Sanctioned"}`.
+- GET /api/loans/{application_id}/repayment
+  * Tag: Loan Applications
+  * Purpose: Returns repayment progress: months paid, outstanding principal, next due date, and payment flags.
+- POST /api/loans/{application_id}/repayments/{month}
+  * Tag: Loan Applications
+  * Purpose: Records payment for a scheduled monthly instalment in sequential order.
+- GET /api/loans/{application_id}/statement
+  * Tag: Loan Applications
+  * Purpose: Streams the approved loan's repayment schedule as a downloadable CSV statement.
+- GET /api/loan-history
+  * Tag: Loan History
+  * Purpose: Retrieves stored applications (newest first) merged with historical reference loans.
+
+[WEATHER, CROP RISK & PARAMETRIC INSURANCE]
+- GET /api/weather?location=...&days=5
+  * Tag: Weather & Crop Risk
+  * Purpose: Real-time 5 to 7 day forecast from Open-Meteo, 0-10 crop-risk score, and rule-based advisories.
+- GET /api/insurance/policy?location=...
+  * Tag: Weather & Crop Risk
+  * Purpose: Parametric insurance policy facts, live trigger evaluations against the forecast, and claim history.
+- POST /api/insurance/claims
+  * Tag: Weather & Crop Risk
+  * Purpose: Files a weather damage claim with deterministic DBT payout estimation.
+- DELETE /api/insurance/claims/{claim_id}
+  * Tag: Weather & Crop Risk
+  * Purpose: Withdraws a filed insurance claim.
+- GET /api/reminders
+  * Tag: Weather & Crop Risk
+  * Purpose: Lists scheduled SMS/call/push field spray reminders.
+- POST /api/reminders
+  * Tag: Weather & Crop Risk
+  * Purpose: Schedules a field reminder for an optimal spray window.
+- DELETE /api/reminders/{reminder_id}
+  * Tag: Weather & Crop Risk
+  * Purpose: Cancels a scheduled field reminder.
+- GET /api/weather/protocol?location=...
+  * Tag: Weather & Crop Risk
+  * Purpose: Renders and downloads a printable HTML crop protection spray-protocol document.
+
+[DASHBOARD, PORTFOLIO & HARVEST]
+- POST /api/harvest
+  * Tag: Harvest Logging
+  * Purpose: Logs a harvested produce lot and computes revenue.
+- GET /api/harvest?limit=200
+  * Tag: Harvest Logging
+  * Purpose: Lists harvest lots with aggregated seasonal revenue statistics.
+- DELETE /api/harvest/{harvest_id}
+  * Tag: Harvest Logging
+  * Purpose: Deletes a harvest record.
+- GET /api/portfolio
+  * Tag: Portfolio
+  * Purpose: Aggregates dashboard KPI figures: Total Outstanding Debt, Monthly EMI Commitments, Total Subsidies.
+- GET /api/portfolio/cashflow?horizon=6
+  * Tag: Portfolio
+  * Purpose: Forecasts upcoming monthly debt obligations and provides a multi-loan repayment ledger.
+- GET /api/cluster/activity?limit=10
+  * Tag: Cluster
+  * Purpose: Recent real portal transactions across the rural co-operative cluster.
+- GET /api/notifications
+  * Tag: Notifications
+  * Purpose: Assembles live unread notifications from EMI due dates, sanction queues, weather alerts, and claims.
+- GET /api/market-prices
+  * Tag: Market Data
+  * Purpose: Returns live simulated mandi commodity prices across Maharashtra APMC markets.
+
+6.2 INTERNAL WEBSOCKET ENDPOINTS
+--------------------------------
+- WS /ws/voice
+  * Accepts: Binary audio frames (WebM/WAV) from frontend MediaRecorder.
+  * Emits (Text): JSON strings `{"transcript": "..."}` for real-time speech display.
+  * Emits (Binary): Binary audio frames containing synthesized TTS audio responses.
+
+6.3 EXTERNAL THIRD-PARTY APIS INTEGRATED
+----------------------------------------
+1. OpenStreetMap Nominatim API:
+   - Endpoint: `https://nominatim.openstreetmap.org/search`
+   - Method: GET
+   - Parameters: `q={location}&format=json&countrycodes=in&viewbox=68.17,7.96,97.40,35.49&bounded=1`
+   - Purpose: Geocoding location strings into latitude and longitude coordinates.
+
+2. OpenStreetMap Overpass API:
+   - Endpoint: `https://overpass-api.de/api/interpreter`
+   - Method: POST
+   - Body: Overpass QL query querying `node` and `way` elements within radial buffer around coordinates.
+   - Purpose: Scans actual local competitor businesses.
+
+3. Open-Meteo API:
+   - Endpoint: `https://api.open-meteo.com/v1/forecast`
+   - Method: GET
+   - Parameters: `latitude={lat}&longitude={lon}&current=...&daily=...&timezone=auto`
+   - Purpose: Real-time, keyless numerical weather predictions.
+
+4. Groq Cloud Inference API:
+   - Endpoint: `https://api.groq.com/openai/v1/chat/completions`
+   - Model: `llama-3.3-70b-versatile` or `openai/gpt-oss-120b`
+   - Purpose: Qualitative SWOT, market reach, and pricing strategy generation.
+
+5. Google Generative AI API:
+   - Model: Gemini 1.5 Flash
+   - Purpose: High-context agricultural feasibility evaluation.
+
+6. MyMemory Translation API:
+   - Endpoint: `https://api.mymemory.translated.net/get`
+   - Method: GET
+   - Parameters: `q={text}&langpair=en|{target_lang}`
+   - Purpose: Free translation of report strings into 11 Indian regional languages.
+
+7. Bhashini ULCA API:
+   - Endpoint: `https://dhruva-api.bhashini.gov.in/services/inference/pipeline`
+   - Method: POST
+   - Purpose: Enterprise government-backed regional translation pipeline.
+
+
+====================================================================================================
+7. DATABASE ARCHITECTURE & SQLITE SCHEMAS
+====================================================================================================
+The backend employs an embedded, zero-maintenance SQLite architecture across four database files in `backend/`:
+
+1. `sessions.db` (`session_store.py`):
+   Stores generated feasibility reports so they can be re-accessed and exported to PDF:
+   ```sql
+   CREATE TABLE IF NOT EXISTS sessions (
+       session_id  TEXT PRIMARY KEY,
+       report_json TEXT NOT NULL,
+       created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+   );
+   ```
+
+2. `loans.db` (`loan_store.py`):
+   Stores loan applications, approval metadata, repayment ledgers, and payment history:
+   ```sql
+   CREATE TABLE IF NOT EXISTS loan_applications (
+       application_id   TEXT PRIMARY KEY,
+       application_json TEXT NOT NULL,
+       created_at       TEXT NOT NULL DEFAULT (datetime('now'))
+   );
+   ```
+
+3. `harvest.db` (`harvest_store.py`):
+   Stores agricultural harvest records and realized commodity revenues:
+   ```sql
+   CREATE TABLE IF NOT EXISTS harvest_lots (
+       harvest_id   TEXT PRIMARY KEY,
+       harvest_json TEXT NOT NULL,
+       created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+   );
+   ```
+
+4. `advisory.db` (`advisory_store.py`):
+   Stores parametric insurance claims and field spray reminders:
+   ```sql
+   CREATE TABLE IF NOT EXISTS insurance_claims (
+       claim_id    TEXT PRIMARY KEY,
+       claim_json  TEXT NOT NULL,
+       created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+   );
+
+   CREATE TABLE IF NOT EXISTS field_reminders (
+       reminder_id   TEXT PRIMARY KEY,
+       reminder_json TEXT NOT NULL,
+       created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+   );
+   ```
+
+
+====================================================================================================
+8. DEPLOYMENT, ENVIRONMENT CONFIGURATION & REPRODUCTION GUIDE
+====================================================================================================
+
+8.1 ENVIRONMENT CONFIGURATION (`backend/.env`)
+----------------------------------------------
+To enable LLM generation, set your API key in `backend/.env`:
+```env
+# Required for AI Feasibility Report Generation:
+GROQ_API_KEY=your_groq_api_key_here
+
+# Optional model selection (default: openai/gpt-oss-120b or llama-3.3-70b-versatile):
+GROQ_MODEL=openai/gpt-oss-120b
+
+# Optional database paths (defaults to local SQLite files in backend/):
+SESSION_DB_PATH=sessions.db
+LOANS_DB_PATH=loans.db
+HARVEST_DB_PATH=harvest.db
+ADVISORY_DB_PATH=advisory.db
+
+# Optional CORS origins (defaults to Vite dev server):
+CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+```
+Note: The Standalone Financial Calculator (`/api/calculate`) and Weather module work completely
+WITHOUT any external API keys!
+
+8.2 LOCAL EXECUTION INSTRUCTIONS
+--------------------------------
+Step 1: Start the Backend (FastAPI)
+  cd backend
+  python -m venv venv
+  # Windows:
+  venv\Scripts\activate
+  # Linux / macOS:
+  source venv/bin/activate
+  pip install -r requirements.txt
+  uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  Interactive Swagger Documentation: http://localhost:8000/docs
+
+Step 2: Start the Frontend (React + Vite)
+  cd frontend
+  npm install
+  npm run dev
+
+  Open Web Application: http://localhost:5173
+
+Step 3: Run Automated Test Suite
+  cd backend
+  python -m pytest tests -v
+  (Executes 131 automated unit and integration tests across financial math, geocoding, and APIs).
+
+8.3 CONTAINERIZED DEPLOYMENT (DOCKER COMPOSE)
+---------------------------------------------
+The root repository provides a production `docker-compose.yml`:
+  docker-compose up --build
+- Spins up the FastAPI backend on port 8000.
+- Spins up the Vite/Nginx frontend on port 5173 / 80.
+- Mounts persistent database volumes for all SQLite stores.
+
+====================================================================================================
+                            END OF PROJECT DOCUMENTATION FILE
+====================================================================================================

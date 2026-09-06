@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const PROFILE_AVATAR = `${import.meta.env.BASE_URL}images/profile-ramesha.jpg`;
 
 export default function Settings({ userLanguage, setUserLanguage, locationText, languages, onLogout }) {
+  const { t } = useTranslation();
   const [prefs, setPrefs] = useState({ smsAlerts: true, emailAlerts: false, voiceAssistant: true, marketTrends: true });
   const [toast, setToast] = useState(null);
 
@@ -36,29 +38,29 @@ export default function Settings({ userLanguage, setUserLanguage, locationText, 
   return (
     <div className="max-w-4xl mx-auto space-y-stack-gap">
       <div className="mb-6">
-        <h2 className="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface font-bold">Settings</h2>
-        <p className="font-body-md text-body-md text-on-surface-variant mt-1">Manage your profile, language preferences, and notifications.</p>
+        <h2 className="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface font-bold">{t('settings.title')}</h2>
+        <p className="font-body-md text-body-md text-on-surface-variant mt-1">{t('settings.subtitle')}</p>
       </div>
 
       {/* Profile Card */}
       <div className="bg-surface-container-lowest rounded-2xl p-6 md:p-8 shadow-sm border border-surface-variant">
-        <h3 className="font-headline-md text-headline-md text-on-surface mb-6">Profile</h3>
+        <h3 className="font-headline-md text-headline-md text-on-surface mb-6">{t('settings.profile_title')}</h3>
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
           <img alt="Entrepreneur Profile" className="w-20 h-20 rounded-full object-cover shadow-sm" src={PROFILE_AVATAR} />
           <div className="flex-1 text-center sm:text-left">
-            <p className="font-headline-md text-headline-md text-on-surface font-bold">Ramesh Kumar</p>
-            <p className="font-body-md text-body-md text-on-surface-variant">District: Vidarbha, Maharashtra</p>
-            <p className="font-body-md text-body-md text-on-surface-variant">Mobile: +91 98765 43210</p>
+            <p className="font-headline-md text-headline-md text-on-surface font-bold">{t('settings.name')}</p>
+            <p className="font-body-md text-body-md text-on-surface-variant">{t('settings.district')}</p>
+            <p className="font-body-md text-body-md text-on-surface-variant">{t('settings.mobile')}</p>
             <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-4">
-              <span className="px-3 py-1 bg-primary/10 text-primary rounded-full font-label-sm text-label-sm border border-primary/20">Kisan Credit Card Holder</span>
-              <span className="px-3 py-1 bg-surface-container text-on-surface-variant rounded-full font-label-sm text-label-sm border border-outline-variant">Verified Farmer</span>
+              <span className="px-3 py-1 bg-primary/10 text-primary rounded-full font-label-sm text-label-sm border border-primary/20">{t('settings.badge_kcc')}</span>
+              <span className="px-3 py-1 bg-surface-container text-on-surface-variant rounded-full font-label-sm text-label-sm border border-outline-variant">{t('settings.badge_farmer')}</span>
             </div>
           </div>
           <button
-            onClick={() => showToast('Profile details saved (demo).')}
+            onClick={() => showToast(t('settings.saved_toast'))}
             className="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-xl font-label-lg text-label-lg shadow-sm hover:shadow-xl transition-shadow min-h-[48px]"
           >
-            <span className="material-symbols-outlined text-sm">edit</span> Edit Profile
+            <span className="material-symbols-outlined text-sm">edit</span> {t('settings.edit_profile')}
           </button>
         </div>
       </div>
@@ -67,9 +69,9 @@ export default function Settings({ userLanguage, setUserLanguage, locationText, 
       <div className="bg-surface-container-lowest rounded-2xl p-6 md:p-8 shadow-sm border border-surface-variant">
         <div className="flex items-center gap-2 mb-2">
           <span className="material-symbols-outlined text-primary">translate</span>
-          <h3 className="font-headline-md text-headline-md text-on-surface">Language</h3>
+          <h3 className="font-headline-md text-headline-md text-on-surface">{t('settings.language_title')}</h3>
         </div>
-        <p className="font-body-md text-body-md text-on-surface-variant mb-6">Reports and advisory responses will be delivered in your preferred language.</p>
+        <p className="font-body-md text-body-md text-on-surface-variant mb-6">{t('settings.language_desc')}</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           {languages.map((lang) => (
             <button
@@ -94,14 +96,14 @@ export default function Settings({ userLanguage, setUserLanguage, locationText, 
       <div className="bg-surface-container-lowest rounded-2xl p-6 md:p-8 shadow-sm border border-surface-variant">
         <div className="flex items-center gap-2 mb-2">
           <span className="material-symbols-outlined text-primary">notifications</span>
-          <h3 className="font-headline-md text-headline-md text-on-surface">Preferences</h3>
+          <h3 className="font-headline-md text-headline-md text-on-surface">{t('settings.preferences_title')}</h3>
         </div>
-        <p className="font-body-md text-body-md text-on-surface-variant mb-4">Control how FinGrow Advisory keeps you informed.</p>
+        <p className="font-body-md text-body-md text-on-surface-variant mb-4">{t('settings.preferences_desc')}</p>
         <div className="divide-y divide-surface-variant">
-          <PreferenceRow title="SMS Alerts" desc="Loan status and repayment reminders via SMS" checked={prefs.smsAlerts} onChange={() => togglePref('smsAlerts')} />
-          <PreferenceRow title="Email Alerts" desc="Monthly statements and scheme updates by email" checked={prefs.emailAlerts} onChange={() => togglePref('emailAlerts')} />
-          <PreferenceRow title="Voice Assistant" desc="Enable the voice assistant across the app" checked={prefs.voiceAssistant} onChange={() => togglePref('voiceAssistant')} />
-          <PreferenceRow title="Market Trend Updates" desc="Daily price alerts for tracked commodities" checked={prefs.marketTrends} onChange={() => togglePref('marketTrends')} />
+          <PreferenceRow title={t('settings.sms_alerts')} desc={t('settings.sms_alerts_desc')} checked={prefs.smsAlerts} onChange={() => togglePref('smsAlerts')} />
+          <PreferenceRow title={t('settings.email_alerts')} desc={t('settings.email_alerts_desc')} checked={prefs.emailAlerts} onChange={() => togglePref('emailAlerts')} />
+          <PreferenceRow title={t('settings.voice_assistant')} desc={t('settings.voice_assistant_desc')} checked={prefs.voiceAssistant} onChange={() => togglePref('voiceAssistant')} />
+          <PreferenceRow title={t('settings.market_trends')} desc={t('settings.market_trends_desc')} checked={prefs.marketTrends} onChange={() => togglePref('marketTrends')} />
         </div>
       </div>
 
@@ -116,7 +118,7 @@ export default function Settings({ userLanguage, setUserLanguage, locationText, 
           onClick={onLogout}
           className="flex items-center gap-2 px-6 py-3 rounded-xl font-label-lg text-label-lg text-error bg-error-container/20 hover:bg-error-container/40 transition-colors min-h-[48px]"
         >
-          <span className="material-symbols-outlined text-sm">logout</span> Log Out
+          <span className="material-symbols-outlined text-sm">logout</span> {t('nav.sign_out')}
         </button>
       </div>
 

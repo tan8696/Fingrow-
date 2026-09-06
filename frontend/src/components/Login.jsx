@@ -45,7 +45,7 @@ function LoginGallery({ className }) {
 }
 
 export default function Login({ onLogin }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -60,7 +60,7 @@ export default function Login({ onLogin }) {
       setTimeout(() => {
         setIsLoading(false);
         onLogin();
-      }, 1000);
+      }, 600);
     }
   };
 
@@ -74,33 +74,55 @@ export default function Login({ onLogin }) {
     setTimeout(() => {
       setIsLoading(false);
       onLogin();
-    }, 800);
+    }, 600);
   };
 
   return (
-    <div className="bg-background text-on-surface min-h-screen flex items-center justify-center p-4 md:p-8">
-      <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 bg-surface rounded-2xl overflow-hidden shadow-sm md:shadow-xl relative z-10">
+    <div className="min-h-screen bg-background flex flex-col justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8 font-body-md text-on-surface">
+      <div className="max-w-4xl w-full mx-auto grid grid-cols-1 md:grid-cols-2 rounded-3xl overflow-hidden shadow-2xl bg-surface-container-lowest border border-surface-variant">
         
-        {/* Left Side: Real-Photo Gallery (scraped, non-AI images) */}
-        <div className="hidden md:block relative h-full min-h-[600px] overflow-hidden bg-surface-container-high">
-          <LoginGallery className="absolute inset-0 w-full h-full" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#06281c]/95 via-[#06281c]/30 to-transparent"></div>
-          <div className="absolute bottom-10 left-10 right-10 text-on-primary">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="material-symbols-outlined text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>eco</span>
-              <span className="font-headline-lg text-headline-lg font-bold tracking-tight">{t('login.brand_name')}</span>
+        {/* Left Side: Photo carousel hero (desktop) */}
+        <div className="hidden md:flex flex-col justify-between p-12 relative overflow-hidden bg-primary text-on-primary">
+          <LoginGallery className="absolute inset-0 w-full h-full opacity-35" />
+          <div className="absolute inset-0 bg-gradient-to-t from-primary/95 via-primary/65 to-primary/40 pointer-events-none" />
+
+          <div className="relative z-10 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-on-primary flex items-center justify-center text-primary shadow-sm">
+              <span className="material-symbols-outlined text-[24px]">eco</span>
             </div>
+            <span className="font-headline-lg text-headline-lg font-bold tracking-tight">{t('login.brand_name')}</span>
+          </div>
+          <div className="relative z-10 space-y-4">
             <p className="font-body-lg text-body-lg opacity-95 max-w-md">{t('login.brand_tagline')}</p>
-            <p className="mt-6 font-label-sm text-label-sm text-on-primary/70 flex items-center gap-2">
-              <span className="material-symbols-outlined text-sm">photo_camera</span>
+            <div className="flex items-center gap-2 text-xs opacity-75">
+              <span className="material-symbols-outlined text-[16px]">photo_camera</span>
               {t('login.photo_credit')}
-            </p>
+            </div>
           </div>
         </div>
 
         {/* Right Side: Login Form */}
         <div className="flex flex-col justify-center p-6 md:p-12 bg-surface relative z-10">
           
+          {/* Top Language Switcher */}
+          <div className="flex justify-end mb-4">
+            <div className="flex items-center bg-surface-container-low rounded-xl p-1 gap-1 border border-outline-variant">
+              {['en', 'mr', 'hi'].map(code => (
+                <button
+                  key={code}
+                  type="button"
+                  onClick={() => i18n.changeLanguage(code)}
+                  className={`px-3 py-1 rounded-lg font-label-sm text-label-sm transition-all ${
+                    (i18n.language || 'en') === code ? 'bg-primary text-on-primary font-bold shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
+                  }`}
+                  aria-label={`Select ${code}`}
+                >
+                  {code === 'en' ? 'EN' : code === 'mr' ? 'मराठी' : 'हिन्दी'}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Mobile Photo Banner (real photos) */}
           <div className="md:hidden mb-8">
             <LoginGallery className="w-full h-44 rounded-2xl" />

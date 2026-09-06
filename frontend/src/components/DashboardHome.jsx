@@ -1,5 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import RepaymentTracker from './RepaymentTracker';
+import {
+  LoanPieChart, EMIAreaChart, CropSparkline, WeatherGauge,
+  RevenueBarChart, ProgressRing, fmtLakh,
+} from './VisualCharts';
 import {
   fetchLoanHistory,
   fetchMarketPrices,
@@ -31,13 +36,6 @@ const TENURE_OPTIONS = [
   { months: 36, label: '36 Months (Seasonal EMIs)' },
   { months: 60, label: '60 Months (5 Years)' },
   { months: 84, label: '84 Months (7 Years)' },
-];
-
-const SEASON_RANGES = [
-  { id: 'week', label: 'This Week' },
-  { id: 'month', label: 'This Month' },
-  { id: 'season', label: 'Current Season' },
-  { id: 'custom', label: 'Full Horizon' },
 ];
 
 const MARKET_PRIORITY = ['Soybean', 'Cotton', 'Tur'];
@@ -86,7 +84,9 @@ const Input = ({ label, children, hint }) => (
 
 const fieldCls = 'w-full h-14 px-4 rounded-xl bg-surface-container-low text-on-surface font-body-md text-[15px] focus:outline-none focus:ring-2 focus:ring-primary border border-transparent focus:border-primary transition-all';
 
-export default function DashboardHome({ onNavigate, onNewReport, report, hasLiveReport }) {
+export default function DashboardHome({ onNavigate, onNewReport, report, hasLiveReport, userProfile }) {
+  const { t, i18n } = useTranslation();
+  const currentLang = i18n.language || 'en';
   const [loans, setLoans] = useState([]);
   const [marketCrops, setMarketCrops] = useState([]);
   const [marketMeta, setMarketMeta] = useState(null);
@@ -97,14 +97,15 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
   const [weather, setWeather] = useState(null);
   const [weatherFailed, setWeatherFailed] = useState(false);
   const [dataError, setDataError] = useState('');
+  const [dataLoaded, setDataLoaded] = useState(false);
+
+  const isFarmer = userProfile?.type === 'farmer';
 
   const [loanModal, setLoanModal] = useState(false);
   const [harvestModal, setHarvestModal] = useState(false);
   const [trackingLoan, setTrackingLoan] = useState(null);
   const [payingId, setPayingId] = useState(null);
 
-  const [chartTab, setChartTab] = useState('overview');
-  const [range, setRange] = useState('season');
   const [toast, setToast] = useState(null);
   const feasibilityPanelRef = useRef(null);
 
@@ -115,20 +116,18 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
   };
 
   const refreshAll = useCallback(() => {
-    fetchPortfolio().then(setPortfolio).catch(err => console.error('portfolio', err));
-    fetchPortfolioCashflow().then(setCashflowData).catch(err => console.error('cashflow', err));
-    fetchLoanHistory()
-      .then(data => setLoans(data.loans || []))
-      .catch(err => { console.warn('loans', err); });
-    fetchMarketPrices()
-      .then(data => { setMarketCrops(data.crops || data.prices || []); setMarketMeta({ generated_at: data.generated_at, source: data.source }); })
-      .catch(err => console.warn('market', err));
-    fetchHarvestLogs().then(setHarvestData).catch(() => {});
-    fetchClusterActivity().then(setCluster).catch(() => {});
-    setWeatherFailed(false);
-    fetchWeather('Akola, Maharashtra')
-      .then(payload => setWeather(payload))
-      .catch(() => setWeatherFailed(false));
+    setDataLoaded(false);
+    Promise.allSettled([
+      fetchPortfolio().then(setPortfolio),
+      fetchPortfolioCashflow().then(setCashflowData),
+      fetchLoanHistory().then(data => setLoans(data.loans || [])),
+      fetchMarketPrices().then(data => { setMarketCrops(data.crops || data.prices || []); setMarketMeta({ generated_at: data.generated_at, source: data.source }); }),
+      fetchHarvestLogs().then(setHarvestData),
+      fetchClusterActivity().then(setCluster),
+      fetchWeather('Akola, Maharashtra').then(payload => setWeather(payload)).catch(() => setWeatherFailed(true))
+    ]).then(() => {
+      setTimeout(() => setDataLoaded(true), 500); // minimum 500ms for skeleton to show
+    });
   }, []);
 
   useEffect(() => {
@@ -202,12 +201,6 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
     utilization_pct: 0, next_due_date: null, next_due_amount: 0, credit_limit: CREDIT_LIMIT,
   };
 
-  const utilPct = Math.min(100, Math.round(p.utilization_pct || 0));
-  const months = cashflowData.months || [];
-  const maxEmi = Math.max(...months.map(m => m.total_emi), 0);
-  const shownMonths = range === 'week' || range === 'month' ? months.slice(0, 1) : months;
-  const maxShown = Math.max(...shownMonths.map(m => m.total_emi), 0);
-
   const watchCrops = (() => {
     const ordered = [];
     for (const key of MARKET_PRIORITY) {
@@ -221,14 +214,6 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
     return ordered.slice(0, 3);
   })();
 
-  const avgMandiDelta = (() => {
-    const deltas = watchCrops.map(c => (c.trend === 'up' ? c.trendPercent : c.trend === 'down' ? -c.trendPercent : 0));
-    if (!deltas.length) return 0;
-    return deltas.reduce((a, b) => a + b, 0) / deltas.length;
-  })();
-
-  const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-
   const reportDisplay = report || {
     business_category: 'Organic Poultry Farm',
     display_name: 'Vidarbha Region, Maharashtra',
@@ -236,400 +221,247 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
   };
   const fin = reportDisplay.financials || {};
 
+  const months = cashflowData.months || [];
+  const shownMonths = months;
+
   return (
-    <div className="flex flex-col gap-8 w-full">
-      {/* 1. Executive header & operational command bar */}
-      <header className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-6 pb-2">
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-highest text-on-surface font-label-sm text-label-sm">
-              <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              Vidarbha Agri Cluster #042
-            </span>
-            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary-fixed text-on-primary-fixed font-label-sm text-label-sm font-semibold">
-              <span className="material-symbols-outlined text-[14px]">verified</span>
-              KYC Verified (Tier 1 Priority Lending)
-            </span>
-            <span className="text-on-surface-variant font-label-sm text-label-sm flex items-center gap-1">
-              <span className="material-symbols-outlined text-[15px]">calendar_today</span> {today}
-            </span>
-          </div>
-          <div className="flex items-baseline gap-3">
-            <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight">Welcome back, {PROFILE_NAME}</h1>
-            <span className="font-label-lg text-label-lg text-primary font-semibold hidden md:inline">District: Vidarbha</span>
-          </div>
-          <p className="font-body-md text-body-md text-on-surface-variant max-w-2xl">
-            {p.active_loans > 0
-              ? `${p.active_loans} active ${facilityWord(p.active_loans)} · ${p.months_paid}/${p.months_total} EMIs on schedule · next repayment ${p.next_due_date ? fmtDateLabel(p.next_due_date) : 'n/a'} (₹${(p.next_due_amount || 0).toLocaleString('en-IN')})`
-              : 'Your loan book is empty — start by applying for a credit facility or generating a feasibility report.'}
-          </p>
-        </div>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full xl:w-auto">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setLoanModal(true)}
-              className="min-h-[48px] px-4 rounded-xl bg-primary text-on-primary font-label-lg text-label-lg hover:bg-primary-container transition-all shadow-sm flex items-center gap-2"
-            >
-              <span className="material-symbols-outlined text-[20px]">add_circle</span>
-              <span>New Loan Application</span>
-            </button>
-            <button
-              onClick={() => feasibilityPanelRef.current?.scrollIntoView({ behavior: 'smooth' })}
-              className="min-h-[48px] px-3.5 rounded-xl bg-surface-container-lowest text-on-surface font-label-lg text-label-lg hover:bg-surface-container transition-all shadow-sm flex items-center gap-2 border border-outline-variant/60"
-            >
-              <span className="material-symbols-outlined text-primary text-[20px]">analytics</span>
-              <span>Calculate Feasibility</span>
-            </button>
-            <button
-              onClick={() => setHarvestModal(true)}
-              className="min-h-[48px] px-3.5 rounded-xl bg-surface-container-lowest text-on-surface font-label-lg text-label-lg hover:bg-surface-container transition-all shadow-sm flex items-center gap-2 border border-outline-variant/60"
-            >
-              <span className="material-symbols-outlined text-on-surface-variant text-[20px]">inventory_2</span>
-              <span>Log Harvest</span>
-            </button>
-            <button
-              onClick={openVoiceAgent}
-              className="min-h-[48px] px-4 rounded-xl bg-secondary-fixed text-on-secondary-fixed font-label-lg text-label-lg hover:bg-secondary-fixed-dim transition-all shadow-sm flex items-center gap-2"
-            >
-              <span className="material-symbols-outlined text-primary text-[20px]">mic</span>
-              <span className="hidden sm:inline">Voice Advisory</span>
-            </button>
+    <div className="flex flex-col gap-6 w-full">
+
+      {/* ═══════════════════════════════════════════════════════════
+          1. WELCOME HERO — Simple, friendly greeting with emoji
+         ═══════════════════════════════════════════════════════════ */}
+      <header className="fade-in-up">
+        <div className="flex items-center gap-4 mb-3">
+          <div className="text-5xl leading-none">{isFarmer ? '🌾' : '🏪'}</div>
+          <div>
+            <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight">
+              {currentLang === 'mr' ? `नमस्कार, ${PROFILE_NAME} 🙏` : currentLang === 'hi' ? `नमस्ते, ${PROFILE_NAME} 🙏` : `Namaste, ${PROFILE_NAME} 🙏`}
+            </h1>
+            <p className="font-body-md text-body-md text-on-surface-variant mt-1">
+              {p.active_loans > 0
+                ? (currentLang === 'mr'
+                    ? `तुमच्याकडे ${p.active_loans} सक्रिय कर्ज खाती आहेत • ${p.months_total} पैकी ${p.months_paid} हप्ते भरले आहेत`
+                    : currentLang === 'hi'
+                    ? `आपके पास ${p.active_loans} सक्रिय ऋण खाते हैं • ${p.months_total} में से ${p.months_paid} ईएमआई भुगतान पूर्ण`
+                    : `You have ${p.active_loans} active loan${p.active_loans > 1 ? 's' : ''} • ${p.months_paid} of ${p.months_total} EMIs paid`)
+                : (currentLang === 'mr'
+                    ? 'स्वागत आहे! नवीन व्यवसाय कल्पना तपासा किंवा कर्जासाठी अर्ज करा.'
+                    : currentLang === 'hi'
+                    ? 'स्वागत है! नया व्यवसाय विचार जांचें या ऋण के लिए आवेदन करें।'
+                    : 'Welcome! Start by checking a business idea or applying for a loan.')}
+            </p>
           </div>
         </div>
       </header>
 
-      {/* Sub-header seasonal pill filter */}
-      <div className="flex items-center justify-between overflow-x-auto pb-1 gap-4 -mt-2">
-        <div className="flex items-center bg-surface-container-low p-1.5 rounded-xl gap-1 shrink-0">
-          {SEASON_RANGES.map(option => (
-            <button
-              key={option.id}
-              onClick={() => setRange(option.id)}
-              className={`px-4 py-2 rounded-lg font-label-sm text-label-sm transition-colors ${
-                range === option.id
-                  ? 'bg-surface-container-lowest text-primary font-semibold shadow-sm flex items-center gap-1.5'
-                  : 'text-on-surface-variant hover:text-on-surface'
-              }`}
-            >
-              {range === option.id && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
-              {option.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="font-label-sm text-label-sm text-on-surface-variant">Crop-risk score:</span>
-          <span
-            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-label-sm text-label-sm font-semibold ${
-              weather && (weather.risk?.score || 0) >= 6 ? 'bg-error-container text-on-error-container' : weather && (weather.risk?.score || 0) >= 4 ? 'bg-tertiary-container/10 text-tertiary' : 'bg-primary/10 text-primary'
-            }`}
-            title={weather?.risk?.factors?.join(' · ')}
-          >
-            <span className="material-symbols-outlined text-[14px]">{weather ? 'shield' : weatherFailed ? 'cloud_off' : 'progress_activity'}</span>
-            {weather ? `${weather.risk?.level || '—'} (${weather.risk?.score}/10)` : weatherFailed ? 'unavailable' : 'fetching…'}
-          </span>
-          {weather && (
-            <button onClick={() => onNavigate('weather')} className="text-primary font-label-sm text-label-sm underline decoration-dotted underline-offset-2">
-              details
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* 2. KPI bento grid */}
-      <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        {/* Card 1: Active capital & credit */}
-        <button
-          onClick={() => onNavigate('history')}
-          className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between gap-4 text-left"
-        >
-          <div className="flex items-start justify-between">
-            <div className="flex flex-col gap-1">
-              <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider font-semibold">Active Capital &amp; Credit</span>
-              <span className="font-display-lg text-display-lg text-on-surface tracking-tight">{fmtINR(p.outstanding_total)}</span>
-            </div>
-            <div className="w-11 h-11 rounded-xl bg-surface-container-low flex items-center justify-center text-primary">
-              <span className="material-symbols-outlined text-[24px]">account_balance_wallet</span>
-            </div>
-          </div>
-          <div className="flex flex-col gap-2 pt-2">
-            <div className="flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm">
-              <span>Utilization: {utilPct}% of ₹25L limit</span>
-              <span className="font-semibold text-primary">{p.active_loans} active</span>
-            </div>
-            <div className="w-full bg-surface-container h-2 rounded-full overflow-hidden">
-              <div className="bg-primary h-full rounded-full transition-all" style={{ width: Math.max(2, utilPct) + '%' }} />
-            </div>
-            <div className="flex items-center justify-between pt-1">
-              <span className="font-label-sm text-label-sm text-on-surface-variant">
-                Next EMI: <strong className="text-on-surface">{p.next_due_date ? fmtDateLabel(p.next_due_date) : '—'} {p.next_due_amount ? `(₹${(p.next_due_amount || 0).toLocaleString('en-IN')})` : ''}</strong>
-              </span>
-              {p.months_total > 0 && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary font-label-sm text-label-sm font-semibold">
-                  <span className="material-symbols-outlined text-[12px]">schedule</span> {p.months_paid}/{p.months_total}
-                </span>
-              )}
-            </div>
-          </div>
+      {/* ═══════════════════════════════════════════════════════════
+          2. QUICK ACTIONS — Large, icon-heavy buttons
+         ═══════════════════════════════════════════════════════════ */}
+      <section className="grid grid-cols-2 sm:grid-cols-4 gap-3 fade-in-up delay-100">
+        <button className="quick-action" onClick={() => setLoanModal(true)}>
+          <span className="quick-action__icon">🏦</span>
+          <span className="quick-action__label">{t('dashboard_home.apply_btn')}</span>
         </button>
-
-        {/* Card 2: Season revenue (real harvest log) */}
-        <button
-          onClick={() => setHarvestModal(true)}
-          className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between gap-4 text-left"
-        >
-          <div className="flex items-start justify-between">
-            <div className="flex flex-col gap-1">
-              <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider font-semibold">Season Harvest Revenue</span>
-              <span className="font-display-lg text-display-lg text-on-surface tracking-tight">{fmtINR(harvestData?.summary?.total_revenue)}</span>
-            </div>
-            <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-              <span className="material-symbols-outlined text-[24px]">grass</span>
-            </div>
-          </div>
-          <div className="flex flex-col gap-2 pt-2">
-            <div className="flex items-center justify-between">
-              <span className="inline-flex items-center gap-1 text-primary font-label-lg text-label-lg font-bold">
-                <span className="material-symbols-outlined text-[18px]">trending_up</span> {harvestData?.summary?.lots || 0} lots logged
-              </span>
-              <span className="font-label-sm text-label-sm text-on-surface-variant">avg ₹{(harvestData?.summary?.avg_price_per_qtl || 0).toLocaleString('en-IN')}/qtl</span>
-            </div>
-            <div className="flex items-end gap-1 h-9 mt-1">
-              {(harvestData?.summary?.by_month || []).slice(0, 6).map((m) => {
-                const maxRev = Math.max(...(harvestData?.summary?.by_month || []).slice(0, 6).map(x => x.revenue), 1);
-                return (
-                  <div key={m.month} className="flex-1 flex flex-col items-center gap-0.5" title={`${m.month}: ${fmtINR(m.revenue)}`}>
-                    <div className="w-full bg-primary/25 rounded-t-sm" style={{ height: Math.max(4, (m.revenue / maxRev) * 26) + 'px' }} />
-                    <span className="text-[10px] text-on-surface-variant font-medium">{new Date(m.month + '-01').toLocaleDateString('en-IN', { month: 'short' })}</span>
-                  </div>
-                );
-              })}
-              {!harvestData?.summary?.by_month?.length && (
-                <span className="text-[11px] text-on-surface-variant py-1">Tap to log your first harvest lot — it feeds this KPI.</span>
-              )}
-            </div>
-          </div>
+        <button className="quick-action" onClick={() => { feasibilityPanelRef.current?.scrollIntoView({ behavior: 'smooth' }); onNavigate('feasibility'); }}>
+          <span className="quick-action__icon">📊</span>
+          <span className="quick-action__label">{t('dashboard_home.run_report')}</span>
         </button>
-
-        {/* Card 3: Mandi index */}
-        <button
-          onClick={() => onNavigate('market')}
-          className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between gap-4 text-left"
-        >
-          <div className="flex items-start justify-between">
-            <div className="flex flex-col gap-1">
-              <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider font-semibold">Mandi Watch Index</span>
-              <span className="font-display-lg text-display-lg text-on-surface tracking-tight">
-                ₹{watchCrops.length ? watchCrops[0].price.toLocaleString('en-IN') : '—'}
-                <span className="font-body-md text-body-md font-normal text-on-surface-variant">/qtl</span>
-              </span>
-            </div>
-            <div className="w-11 h-11 rounded-xl bg-secondary-container flex items-center justify-center text-on-secondary-container">
-              <span className="material-symbols-outlined text-[24px]">storefront</span>
-            </div>
-          </div>
-          <div className="flex flex-col gap-2 pt-2">
-            <div className="flex items-center justify-between">
-              <span className={`inline-flex items-center gap-1 font-label-sm text-label-sm font-semibold ${avgMandiDelta >= 0 ? 'text-primary' : 'text-tertiary'}`}>
-                <span className="material-symbols-outlined text-[16px]">{avgMandiDelta >= 0 ? 'arrow_upward' : 'arrow_downward'}</span>
-                {avgMandiDelta >= 0 ? '+' : ''}{avgMandiDelta.toFixed(1)}% today
-              </span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-sm text-label-sm font-bold">Live feed</span>
-            </div>
-            <div className="flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm pt-2">
-              <span className="truncate pr-2">{watchCrops.map(c => c.name).join(' · ') || 'Vidarbha & regional APMCs'}</span>
-              <span className="text-on-surface font-semibold shrink-0">{marketMeta?.source ? 'Composite' : '—'}</span>
-            </div>
-          </div>
+        <button className="quick-action" onClick={() => setHarvestModal(true)}>
+          <span className="quick-action__icon">{isFarmer ? '🌾' : '📦'}</span>
+          <span className="quick-action__label">{isFarmer ? t('dashboard_home.harvest_btn') : (currentLang === 'mr' ? 'विक्री नोंदवा' : currentLang === 'hi' ? 'बिक्री दर्ज करें' : 'Log Sales')}</span>
         </button>
-
-        {/* Card 4: Capital subsidy */}
-        <button
-          onClick={() => onNavigate('history')}
-          className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between gap-4 text-left"
-        >
-          <div className="flex items-start justify-between">
-            <div className="flex flex-col gap-1">
-              <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider font-semibold">Capital Subsidy Position</span>
-              <span className="font-display-lg text-display-lg text-primary tracking-tight">{fmtINR(p.subsidy_approved_total)}</span>
-            </div>
-            <div className="w-11 h-11 rounded-xl bg-surface-container-low flex items-center justify-center text-primary">
-              <span className="material-symbols-outlined text-[24px]">assured_workload</span>
-            </div>
-          </div>
-          <div className="flex flex-col gap-2 pt-2">
-            <div className="flex items-center justify-between font-label-sm text-label-sm">
-              <span className="text-on-surface font-semibold">Attached to sanctioned loans</span>
-              <span className="text-primary font-bold">{fmtINR(p.subsidy_approved_total)} cleared</span>
-            </div>
-            <div className="w-full bg-surface-container h-2 rounded-full overflow-hidden">
-              <div className="bg-primary-container h-full rounded-full" style={{ width: `${Math.min(100, 8 + Math.round((p.subsidy_pipeline_total || 0) / Math.max(p.subsidy_approved_total, 1) * 50))}%` }} />
-            </div>
-            <div className="flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm">
-              <span>Pending pipeline: {fmtINR(p.subsidy_pipeline_total)}</span>
-              <span className="text-on-surface underline cursor-pointer hover:text-primary">Track DBT</span>
-            </div>
-          </div>
+        <button className="quick-action" onClick={openVoiceAgent}>
+          <span className="quick-action__icon">🎙️</span>
+          <span className="quick-action__label">{t('nav.ask_bot')}</span>
         </button>
       </section>
 
-      {/* 3. Main split layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        <div className="lg:col-span-8 flex flex-col gap-8">
-          {/* 3a. Cashflow & EMI chart */}
-          <section className="bg-surface-container-lowest rounded-2xl p-6 md:p-8 shadow-sm flex flex-col gap-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-surface-container">
-              <div className="flex flex-col">
-                <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider font-semibold">Financial Outlook</span>
-                <h2 className="font-headline-md text-headline-md text-on-surface">EMI Cashflow Forecast</h2>
+      {/* ═══════════════════════════════════════════════════════════
+          3. VISUAL KPI CARDS — 4 cards with charts & big numbers
+         ═══════════════════════════════════════════════════════════ */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 fade-in-up delay-200">
+        {!dataLoaded ? (
+          <>
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="village-card visual-kpi animate-pulse bg-surface-container-low min-h-[160px]">
+                <div className="w-12 h-12 bg-surface-container rounded-xl mb-4"></div>
+                <div className="w-1/2 h-6 bg-surface-container rounded-md mb-2"></div>
+                <div className="w-3/4 h-4 bg-surface-container rounded-md mb-4"></div>
+                <div className="mt-auto w-full h-8 bg-surface-container rounded-md"></div>
               </div>
-              <div className="flex items-center bg-surface-container p-1 rounded-xl" id="forecast-tabs">
-                {[
-                  { id: 'overview', label: 'Overview' },
-                  { id: 'ledger', label: 'Detailed Repayment Ledger' },
-                ].map(tab => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setChartTab(tab.id)}
-                    className={`px-4 py-1.5 rounded-lg font-label-sm text-label-sm transition-all ${
-                      chartTab === tab.id ? 'bg-surface-container-lowest text-primary font-semibold shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
+            ))}
+          </>
+        ) : (
+          <>
+            {/* Card 1: Loan Status with Progress Ring */}
+            <button onClick={() => onNavigate('history')} className="village-card visual-kpi">
+              <span className="visual-kpi__icon">🏦</span>
+              <ProgressRing current={p.months_paid} total={p.months_total || 1} size={72} />
+              <span className="visual-kpi__value">{fmtINR(p.monthly_emi_total)}<span className="text-[16px] font-normal text-on-surface-variant">/mo</span></span>
+              <span className="visual-kpi__label">{t('dashboard_home.next_emi')}</span>
+              {p.next_due_date && (
+                <span className="status-badge status-badge--green">
+                  <span className="material-symbols-outlined text-[14px]">event</span>
+                  {currentLang === 'mr' ? 'पुढील: ' : currentLang === 'hi' ? 'अगला: ' : 'Next: '}{fmtDateLabel(p.next_due_date)}
+                </span>
+              )}
+            </button>
+
+            {/* Card 2: Harvest Revenue with bar sparkline */}
+            <button onClick={() => setHarvestModal(true)} className="village-card visual-kpi">
+              <span className="visual-kpi__icon">{isFarmer ? '🌾' : '📈'}</span>
+              <span className="visual-kpi__value">{fmtINR(harvestData?.summary?.total_revenue)}</span>
+              <span className="visual-kpi__label">{currentLang === 'mr' ? 'उत्पन्न' : currentLang === 'hi' ? 'राजस्व' : 'Revenue'}</span>
+              {(harvestData?.summary?.by_month || []).length > 0 ? (
+                <RevenueBarChart months={(harvestData?.summary?.by_month || []).slice(0, 4)} height={60} />
+              ) : (
+                <span className="text-[12px] text-on-surface-variant italic">
+                  {currentLang === 'mr' ? 'नोंदवण्यासाठी टॅप करा' : currentLang === 'hi' ? 'दर्ज करने के लिए टैप करें' : 'Tap to log revenue'}
+                </span>
+              )}
+              <span className="status-badge status-badge--green">
+                <span className="material-symbols-outlined text-[14px]">trending_up</span>
+                {harvestData?.summary?.lots || 0} {currentLang === 'mr' ? 'नोंदी' : currentLang === 'hi' ? 'प्रविष्टियां' : 'records'}
+              </span>
+            </button>
+
+            {/* Card 3: Mandi Prices with sparklines */}
+            <button onClick={() => onNavigate('market')} className="village-card visual-kpi">
+              <span className="visual-kpi__icon">🛒</span>
+              <span className="visual-kpi__value">
+                {watchCrops.length ? `₹${watchCrops[0].price.toLocaleString('en-IN')}` : '—'}
+                <span className="text-[14px] font-normal text-on-surface-variant">/qtl</span>
+              </span>
+              <span className="visual-kpi__label">{isFarmer ? t('dashboard_home.mandi_title') : 'Market Prices'}</span>
+              <div className="flex flex-col gap-1.5 w-full">
+                {watchCrops.slice(0, 3).map(crop => (
+                  <div key={crop.id} className="flex items-center justify-between gap-2 px-1">
+                    <span className="text-[12px] font-semibold text-on-surface truncate">{crop.name}</span>
+                    <div className="flex items-center gap-1.5">
+                      <CropSparkline trend={crop.trend} width={40} height={18} />
+                      <span className={`text-[11px] font-bold ${crop.trend === 'up' ? 'text-green-600' : crop.trend === 'down' ? 'text-red-600' : 'text-amber-600'}`}>
+                        {crop.trend === 'up' ? '▲' : crop.trend === 'down' ? '▼' : '◆'}{crop.trendPercent}%
+                      </span>
+                    </div>
+                  </div>
                 ))}
               </div>
-            </div>
+            </button>
 
-            {chartTab === 'overview' ? (
-              <>
-                <div className="p-4 rounded-xl bg-surface-container-low flex flex-col md:flex-row md:items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                      <span className="material-symbols-outlined text-[20px]">event_available</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="font-label-sm text-label-sm text-on-surface font-semibold">
-                        Monthly EMI commitment: {p.monthly_emi_total ? `${fmtINR(p.monthly_emi_total)}/month` : 'none scheduled yet'}
-                      </span>
-                      <span className="font-label-sm text-label-sm text-on-surface-variant">
-                        {p.next_due_date ? `Due ${fmtDateLabel(p.next_due_date)} across ${activeApps.length} active ${facilityWord(activeApps.length)}` : 'Approved loans will appear here with their schedules'}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 self-end md:self-center">
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary/15 text-primary font-label-sm text-label-sm font-bold">
-                      <span className="material-symbols-outlined text-[14px]">shield</span>
-                      {p.months_paid}/{p.months_total} EMIs on schedule
+            {/* Card 4: Weather Risk with Gauge (Only for farmers) */}
+            {isFarmer ? (
+              <button onClick={() => onNavigate('weather')} className="village-card visual-kpi">
+                <span className="visual-kpi__icon">{weather ? (weather.risk?.score >= 6 ? '🌧️' : weather.risk?.score >= 4 ? '⛅' : '☀️') : '🌤️'}</span>
+                {weather ? (
+                  <>
+                    <WeatherGauge score={weather.risk?.score || 0} size={120} />
+                    <span className="visual-kpi__label">{t('dashboard_home.weather_title')}</span>
+                    <span className="text-[13px] font-semibold text-on-surface">
+                      {weather.current?.temperature_c != null ? Math.round(weather.current.temperature_c) : '—'}°C
+                      {weather.current?.condition?.label ? ` • ${weather.current.condition.label}` : ''}
                     </span>
-                  </div>
-                </div>
-
-                {shownMonths.length > 0 ? (
-                  <div className="flex flex-col gap-4">
-                    <div className="flex items-center justify-end gap-6 font-label-sm text-label-sm">
-                      <span className="flex items-center gap-2 text-on-surface-variant"><span className="w-3 h-3 rounded-sm bg-primary" /> Principal</span>
-                      <span className="flex items-center gap-2 text-on-surface-variant"><span className="w-3 h-3 rounded-sm bg-tertiary" /> Interest</span>
-                    </div>
-                    <div className="grid gap-2 md:gap-4 pt-4 items-end border-b border-surface-container pb-2" style={{ gridTemplateColumns: `repeat(${Math.max(shownMonths.length, 1)}, minmax(0, 1fr))` }}>
-                      {shownMonths.map((month, idx) => {
-                        const total = month.total_emi || 0;
-                        const principal = month.total_principal || 0;
-                        const interest = month.total_interest || 0;
-                        const h = maxShown > 0 ? (total / maxShown) * 180 : 0;
-                        const principalH = maxShown > 0 ? (principal / maxShown) * 180 : 0;
-                        return (
-                          <div key={month.key} className="flex flex-col items-center gap-2 justify-end relative">
-                            <span className="font-label-sm text-label-sm text-on-surface-variant">{fmtINR(total)}</span>
-                            <div className="w-full max-w-[64px] flex flex-col justify-end overflow-hidden rounded-t-md bg-surface-container-high relative" style={{ height: Math.max(h, 4) + 'px' }}>
-                              <div className="w-full bg-tertiary" style={{ height: Math.max(interest / maxShown * 180, total ? 2 : 0) + 'px', position: 'absolute', bottom: 0 }} title={`Interest: ${fmtINR(interest)}`} />
-                              <div className="w-full bg-primary/70" style={{ height: Math.max(principal / maxShown * 180, total ? 2 : 0) + 'px', position: 'absolute', bottom: total ? Math.max(interest / maxShown * 180, 0) : 0 }} title={`Principal: ${fmtINR(principal)}`} />
-                            </div>
-                            <span className={`font-label-sm text-label-sm ${idx === 0 ? 'text-primary font-bold' : 'text-on-surface-variant'}`}>{month.label.replace(/ \d+$/, '')}</span>
-                            {idx === 0 && <span className="absolute -top-1 px-2 py-0.5 bg-primary text-on-primary text-[10px] font-bold rounded-full">Next</span>}
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <div className="flex items-center justify-between pt-1">
-                      <span className="font-label-sm text-label-sm text-on-surface-variant">
-                        Forecast from your real repayment schedules {range !== 'season' ? `· showing ${range === 'week' || range === 'month' ? 'this month' : range} window` : ''}
-                      </span>
-                      <span className="font-label-sm text-label-sm text-primary font-semibold">{activeApps.length} active {facilityWord(activeApps.length)}</span>
-                    </div>
-                  </div>
+                  </>
                 ) : (
-                  <div className="py-12 text-center flex flex-col items-center gap-3">
-                    <span className="material-symbols-outlined text-4xl text-on-surface-variant">monitoring</span>
-                    <p className="font-body-md text-body-md text-on-surface-variant max-w-md">No upcoming EMI obligations yet. Apply for a loan or approve the pending queue and the forecast chart fills with your real schedule.</p>
-                    <div className="flex gap-3">
-                      <button onClick={() => setLoanModal(true)} className="px-5 py-2.5 rounded-xl bg-primary text-on-primary font-label-sm text-label-sm hover:bg-primary-container transition-colors">Apply for Loan</button>
-                      <button onClick={() => onNavigate('history')} className="px-5 py-2.5 rounded-xl bg-surface-container text-on-surface font-label-sm text-label-sm hover:bg-surface-container-high transition-colors">Review Queue</button>
-                    </div>
-                  </div>
+                  <>
+                    <span className="visual-kpi__value">—</span>
+                    <span className="visual-kpi__label">{t('dashboard_home.weather_title')}</span>
+                    <span className="text-[12px] text-on-surface-variant italic">
+                      {weatherFailed ? (currentLang === 'mr' ? 'अनुपलब्ध' : currentLang === 'hi' ? 'अनुपलब्ध' : 'Unavailable') : (currentLang === 'mr' ? 'लोड होत आहे...' : currentLang === 'hi' ? 'लोड हो रहा है...' : 'Loading...')}
+                    </span>
+                  </>
                 )}
-              </>
+              </button>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[640px]">
-                  <thead>
-                    <tr className="font-label-sm text-label-sm text-on-surface-variant border-b border-surface-variant">
-                      <th className="py-3 pr-4">Month</th>
-                      <th className="py-3 pr-4">Facility</th>
-                      <th className="py-3 pr-4 text-right">Principal</th>
-                      <th className="py-3 pr-4 text-right">Interest</th>
-                      <th className="py-3 pr-4 text-right">Total EMI</th>
-                      <th className="py-3 text-right">Closing Balance</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-surface-container">
-                    {cashflowData.ledger.flatMap((month) => month.rows.map((row, i) => (
-                      <tr key={month.key + '-' + row.id} className="font-body-md text-body-md text-on-surface text-sm">
-                        <td className="py-3 pr-4 font-label-sm text-label-sm">{i === 0 ? month.label : ''}</td>
-                        <td className="py-3 pr-4 text-on-surface-variant">{row.name} <span className="text-[11px] text-on-surface-variant/70">({row.id})</span></td>
-                        <td className="py-3 pr-4 text-right">{fmtINR(row.principal)}</td>
-                        <td className="py-3 pr-4 text-right">{fmtINR(row.interest)}</td>
-                        <td className="py-3 pr-4 text-right font-semibold text-on-surface">{fmtINR(row.emi)}</td>
-                        <td className="py-3 text-right text-on-surface-variant">{fmtINR(row.balance)}</td>
-                      </tr>
-                    )))}
-                    {!cashflowData.ledger.length && (
-                      <tr><td colSpan={6} className="py-8 text-center text-on-surface-variant">No upcoming instalments — approve the pending queue to generate schedules.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              <button onClick={() => onNavigate('feasibility')} className="village-card visual-kpi">
+                <span className="visual-kpi__icon">📈</span>
+                <span className="visual-kpi__value text-primary">High</span>
+                <span className="visual-kpi__label">Market Demand</span>
+                <div className="mt-2 text-[12px] font-medium text-on-surface text-center">Your area shows strong demand for retail goods.</div>
+                <div className="status-badge status-badge--green mt-auto">Good Opportunity</div>
+              </button>
             )}
-          </section>
+          </>
+        )}
+      </section>
 
-          {/* 3b. Active loans & credit facilities */}
-          <section className="bg-surface-container-lowest rounded-2xl p-6 md:p-8 shadow-sm flex flex-col gap-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider font-semibold">Credit Portfolio</span>
-                <h2 className="font-headline-md text-headline-md text-on-surface">Active Loans &amp; Credit Facilities</h2>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={downloadAllStatements}
-                  className="min-h-[44px] px-3.5 rounded-xl bg-surface-container-low text-on-surface font-label-sm text-label-sm hover:bg-surface-container transition-colors flex items-center gap-2"
-                >
-                  <span className="material-symbols-outlined text-[18px]">download</span>
-                  <span>Download Statements</span>
-                </button>
-                <button
-                  onClick={() => onNavigate('history')}
-                  className="min-h-[44px] px-3.5 rounded-xl bg-surface-container-low text-on-surface font-label-sm text-label-sm hover:bg-surface-container transition-colors flex items-center gap-2"
-                >
-                  <span className="material-symbols-outlined text-[18px]">open_in_new</span>
-                  <span>Manage Loans</span>
-                </button>
-              </div>
+      {/* ═══════════════════════════════════════════════════════════
+          4. EMI CHART — Visual area chart of cashflow
+         ═══════════════════════════════════════════════════════════ */}
+      <section className="chart-section fade-in-up delay-300">
+        <div className="chart-section__header">
+          <span className="chart-section__emoji">📈</span>
+          <h2 className="chart-section__title">
+            {currentLang === 'mr' ? 'कर्ज परतफेड (EMI) प्रवास' : currentLang === 'hi' ? 'समय के साथ ईएमआई भुगतान' : 'EMI Payment Over Time'}
+          </h2>
+          {activeApps.length > 0 && (
+            <span className="ml-auto status-badge status-badge--green">
+              {p.months_paid}/{p.months_total} {currentLang === 'mr' ? 'वेळेत' : currentLang === 'hi' ? 'सही समय पर' : 'on track'}
+            </span>
+          )}
+        </div>
+
+        {activeApps.length > 0 && fin.loan_amount && fin.interest_rate_pct ? (
+          <EMIAreaChart
+            loanAmount={fin.loan_amount}
+            annualRate={fin.interest_rate_pct}
+            tenureMonths={fin.tenure_months || 84}
+            height={240}
+          />
+        ) : shownMonths.length > 0 ? (
+          <EMIAreaChart
+            loanAmount={p.outstanding_total || 500000}
+            annualRate={7}
+            tenureMonths={84}
+            height={240}
+          />
+        ) : (
+          <div className="py-12 text-center flex flex-col items-center gap-4">
+            <span className="text-5xl">📋</span>
+            <p className="font-body-md text-body-md text-on-surface-variant max-w-md">
+              No active loans yet. Apply for a loan to see your EMI payment chart here!
+            </p>
+            <button onClick={() => setLoanModal(true)} className="px-6 py-3 rounded-xl bg-primary text-on-primary font-label-lg text-label-lg hover:bg-primary-container transition-colors shadow-sm flex items-center gap-2">
+              <span className="material-symbols-outlined text-[20px]">add_circle</span>
+              Apply for Loan
+            </button>
+          </div>
+        )}
+
+        {/* Legend */}
+        {(activeApps.length > 0 || shownMonths.length > 0) && (
+          <div className="flex items-center justify-center gap-6 pt-4 font-label-sm text-label-sm">
+            <span className="flex items-center gap-2 text-on-surface-variant"><span className="w-3 h-3 rounded-sm" style={{ background: '#006948' }} /> {currentLang === 'mr' ? 'मुद्दल (Principal)' : currentLang === 'hi' ? 'मूलधन (Principal)' : 'Principal (मूलधन)'}</span>
+            <span className="flex items-center gap-2 text-on-surface-variant"><span className="w-3 h-3 rounded-sm" style={{ background: '#9b3e3b' }} /> {currentLang === 'mr' ? 'व्याज (Interest)' : currentLang === 'hi' ? 'ब्याज (Interest)' : 'Interest (ब्याज)'}</span>
+          </div>
+        )}
+      </section>
+
+      {/* ═══════════════════════════════════════════════════════════
+          5. MAIN LAYOUT — Loans + Sidebar
+         ═══════════════════════════════════════════════════════════ */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="lg:col-span-8 flex flex-col gap-6">
+
+          {/* Active loans — simplified visual cards */}
+          <section className="chart-section">
+            <div className="chart-section__header">
+              <span className="chart-section__emoji">💰</span>
+              <h2 className="chart-section__title">{t('dashboard_home.active_loans')}</h2>
+              <button
+                onClick={() => onNavigate('history')}
+                className="ml-auto text-primary font-label-sm text-label-sm font-semibold hover:underline flex items-center gap-1"
+              >
+                {currentLang === 'mr' ? 'सर्व पहा' : currentLang === 'hi' ? 'सभी देखें' : 'View all'} <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+              </button>
             </div>
 
             <div className="flex flex-col gap-3">
               {loans.length === 0 && !dataError && (
-                <div className="p-8 text-center bg-surface-container-low rounded-2xl text-on-surface-variant font-body-md text-body-md">
-                  Loading facilities…
+                <div className="p-8 text-center flex flex-col items-center gap-3">
+                  <span className="text-4xl">📑</span>
+                  <p className="text-on-surface-variant font-body-md text-body-md">
+                    {currentLang === 'mr' ? 'अजून कोणतेही कर्ज नाही. सुरू करण्यासाठी अर्ज करा!' : currentLang === 'hi' ? 'अभी कोई ऋण नहीं है। शुरू करने के लिए आवेदन करें!' : 'No loans yet. Apply to get started!'}
+                  </p>
                 </div>
               )}
               {dataError && loans.length === 0 && (
@@ -638,25 +470,16 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
 
               {activeApps.map((loan) => (
                 <div key={loan.id} className="p-5 rounded-2xl bg-surface-container-low hover:bg-surface-container transition-colors flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                  <div className="flex items-start gap-3.5 min-w-0">
-                    <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                      <span className="material-symbols-outlined text-[24px]">{loan.icon === 'hourglass_empty' ? 'verified_user' : 'account_balance'}</span>
-                    </div>
+                  <div className="flex items-center gap-4 min-w-0">
+                    <ProgressRing current={loan.months_paid || 0} total={loan.tenure_months || 84} size={56} />
                     <div className="flex flex-col min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-headline-md text-[17px] leading-snug font-bold text-on-surface">{loan.name}</span>
-                        <span className="px-2.5 py-0.5 rounded-full bg-primary/15 text-primary font-label-sm text-label-sm font-semibold">Active · On Track</span>
+                        <span className="status-badge status-badge--green">Active</span>
                       </div>
-                      <span className="font-label-sm text-label-sm text-on-surface-variant truncate">
-                        {loan.id} · {loan.interest_rate_pct ? `${loan.interest_rate_pct}% p.a. · ${loan.tenure_months} months` : 'approved facility'}
+                      <span className="font-label-sm text-label-sm text-on-surface-variant">
+                        Outstanding: <strong className="text-on-surface">{fmtINR(loan.outstanding_principal)}</strong> • EMI: <strong className="text-on-surface">{fmtINR(loan.amount)}/mo</strong>
                       </span>
-                      <div className="flex items-center gap-4 pt-1 font-label-sm text-label-sm text-on-surface-variant">
-                        <span>Outstanding: <strong className="text-on-surface">{fmtINR(loan.outstanding_principal)}</strong></span>
-                        <span>·</span>
-                        <span>Next Due: <strong className="text-on-surface">{fmtDateLabel(loan.date)} ({fmtINR(loan.amount)}/mo)</strong></span>
-                        <span>·</span>
-                        <span className="text-primary font-semibold">{loan.months_paid || 0}/{loan.tenure_months} paid</span>
-                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 self-end md:self-center shrink-0">
@@ -664,7 +487,7 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
                       onClick={() => setTrackingLoan(loan)}
                       className="px-3.5 py-2 rounded-xl bg-surface-container-lowest text-on-surface font-label-sm text-label-sm shadow-sm hover:bg-surface transition-colors"
                     >
-                      View Ledger
+                      View
                     </button>
                     <button
                       onClick={() => payNextInstalment(loan)}
@@ -672,14 +495,7 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
                       className="px-3.5 py-2 rounded-xl bg-primary text-on-primary font-label-sm text-label-sm hover:bg-primary-container disabled:opacity-60 transition-colors flex items-center gap-1.5"
                     >
                       {payingId === loan.id && <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>}
-                      Pay Installment
-                    </button>
-                    <button
-                      onClick={() => downloadStatement(loan)}
-                      title="Download repayment statement (CSV)"
-                      className="w-9 h-9 rounded-lg bg-surface-container-lowest text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center"
-                    >
-                      <span className="material-symbols-outlined text-[18px]">download</span>
+                      Pay EMI
                     </button>
                   </div>
                 </div>
@@ -687,49 +503,38 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
 
               {pendingApps.map((loan) => (
                 <div key={loan.id} className="p-5 rounded-2xl bg-surface-container-low/70 hover:bg-surface-container transition-colors flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                  <div className="flex items-start gap-3.5 min-w-0">
-                    <div className="w-12 h-12 rounded-xl bg-surface-container-high text-on-surface-variant flex items-center justify-center shrink-0">
-                      <span className="material-symbols-outlined text-[24px]">hourglass_empty</span>
-                    </div>
+                  <div className="flex items-center gap-4 min-w-0">
+                    <span className="text-3xl">⏳</span>
                     <div className="flex flex-col min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-headline-md text-[17px] leading-snug font-bold text-on-surface">{loan.name}</span>
-                        <span className="px-2.5 py-0.5 rounded-full bg-surface-container-highest text-on-surface font-label-sm text-label-sm font-semibold">Under Review</span>
+                        <span className="status-badge status-badge--yellow">Under Review</span>
                       </div>
-                      <span className="font-label-sm text-label-sm text-on-surface-variant truncate">{loan.id} · applied {fmtDateLabel(loan.date)}</span>
-                      <div className="flex items-center gap-4 pt-1 font-label-sm text-label-sm text-on-surface-variant">
-                        <span>Requested: <strong className="text-on-surface">{fmtINR(loan.amount)}</strong></span>
-                        <span>·</span>
-                        <span className="text-primary font-medium">Awaiting bank officer sanction</span>
-                      </div>
+                      <span className="font-label-sm text-label-sm text-on-surface-variant">
+                        Requested: <strong className="text-on-surface">{fmtINR(loan.amount)}</strong> • Applied: {fmtDateLabel(loan.date)}
+                      </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 self-end md:self-center shrink-0">
-                    <button
-                      onClick={() => onNavigate('history')}
-                      className="px-4 py-2 rounded-xl bg-primary text-on-primary font-label-sm text-label-sm hover:bg-primary-container transition-colors shadow-sm flex items-center gap-1.5"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">track_changes</span>
-                      Track Status
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => onNavigate('history')}
+                    className="px-4 py-2 rounded-xl bg-primary text-on-primary font-label-sm text-label-sm hover:bg-primary-container transition-colors shadow-sm"
+                  >
+                    Track
+                  </button>
                 </div>
               ))}
-
             </div>
           </section>
 
-          {/* 3c. Live mandi watchlist */}
-          <section className="bg-surface-container-lowest rounded-2xl p-6 md:p-8 shadow-sm flex flex-col gap-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider font-semibold">Mandi Spot Intelligence</span>
-                <h2 className="font-headline-md text-headline-md text-on-surface">Live Watchlist</h2>
-              </div>
-              <div className="flex items-center gap-2 font-label-sm text-label-sm text-on-surface-variant">
+          {/* Mandi watchlist — simplified with sparklines */}
+          <section className="chart-section">
+            <div className="chart-section__header">
+              <span className="chart-section__emoji">🛒</span>
+              <h2 className="chart-section__title">Mandi Prices (Live)</h2>
+              <span className="ml-auto flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-primary animate-ping" />
-                {marketMeta?.source || 'Live market feed'}
-              </div>
+                <span className="font-label-sm text-label-sm text-primary font-semibold">Live</span>
+              </span>
             </div>
 
             {watchCrops.length > 0 ? (
@@ -741,59 +546,49 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
                         <h4 className="font-headline-md text-[18px] font-bold text-on-surface">{crop.name}</h4>
                         <span className="font-label-sm text-label-sm text-on-surface-variant">{crop.mandi}</span>
                       </div>
-                      <span className={`px-2 py-0.5 rounded-full font-label-sm text-label-sm font-bold ${crop.trendBg}`}>{crop.trend === 'up' ? '▲' : crop.trend === 'down' ? '▼' : '◆'} {crop.trendPercent}%</span>
+                      <span className={`status-badge ${crop.trend === 'up' ? 'status-badge--green' : crop.trend === 'down' ? 'status-badge--red' : 'status-badge--yellow'}`}>
+                        {crop.trend === 'up' ? '▲' : crop.trend === 'down' ? '▼' : '◆'} {crop.trendPercent}%
+                      </span>
                     </div>
-                    <div className="flex items-baseline justify-between pt-1">
+                    <div className="flex items-center justify-between">
                       <span className="font-headline-lg text-[22px] font-bold text-on-surface">₹{crop.price.toLocaleString('en-IN')}<span className="font-label-sm text-label-sm font-normal text-on-surface-variant">/qtl</span></span>
-                      <span className={`font-label-sm text-label-sm font-semibold ${crop.trendColor}`}>{crop.status}</span>
-                    </div>
-                    <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-primary h-full rounded-full transition-all" style={{ width: Math.min(100, Math.max(8, (crop.price / 10400) * 100)) + '%' }} />
-                    </div>
-                    <div className="flex items-center justify-between text-on-surface-variant font-label-sm text-[11px]">
-                      <span>Spot rate</span>
-                      <span>Δ {crop.trend === 'up' ? '+' : crop.trend === 'down' ? '-' : ''}₹{crop.trendAmount || 0}</span>
+                      <CropSparkline trend={crop.trend} width={56} height={24} />
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="p-8 text-center text-on-surface-variant font-body-md text-body-md">Market feed unavailable — open the Mandi page to retry.</div>
+              <div className="p-8 text-center text-on-surface-variant font-body-md text-body-md">
+                <span className="text-4xl block mb-2">🏪</span>
+                Market feed loading…
+              </div>
             )}
 
-            <div className="flex items-center justify-between pt-2">
-              <span className="font-label-sm text-label-sm text-on-surface-variant">Prices for the crops you watch · server-generated composite feed</span>
+            <div className="flex items-center justify-center pt-3">
               <button onClick={() => onNavigate('market')} className="font-label-sm text-label-sm text-primary font-semibold hover:underline flex items-center gap-1">
-                Explore all mandis <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                {t('dashboard_home.all_prices')} <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
               </button>
             </div>
           </section>
         </div>
 
-        {/* Secondary right column */}
+        {/* Right column */}
         <div className="lg:col-span-4 flex flex-col gap-6">
+
           {/* Advisory AI widget */}
-          <section className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm flex flex-col gap-5 relative overflow-hidden">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center shadow-sm">
-                  <span className="material-symbols-outlined text-[22px]">smart_toy</span>
-                </div>
-                <div className="flex flex-col">
-                  <h3 className="font-headline-md text-[18px] font-bold text-on-surface leading-tight">FinGrow Advisory AI</h3>
-                  <span className="font-label-sm text-[11px] text-primary font-semibold">Instant scheme &amp; loan assistance</span>
-                </div>
-              </div>
-              <span className="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-sm text-[11px] font-bold">Active</span>
+          <section className="chart-section">
+            <div className="chart-section__header">
+              <span className="chart-section__emoji">🤖</span>
+              <h2 className="chart-section__title">{t('nav.ask_bot')}</h2>
+              <span className="ml-auto status-badge status-badge--green">
+                {currentLang === 'mr' ? 'सक्रिय' : currentLang === 'hi' ? 'सक्रिय' : 'Active'}
+              </span>
             </div>
 
             <div className="p-4 rounded-xl bg-surface-container-low flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <span className="font-label-sm text-label-sm text-on-surface-variant">Ask in English, Marathi or Hindi</span>
-                <button onClick={openVoiceAgent} aria-label="Voice assistant" className="w-8 h-8 rounded-lg bg-surface-container-lowest text-primary flex items-center justify-center hover:bg-surface transition-colors">
-                  <span className="material-symbols-outlined text-[18px]">mic</span>
-                </button>
-              </div>
+              <span className="font-label-sm text-label-sm text-on-surface-variant">
+                {currentLang === 'mr' ? 'मराठी, हिंदी किंवा इंग्रजीत विचारा' : currentLang === 'hi' ? 'हिंदी, मराठी या अंग्रेजी में पूछें' : 'Ask in English, मराठी or हिन्दी'}
+              </span>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -805,7 +600,7 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
               >
                 <input
                   name="advisor-query"
-                  placeholder="Ask about subsidies, EMIs, eligibility…"
+                  placeholder="Ask about loans, subsidies…"
                   className="flex-1 w-full h-11 px-4 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-[13px] focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
                 />
                 <button type="submit" className="shrink-0 w-11 h-11 rounded-xl bg-primary text-on-primary flex items-center justify-center hover:bg-primary-container transition-colors">
@@ -814,156 +609,129 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
               </form>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <span className="font-label-sm text-label-sm text-on-surface-variant font-semibold">Recommended prompts:</span>
+            <div className="flex flex-col gap-2 mt-3">
+              <span className="font-label-sm text-label-sm text-on-surface-variant font-semibold">Try asking:</span>
               {[
-                { q: 'How much EMI for a ₹5,00,000 facility?', icon: 'calculate' },
-                { q: 'Am I eligible for a capital subsidy?', icon: 'redeem' },
-                { q: 'Which facility should I pick for my next harvest?', icon: 'psychology' },
+                { q: 'How much EMI for ₹5 lakh loan?', icon: '🧮' },
+                { q: 'Am I eligible for subsidy?', icon: '🎁' },
+                { q: 'Best loan for my farm?', icon: '🌱' },
               ].map((prompt, i) => (
                 <button
                   key={i}
                   onClick={() => openChatWith(prompt.q)}
-                  className="w-full text-left p-2.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface font-label-sm text-label-sm transition-colors flex items-center justify-between gap-2"
+                  className="w-full text-left p-3 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface font-label-sm text-label-sm transition-colors flex items-center gap-3"
                 >
-                  <span className="flex items-center gap-2 min-w-0">
-                    <span className="material-symbols-outlined text-[16px] text-primary shrink-0">{prompt.icon}</span>
-                    <span className="truncate">{prompt.q}</span>
-                  </span>
-                  <span className="material-symbols-outlined text-[16px] text-on-surface-variant shrink-0">chevron_right</span>
+                  <span className="text-xl">{prompt.icon}</span>
+                  <span className="truncate">{prompt.q}</span>
+                  <span className="material-symbols-outlined text-[16px] text-on-surface-variant ml-auto shrink-0">chevron_right</span>
                 </button>
               ))}
             </div>
           </section>
 
           {/* Weather mini */}
-          <section className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary text-[22px]">thunderstorm</span>
-                <h3 className="font-headline-md text-[18px] font-bold text-on-surface">Agro-Climatic Advisory</h3>
+          {isFarmer && (
+            <section className="chart-section">
+              <div className="chart-section__header">
+                <span className="chart-section__emoji">{weather ? (weather.risk?.score >= 6 ? '🌧️' : '☀️') : '🌤️'}</span>
+                <h2 className="chart-section__title">Weather</h2>
               </div>
-              <span className="font-label-sm text-label-sm text-on-surface-variant">Live · Open-Meteo</span>
-            </div>
 
-            {weather ? (
-              <>
-                <div className="p-4 rounded-xl bg-surface-container-low flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-[36px] text-primary">{weather.current?.condition?.icon || 'cloud'}</span>
+              {weather ? (
+                <div className="flex flex-col items-center gap-4">
+                  <div className="flex items-center gap-4 w-full p-4 rounded-xl bg-surface-container-low">
+                    <span className="text-4xl">{weather.current?.temperature_c > 35 ? '🔥' : weather.current?.temperature_c < 15 ? '🥶' : '🌡️'}</span>
                     <div className="flex flex-col">
-                      <span className="font-headline-lg text-[26px] font-bold text-on-surface leading-none">{weather.current?.temperature_c != null ? Math.round(weather.current.temperature_c) : '—'}°C</span>
+                      <span className="font-headline-lg text-[28px] font-bold text-on-surface leading-none">
+                        {weather.current?.temperature_c != null ? Math.round(weather.current.temperature_c) : '—'}°C
+                      </span>
                       <span className="font-label-sm text-label-sm text-on-surface-variant">{weather.current?.condition?.label}</span>
                     </div>
+                    <div className="ml-auto flex flex-col text-right font-label-sm text-label-sm text-on-surface-variant">
+                      <span>💧 {weather.current?.humidity_pct ?? '—'}%</span>
+                      <span>💨 {weather.current?.wind_kph ?? '—'} km/h</span>
+                    </div>
                   </div>
-                  <div className="flex flex-col text-right font-label-sm text-label-sm text-on-surface-variant">
-                    <span>Humidity: <strong>{weather.current?.humidity_pct ?? '—'}%</strong></span>
-                    <span>Wind: <strong>{weather.current?.wind_kph ?? '—'} km/h</strong></span>
-                  </div>
+                  <WeatherGauge score={weather.risk?.score || 0} size={130} />
+                  <p className="font-body-md text-[13px] text-on-surface-variant text-center px-2">
+                    {(weather.risk?.advisories || [])[0]?.title || 'Conditions look good — no weather warnings.'}
+                  </p>
                 </div>
-                <div className={`p-4 rounded-xl flex-1 flex items-start gap-3 ${(weather.risk?.score || 0) >= 4 ? 'bg-tertiary/10' : 'bg-primary/10'}`}>
-                  <span className={`material-symbols-outlined text-[22px] shrink-0 mt-0.5 ${(weather.risk?.score || 0) >= 4 ? 'text-tertiary' : 'text-primary'}`}>warning</span>
-                  <div className="flex flex-col gap-1">
-                    <span className={`font-label-sm text-label-sm font-bold ${(weather.risk?.score || 0) >= 4 ? 'text-tertiary' : 'text-primary'}`}>
-                      Crop-risk {weather.risk?.level} ({weather.risk?.score}/10)
-                    </span>
-                    <p className="font-body-md text-[13px] leading-relaxed text-on-surface">
-                      {(weather.risk?.advisories || [])[0]?.title || 'Conditions look favourable — no major weather triggers.'}
-                    </p>
-                  </div>
+              ) : (
+                <div className="p-6 text-center text-on-surface-variant">
+                  <span className="text-3xl block mb-2">🌤️</span>
+                  <span className="font-label-sm text-label-sm">{weatherFailed ? 'Feed unavailable' : 'Loading weather...'}</span>
                 </div>
-              </>
-            ) : weatherFailed ? (
-              <div className="p-4 rounded-xl bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm flex items-center gap-2">
-                <span className="material-symbols-outlined text-[18px]">cloud_off</span>
-                Live feed unavailable right now.
-              </div>
-            ) : (
-              <div className="p-4 rounded-xl bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm flex items-center gap-2">
-                <span className="material-symbols-outlined text-[18px] animate-pulse">cloud_sync</span>
-                Fetching live district weather…
-              </div>
-            )}
+              )}
 
-            <button
-              onClick={() => onNavigate('weather')}
-              className="w-full h-12 rounded-xl bg-surface-container text-on-surface font-label-sm text-label-sm hover:bg-surface-container-high transition-colors flex items-center justify-center gap-2"
-            >
-              <span className="material-symbols-outlined text-[18px]">partly_cloudy_day</span>
-              <span>Open Weather &amp; Crop Risk</span>
-            </button>
-          </section>
+              <button
+                onClick={() => onNavigate('weather')}
+                className="w-full h-12 mt-3 rounded-xl bg-surface-container text-on-surface font-label-sm text-label-sm hover:bg-surface-container-high transition-colors flex items-center justify-center gap-2"
+              >
+                <span className="text-lg">🌦️</span> See Full Weather & Risk
+              </button>
+            </section>
+          )}
 
-          {/* Enterprise feasibility fast tracker */}
-          <section className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm flex flex-col gap-5" ref={feasibilityPanelRef}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary text-[22px]">model_training</span>
-                <h3 className="font-headline-md text-[18px] font-bold text-on-surface">Enterprise Feasibility</h3>
-              </div>
-              <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-label-sm text-label-sm font-bold">
-                {hasLiveReport ? 'Live Report' : 'Sample Report'}
+          {/* Feasibility quick peek */}
+          <section className="chart-section" ref={feasibilityPanelRef}>
+            <div className="chart-section__header">
+              <span className="chart-section__emoji">📊</span>
+              <h2 className="chart-section__title">Your Business Plan</h2>
+              <span className="ml-auto px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-label-sm text-label-sm font-bold">
+                {hasLiveReport ? 'Live' : 'Sample'}
               </span>
             </div>
 
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <h4 className="font-headline-md text-[16px] font-semibold text-on-surface truncate">{reportDisplay.business_category || 'Business Venture'}</h4>
-                  <p className="font-label-sm text-label-sm text-on-surface-variant truncate">{reportDisplay.display_name || ''} · Outlay {fmtINR(fin.project_cost)}</p>
-                </div>
-                <div className="flex items-center justify-center w-14 h-14 rounded-full bg-primary/10 text-primary font-headline-md text-[16px] font-bold shrink-0 flex-col">
-                  {fin.selected_scheme?.replace(' Scheme', '') || '—'}
-                </div>
+            <div className="flex flex-col items-center gap-4">
+              <h4 className="font-headline-md text-[16px] font-semibold text-on-surface text-center">
+                {reportDisplay.business_category || 'Business Venture'}
+              </h4>
+              <p className="font-label-sm text-label-sm text-on-surface-variant text-center">
+                {reportDisplay.display_name || ''} • Total {fmtINR(fin.project_cost)}
+              </p>
+
+              {/* Visual Pie Chart showing loan breakdown */}
+              <div className="relative">
+                <LoanPieChart
+                  marginAmount={fin.margin_contribution || fin.project_cost * 0.1 || 60000}
+                  loanAmount={fin.loan_amount || fin.project_cost * 0.9 || 540000}
+                  subsidyAmount={Math.min((fin.project_cost || 0) * 0.25, 500000)}
+                  size={160}
+                />
               </div>
 
-              <div className="flex flex-col gap-2 pt-2">
-                <div className="flex items-center justify-between font-label-sm text-label-sm">
-                  <span className="text-on-surface-variant">Bank funding (loan / cost)</span>
-                  <span className="font-semibold text-on-surface">{fin.loan_amount && fin.project_cost ? Math.round((fin.loan_amount / fin.project_cost) * 100) + '%' : '—'}</span>
+              <div className="grid grid-cols-2 gap-3 w-full text-center">
+                <div className="p-3 rounded-xl bg-surface-container-low">
+                  <span className="block font-label-sm text-label-sm text-on-surface-variant">Interest</span>
+                  <span className="block font-headline-md text-[18px] font-bold text-on-surface">{fin.interest_rate_pct || '—'}%</span>
                 </div>
-                <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-primary h-full rounded-full" style={{ width: (fin.loan_amount && fin.project_cost ? Math.min(100, (fin.loan_amount / fin.project_cost) * 100) : 0) + '%' }} />
-                </div>
-                <div className="flex items-center justify-between font-label-sm text-label-sm pt-1">
-                  <span className="text-on-surface-variant">Quoted interest</span>
-                  <span className="font-semibold text-on-surface">{fin.interest_rate_pct ? fin.interest_rate_pct + '% p.a.' : '—'}</span>
-                </div>
-                <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-secondary h-full rounded-full" style={{ width: (fin.interest_rate_pct ? Math.min(100, fin.interest_rate_pct / 15 * 100) : 0) + '%' }} />
-                </div>
-                <div className="flex items-center justify-between font-label-sm text-label-sm pt-1">
-                  <span className="text-on-surface-variant">Tenure</span>
-                  <span className="font-semibold text-on-surface">{fin.tenure_months ? Math.round(fin.tenure_months / 12 * 10) / 10 + ' years' : '—'}</span>
-                </div>
-                <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-primary-container h-full rounded-full" style={{ width: (fin.tenure_months ? Math.min(100, (fin.tenure_months / 180) * 100) : 0) + '%' }} />
+                <div className="p-3 rounded-xl bg-surface-container-low">
+                  <span className="block font-label-sm text-label-sm text-on-surface-variant">Tenure</span>
+                  <span className="block font-headline-md text-[18px] font-bold text-on-surface">{fin.tenure_months ? Math.round(fin.tenure_months / 12) + ' yrs' : '—'}</span>
                 </div>
               </div>
             </div>
 
             <button
               onClick={() => onNavigate('feasibility')}
-              className="w-full h-12 rounded-xl bg-primary text-on-primary font-label-lg text-label-lg hover:bg-primary-container transition-colors shadow-sm flex items-center justify-center gap-2"
+              className="w-full h-12 mt-3 rounded-xl bg-primary text-on-primary font-label-lg text-label-lg hover:bg-primary-container transition-colors shadow-sm flex items-center justify-center gap-2"
             >
-              <span>Open Full Feasibility Report</span>
-              <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+              📄 Open Full Report
             </button>
             <button
               onClick={onNewReport || (() => onNavigate('feasibility'))}
-              className="w-full h-11 rounded-xl bg-surface-container text-on-surface font-label-sm text-label-sm hover:bg-surface-container-high transition-colors"
+              className="w-full h-11 mt-2 rounded-xl bg-surface-container text-on-surface font-label-sm text-label-sm hover:bg-surface-container-high transition-colors"
             >
-              {hasLiveReport ? 'Generate a fresh report' : 'Generate a feasibility report to fill this panel'}
+              {hasLiveReport ? '🔄 Generate New Report' : '✨ Generate Your First Report'}
             </button>
           </section>
 
-          {/* Cluster co-op pulse */}
-          <section className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-headline-md text-[18px] font-bold text-on-surface">Cluster Co-op Pulse</h3>
-              <span className="font-label-sm text-label-sm text-primary font-semibold">
-                {(cluster?.stats?.active_loans || 0) + (cluster?.stats?.pending || 0)} loans in pipeline
-              </span>
+          {/* Cluster co-op pulse (simplified) */}
+          <section className="chart-section">
+            <div className="chart-section__header">
+              <span className="chart-section__emoji">👥</span>
+              <h2 className="chart-section__title">Village Activity</h2>
             </div>
 
             {cluster?.events?.length ? (
@@ -975,7 +743,7 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
                         event.kind === 'approval' ? 'bg-primary text-on-primary' : event.kind === 'harvest' ? 'bg-secondary-fixed text-on-secondary-fixed' : event.kind === 'repayment' ? 'bg-primary-fixed text-on-primary-fixed' : 'bg-surface-container-high text-on-surface-variant'
                       }`}
                     >
-                      {event.member === 'Your Farm' ? <span className="material-symbols-outlined text-[18px]">grass</span> : (event.member.split(' ').map(w => w[0]).slice(0, 2).join('') || '?').toUpperCase()}
+                      {event.kind === 'approval' ? '✅' : event.kind === 'harvest' ? '🌾' : event.kind === 'repayment' ? '💸' : '📌'}
                     </div>
                     <div className="flex flex-col min-w-0">
                       <span className="font-label-sm text-label-sm font-semibold text-on-surface truncate">{event.title}</span>
@@ -985,24 +753,11 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col gap-2 p-4 rounded-xl bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm">
-                <p>No cluster activity yet — applications, approvals and harvest logs from your village will appear here as live feed.</p>
-                <button
-                  onClick={() => setLoanModal(true)}
-                  className="self-start px-4 py-2 rounded-xl bg-primary text-on-primary font-label-sm text-label-sm hover:bg-primary-container transition-colors"
-                >
-                  Start with a loan application
-                </button>
+              <div className="flex flex-col items-center gap-3 p-6 text-center">
+                <span className="text-4xl">🏘️</span>
+                <p className="font-body-md text-body-md text-on-surface-variant">Village activity will appear here as neighbors apply and harvest.</p>
               </div>
             )}
-
-            <button
-              onClick={() => openChatWith('Show me my loan and repayment summary')}
-              className="w-full h-11 rounded-xl bg-surface-container-low text-on-surface font-label-sm text-label-sm hover:bg-surface-container transition-colors flex items-center justify-center gap-2"
-            >
-              <span className="material-symbols-outlined text-[18px]">groups</span>
-              <span>Ask about cluster activity</span>
-            </button>
           </section>
         </div>
       </div>
@@ -1082,12 +837,10 @@ function LoanApplyModal({ onClose, onSuccess, onViewHistory }) {
       <div className="bg-surface-container-lowest rounded-xl shadow-xl w-full max-w-xl p-6 md:p-8 flex flex-col gap-6 relative my-8">
         <div className="flex items-center justify-between pb-4 border-b border-surface-container">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-              <span className="material-symbols-outlined text-[24px]">payments</span>
-            </div>
+            <span className="text-3xl">🏦</span>
             <div>
-              <h3 className="font-headline-md text-headline-md text-on-surface leading-tight">Apply for Credit Facility</h3>
-              <p className="font-label-sm text-label-sm text-on-surface-variant">Tier-1 pre-approved lending limit: {fmtINR(CREDIT_LIMIT)}</p>
+              <h3 className="font-headline-md text-headline-md text-on-surface leading-tight">Apply for Loan</h3>
+              <p className="font-label-sm text-label-sm text-on-surface-variant">Max limit: {fmtINR(CREDIT_LIMIT)}</p>
             </div>
           </div>
           <button onClick={onClose} className="w-10 h-10 rounded-lg hover:bg-surface-container flex items-center justify-center text-on-surface-variant" aria-label="Close">
@@ -1097,17 +850,15 @@ function LoanApplyModal({ onClose, onSuccess, onViewHistory }) {
 
         {ref ? (
           <div className="flex flex-col items-center gap-4 py-6 text-center">
-            <div className="w-20 h-20 rounded-full bg-primary-container flex items-center justify-center">
-              <span className="material-symbols-outlined text-on-primary-container text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>task_alt</span>
-            </div>
+            <span className="text-6xl">✅</span>
             <div>
-              <h4 className="font-headline-md text-headline-md text-on-surface font-bold mb-1">Application Submitted</h4>
-              <p className="font-body-md text-body-md text-on-surface-variant">Reference <strong className="text-primary">{ref}</strong> · now under bank-officer review.</p>
-              <p className="font-label-sm text-label-sm text-on-surface-variant mt-2">{facility.name} · {fmtINR(Math.round(amountNum))} at {facility.annualRate}% p.a. · {tenure} months</p>
+              <h4 className="font-headline-md text-headline-md text-on-surface font-bold mb-1">Submitted!</h4>
+              <p className="font-body-md text-body-md text-on-surface-variant">Reference <strong className="text-primary">{ref}</strong> — under bank review.</p>
+              <p className="font-label-sm text-label-sm text-on-surface-variant mt-2">{facility.name} • {fmtINR(Math.round(amountNum))} at {facility.annualRate}% • {tenure} months</p>
             </div>
             <div className="flex gap-3 pt-2 w-full">
               <button onClick={onViewHistory} className="flex-1 bg-primary text-on-primary px-5 py-3 rounded-xl font-label-lg text-label-lg hover:bg-primary-container transition-colors">
-                View in Loan Management
+                View Loans
               </button>
               <button onClick={onClose} className="flex-1 bg-surface-container-high text-on-surface px-5 py-3 rounded-xl font-label-lg text-label-lg hover:bg-surface-container transition-colors">
                 Done
@@ -1116,25 +867,25 @@ function LoanApplyModal({ onClose, onSuccess, onViewHistory }) {
           </div>
         ) : (
           <form onSubmit={submit} className="flex flex-col gap-4">
-            <Input label="Select Loan Facility Type">
+            <Input label="Loan Type">
               <select value={facilityId} onChange={e => setFacilityId(e.target.value)} className={fieldCls}>
                 {FACILITIES.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
               </select>
               <p className="font-label-sm text-label-sm text-on-surface-variant mt-1.5 flex items-center gap-1">
-                <span className="material-symbols-outlined text-[14px] text-primary">verified_user</span> {facility.note} · {facility.annualRate}% p.a.
+                ✅ {facility.note} • {facility.annualRate}% interest
               </p>
             </Input>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input label={`Required Amount (${fmtINR(amountNum || 0)})`}>
+              <Input label={`Amount (${fmtINR(amountNum || 0)})`}>
                 <input type="number" min={10000} max={CREDIT_LIMIT} step={10000} value={amount} onChange={e => setAmount(e.target.value)} className={fieldCls} placeholder="500000" />
               </Input>
-              <Input label="Repayment Tenure">
+              <Input label="Duration">
                 <select value={tenure} onChange={e => setTenure(Number(e.target.value))} className={fieldCls}>
                   {TENURE_OPTIONS.map(opt => <option key={opt.months} value={opt.months}>{opt.label}</option>)}
                 </select>
               </Input>
-              <Input label="Applicant Name">
+              <Input label="Your Name">
                 <input type="text" value={name} onChange={e => setName(e.target.value)} className={fieldCls} />
               </Input>
               <Input label="Mobile Number">
@@ -1142,20 +893,20 @@ function LoanApplyModal({ onClose, onSuccess, onViewHistory }) {
               </Input>
             </div>
 
-            <Input label="Home Branch / Cluster">
+            <Input label="Branch">
               <input type="text" value={branch} onChange={e => setBranch(e.target.value)} className={fieldCls} />
             </Input>
 
             <div className="p-4 rounded-xl bg-primary/5 flex items-start gap-3">
-              <span className="material-symbols-outlined text-primary text-[20px] mt-0.5">verified_user</span>
+              <span className="text-xl">📋</span>
               <p className="font-label-sm text-label-sm text-on-surface-variant">
-                Land registry documentation (7/12 &amp; 8A extracts) syncs via Mahabhulekh on approval. Estimated eligible capital subsidy: <strong className="text-primary">{fmtINR(Math.round(subsidy))}</strong>.
+                Land papers (7/12 & 8A) auto-sync on approval. Estimated subsidy: <strong className="text-primary">{fmtINR(Math.round(subsidy))}</strong>
               </p>
             </div>
 
             {error && (
               <div className="p-3 rounded-xl bg-error-container/20 text-error font-label-sm text-label-sm flex items-start gap-2">
-                <span className="material-symbols-outlined text-[16px]">error</span> {error}
+                ❌ {error}
               </div>
             )}
 
@@ -1167,7 +918,7 @@ function LoanApplyModal({ onClose, onSuccess, onViewHistory }) {
                 className="px-6 h-12 rounded-xl bg-primary text-on-primary font-label-lg hover:bg-primary-container transition-colors shadow-sm flex items-center gap-2 disabled:opacity-50"
               >
                 {submitting && <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>}
-                {submitting ? 'Submitting…' : 'Submit Application'}
+                {submitting ? 'Submitting…' : '✅ Submit'}
               </button>
             </div>
           </form>
@@ -1237,12 +988,10 @@ function HarvestModal({ onClose, onSuccess }) {
       <div className="bg-surface-container-lowest rounded-xl shadow-xl w-full max-w-xl p-6 md:p-8 flex flex-col gap-6 relative my-8 max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between pb-4 border-b border-surface-container">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-              <span className="material-symbols-outlined text-[24px]">inventory_2</span>
-            </div>
+            <span className="text-3xl">🌾</span>
             <div>
-              <h3 className="font-headline-md text-headline-md text-on-surface leading-tight">Log Harvest Lot</h3>
-              <p className="font-label-sm text-label-sm text-on-surface-variant">Record what left the farm — feeds your season revenue.</p>
+              <h3 className="font-headline-md text-headline-md text-on-surface leading-tight">Log Harvest</h3>
+              <p className="font-label-sm text-label-sm text-on-surface-variant">Record your harvest — feeds your revenue dashboard.</p>
             </div>
           </div>
           <button onClick={onClose} className="w-10 h-10 rounded-lg hover:bg-surface-container flex items-center justify-center text-on-surface-variant" aria-label="Close">
@@ -1252,41 +1001,41 @@ function HarvestModal({ onClose, onSuccess }) {
 
         <form onSubmit={submit} className="flex flex-col gap-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Produce / Crop">
+            <Input label="🌱 Crop">
               <select value={produce} onChange={e => setProduce(e.target.value)} className={fieldCls}>
                 {PRODUCE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
               </select>
             </Input>
-            <Input label="Harvest Date">
+            <Input label="📅 Harvest Date">
               <input type="date" value={date} max={new Date().toISOString().slice(0, 10)} onChange={e => setDate(e.target.value)} className={fieldCls} />
             </Input>
-            <Input label="Quantity (quintals)">
+            <Input label="⚖️ Quantity (quintals)">
               <input type="number" min="0.1" step="0.1" value={quantity} onChange={e => setQuantity(e.target.value)} className={fieldCls} placeholder="e.g. 12.5" />
             </Input>
-            <Input label="Price Realised (₹/quintal)">
+            <Input label="💰 Price (₹/quintal)">
               <input type="number" min="1" step="1" value={price} onChange={e => setPrice(e.target.value)} className={fieldCls} placeholder="e.g. 4800" />
             </Input>
           </div>
-          <Input label="Notes (optional)">
+          <Input label="📝 Notes (optional)">
             <input type="text" value={notes} onChange={e => setNotes(e.target.value)} maxLength={300} className={fieldCls} placeholder="e.g. Kharif batch A — sold at APMC" />
           </Input>
 
           {qty > 0 && pricePer > 0 && (
             <div className="p-4 rounded-xl bg-primary/5 flex items-center justify-between">
-              <span className="font-label-sm text-label-sm text-on-surface-variant">Expected revenue</span>
+              <span className="font-label-sm text-label-sm text-on-surface-variant">💵 Expected Revenue</span>
               <span className="font-headline-md text-headline-md font-bold text-primary">{fmtINR(Math.round(qty * pricePer))}</span>
             </div>
           )}
 
           {error && (
-            <div className="p-3 rounded-xl bg-error-container/20 text-error font-label-sm text-label-sm">{error}</div>
+            <div className="p-3 rounded-xl bg-error-container/20 text-error font-label-sm text-label-sm">❌ {error}</div>
           )}
 
           <div className="flex items-center justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="px-6 h-12 rounded-xl text-on-surface-variant font-label-lg hover:bg-surface-container transition-colors">Cancel</button>
             <button type="submit" disabled={!valid || submitting} className="px-6 h-12 rounded-xl bg-primary text-on-primary font-label-lg hover:bg-primary-container transition-colors shadow-sm flex items-center gap-2 disabled:opacity-50">
               {submitting && <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>}
-              {submitting ? 'Logging…' : 'Log Harvest'}
+              {submitting ? 'Logging…' : '🌾 Log Harvest'}
             </button>
           </div>
         </form>
@@ -1298,15 +1047,15 @@ function HarvestModal({ onClose, onSuccess }) {
               {lots.slice(0, 8).map(lot => (
                 <div key={lot.id} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-surface-container-low">
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="material-symbols-outlined text-primary text-[18px]">grass</span>
+                    <span className="text-lg">🌾</span>
                     <div className="min-w-0">
-                      <p className="font-label-sm text-label-sm text-on-surface truncate">{lot.produce} · {lot.quantity_qtl} qtl @ ₹{Number(lot.price_per_qtl).toLocaleString('en-IN')}</p>
-                      <p className="font-label-sm text-[11px] text-on-surface-variant">{lot.id} · {fmtDateLabel(lot.harvest_date)}</p>
+                      <p className="font-label-sm text-label-sm text-on-surface truncate">{lot.produce} • {lot.quantity_qtl} qtl @ ₹{Number(lot.price_per_qtl).toLocaleString('en-IN')}</p>
+                      <p className="font-label-sm text-[11px] text-on-surface-variant">{fmtDateLabel(lot.harvest_date)}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="font-label-sm text-label-sm text-primary font-bold">{fmtINR(lot.quantity_qtl * lot.price_per_qtl)}</span>
-                    <button onClick={() => removeLot(lot.id)} title="Delete lot" className="w-8 h-8 rounded-lg text-on-surface-variant hover:text-error hover:bg-error-container/20 flex items-center justify-center transition-colors">
+                    <button onClick={() => removeLot(lot.id)} title="Delete" className="w-8 h-8 rounded-lg text-on-surface-variant hover:text-error hover:bg-error-container/20 flex items-center justify-center transition-colors">
                       <span className="material-symbols-outlined text-[18px]">delete</span>
                     </button>
                   </div>

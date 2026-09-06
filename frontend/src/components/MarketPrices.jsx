@@ -1,14 +1,18 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { fetchMarketPrices, generateLiveMandiPrices } from '../hooks/useReport';
 
 export default function MarketPrices() {
+  const { t, i18n } = useTranslation();
+  const currentLang = i18n.language || 'en';
+
   const [crops, setCrops] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('All Categories');
-  const [mandi, setMandi] = useState('All Mandis');
+  const [category, setCategory] = useState('all');
+  const [mandi, setMandi] = useState('all');
 
   useEffect(() => {
     let isMounted = true;
@@ -35,8 +39,8 @@ export default function MarketPrices() {
   const filteredCrops = useMemo(() => {
     return crops.filter(crop => {
       const matchesSearch = !search.trim() || crop.name.toLowerCase().includes(search.toLowerCase());
-      const matchesCategory = category === 'All Categories' || crop.category === category;
-      const matchesMandi = mandi === 'All Mandis' || (crop.mandi && crop.mandi.toLowerCase().includes(mandi.toLowerCase()));
+      const matchesCategory = category === 'all' || crop.category.toLowerCase().includes(category.toLowerCase());
+      const matchesMandi = mandi === 'all' || (crop.mandi && crop.mandi.toLowerCase().includes(mandi.toLowerCase()));
       return matchesSearch && matchesCategory && matchesMandi;
     });
   }, [crops, search, category, mandi]);
@@ -45,8 +49,8 @@ export default function MarketPrices() {
     <div className="max-w-7xl mx-auto space-y-stack-gap">
       {/* Header Section */}
       <div className="mb-stack-gap">
-        <h2 className="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface mb-2">Real-Time Commodities</h2>
-        <p className="font-body-lg text-body-lg text-on-surface-variant">Track current prices and 7-day trends across local mandis.</p>
+        <h2 className="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface mb-2">{t('market_prices.title')}</h2>
+        <p className="font-body-lg text-body-lg text-on-surface-variant">{t('market_prices.subtitle')}</p>
       </div>
 
       {/* Search & Filters */}
@@ -55,35 +59,34 @@ export default function MarketPrices() {
           <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">search</span>
           <input 
             className="w-full pl-12 pr-4 py-4 rounded-xl border border-outline-variant bg-surface-bright text-on-surface focus:ring-2 focus:ring-primary focus:border-primary font-body-md text-body-md transition-shadow min-h-[56px]" 
-            placeholder="Search crops (e.g. Wheat, Rice)..." 
+            placeholder={t('market_prices.search_placeholder')} 
             type="text" 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className="flex gap-4 flex-col sm:flex-row">
+        <div className="flex gap-4">
           <select 
             className="pl-4 pr-10 py-4 rounded-xl border border-outline-variant bg-surface-bright text-on-surface focus:ring-2 focus:ring-primary font-body-md text-body-md min-h-[56px] min-w-[160px]"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
           >
-            <option>All Categories</option>
-            <option>Cereals</option>
-            <option>Pulses</option>
-            <option>Oilseeds</option>
-            <option>Cash Crops</option>
+            <option value="all">{currentLang === 'mr' ? 'सर्व श्रेणी' : currentLang === 'hi' ? 'सभी श्रेणियां' : 'All Categories'}</option>
+            <option value="cereals">{currentLang === 'mr' ? 'धान्य (Cereals)' : currentLang === 'hi' ? 'अनाज (Cereals)' : 'Cereals'}</option>
+            <option value="pulses">{currentLang === 'mr' ? 'डाळी (Pulses)' : currentLang === 'hi' ? 'दलहन (Pulses)' : 'Pulses'}</option>
+            <option value="oilseeds">{currentLang === 'mr' ? 'गळीत धान्य (Oilseeds)' : currentLang === 'hi' ? 'तिलहन (Oilseeds)' : 'Oilseeds'}</option>
+            <option value="cash">{currentLang === 'mr' ? 'नगदी पिके (Cash Crops)' : currentLang === 'hi' ? 'नकदी फसलें (Cash Crops)' : 'Cash Crops'}</option>
           </select>
           <select 
             className="pl-4 pr-10 py-4 rounded-xl border border-outline-variant bg-surface-bright text-on-surface focus:ring-2 focus:ring-primary font-body-md text-body-md min-h-[56px] min-w-[160px]"
             value={mandi}
             onChange={(e) => setMandi(e.target.value)}
           >
-            <option>All Mandis</option>
-            <option>Local Mandi (Auto)</option>
-            <option>Azadpur Mandi</option>
-            <option>Vashi APMC</option>
-            <option>Karnal</option>
-            <option>Rajkot</option>
+            <option value="all">{currentLang === 'mr' ? 'सर्व बाजार समित्या' : currentLang === 'hi' ? 'सभी मंडियां' : 'All Mandis'}</option>
+            <option value="akola">Akola APMC</option>
+            <option value="nagpur">Nagpur Mandi</option>
+            <option value="rajkot">Rajkot Mandi</option>
+            <option value="lasalgaon">Lasalgaon APMC</option>
           </select>
         </div>
       </div>

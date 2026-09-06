@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { approveLoanApplication, fetchLoanHistory, fetchLoanStatement } from '../hooks/useReport';
 import RepaymentTracker from './RepaymentTracker';
 
 const filterOptions = ['All', 'Active', 'Pending', 'Repaid'];
 
 export default function LoanHistory({ onNavigate }) {
+  const { t, i18n } = useTranslation();
+  const currentLang = i18n.language || 'en';
   const [loansData, setLoansData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -151,8 +154,12 @@ export default function LoanHistory({ onNavigate }) {
       {/* Header Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
-          <h2 className="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-background">Loan History</h2>
-          <p className="font-body-md text-body-md text-on-surface-variant mt-1">Review your past and current financing.</p>
+          <h2 className="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-background">
+            {t('loan_history.title')}
+          </h2>
+          <p className="font-body-md text-body-md text-on-surface-variant mt-1">
+            {t('loan_history.subtitle')}
+          </p>
         </div>
         <div className="flex gap-3 w-full md:w-auto">
           <button
@@ -165,7 +172,9 @@ export default function LoanHistory({ onNavigate }) {
             title="Toggle bank officer view"
           >
             <span className="material-symbols-outlined text-[20px]">admin_panel_settings</span>
-            <span className="hidden sm:inline">Officer View</span>
+            <span className="hidden sm:inline">
+              {currentLang === 'mr' ? 'बँक अधिकारी दृश्य' : currentLang === 'hi' ? 'बैंक अधिकारी दृश्य' : 'Officer View'}
+            </span>
             {pendingApplications.length > 0 && (
               <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${officerMode ? 'bg-on-primary-container/20' : 'bg-primary text-on-primary'}`}>
                 {pendingApplications.length}
@@ -177,8 +186,8 @@ export default function LoanHistory({ onNavigate }) {
             className="flex-1 md:flex-none bg-primary text-on-primary font-label-lg text-label-lg px-6 py-3 rounded-xl min-h-[48px] hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm hover:shadow-xl flex items-center justify-center gap-2"
           >
             <span className="material-symbols-outlined text-[20px]">add</span>
-            <span className="hidden sm:inline">Apply for Loan</span>
-            <span className="sm:hidden">Apply</span>
+            <span className="hidden sm:inline">{t('dashboard_home.apply_btn')}</span>
+            <span className="sm:hidden">{t('dashboard_home.apply_btn')}</span>
           </button>
         </div>
       </div>

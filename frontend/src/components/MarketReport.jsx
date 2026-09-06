@@ -1,27 +1,35 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getPDFUrl, submitLoanApplication } from '../hooks/useReport';
 import { computeEMI, formatINR } from './ScenarioCalculator';
+import { LoanPieChart, EMIAreaChart, ViabilityDonut, SWOTGrid } from './VisualCharts';
 
 const NEXT_STEPS = [
   {
-    title: 'Visit Local Bank Branch',
-    desc: 'Schedule a meeting with the agricultural officer to discuss the Term Loan Scheme.',
+    key: 'bank',
+    titleKey: 'market_report.step_bank',
+    descKey: 'market_report.step_bank_desc',
   },
   {
-    title: 'Finalize Feed Supply Contract',
-    desc: 'Lock in prices with local organic feed vendors identified in the strengths section.',
+    key: 'feed',
+    titleKey: 'market_report.step_feed',
+    descKey: 'market_report.step_feed_desc',
   },
   {
-    title: 'Apply for Solar Subsidy',
-    desc: 'Submit the application for the state-sponsored renewable energy grant.',
+    key: 'solar',
+    titleKey: 'market_report.step_solar',
+    descKey: 'market_report.step_solar_desc',
   },
   {
-    title: 'Register Business Profile',
-    desc: 'Complete the Udyam registration to unlock additional state benefits.',
+    key: 'udyam',
+    titleKey: 'market_report.step_udyam',
+    descKey: 'market_report.step_udyam_desc',
   },
 ];
 
 export default function MarketReport({ report, onReset, onGoHome, onGoToHistory }) {
+  const { t, i18n } = useTranslation();
+  const currentLang = i18n.language || 'en';
   const financials = report?.financials || {};
   const mi = report?.market_intelligence || {};
   const osm = report?.osm_summary || {};
@@ -225,116 +233,107 @@ export default function MarketReport({ report, onReset, onGoHome, onGoToHistory 
         <div>
           <div className="flex items-center gap-3 mb-3">
             <button onClick={onGoHome} className="flex items-center gap-1.5 text-primary hover:underline font-label-lg text-label-lg">
-              <span className="material-symbols-outlined text-sm">arrow_back</span> Dashboard
+              <span className="material-symbols-outlined text-sm">arrow_back</span> {t('market_report.back_dashboard')}
             </button>
             <span className="text-outline-variant">•</span>
             <button onClick={onReset} className="flex items-center gap-1.5 text-on-surface-variant hover:text-primary font-label-lg text-label-lg">
-              <span className="material-symbols-outlined text-sm">tune</span> New Village Analysis
+              <span className="material-symbols-outlined text-sm">tune</span> {t('market_report.new_analysis')}
             </button>
           </div>
-          <h1 className="font-display-lg text-display-lg text-on-surface mb-2">Business Feasibility Report</h1>
+          <h1 className="font-display-lg text-display-lg text-on-surface mb-2">{t('market_report.title')}</h1>
           <p className="font-headline-md text-headline-md text-on-surface-variant font-normal capitalize">
             {categoryTitle} - {locationShort}
           </p>
         </div>
         <div className="flex gap-4 w-full md:w-auto">
           <button onClick={handleShare} className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-surface-container-high text-on-surface px-6 py-4 rounded-xl min-h-[56px] font-label-lg text-label-lg shadow-sm hover:shadow-md transition-shadow">
-            <span className="material-symbols-outlined">share</span> Share
+            <span className="material-symbols-outlined">share</span> {t('common.share')}
           </button>
           <button onClick={handleDownloadPDF} className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-primary text-on-primary px-6 py-4 rounded-xl min-h-[56px] font-label-lg text-label-lg shadow-sm hover:shadow-xl transition-shadow">
-            <span className="material-symbols-outlined">download</span> Download PDF
+            <span className="material-symbols-outlined">download</span> {t('common.download_pdf')}
           </button>
         </div>
       </div>
 
       {/* Bento Grid Layout */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Market Score (Spans 1 col) */}
+        {/* Market Score (Spans 1 col) — Visual Donut */}
         <div className="bg-surface-container-lowest rounded-2xl p-6 md:p-8 shadow-sm hover:shadow-xl transition-shadow flex flex-col items-center justify-center border border-surface-variant">
-          <h3 className="font-headline-md text-headline-md text-on-surface mb-6 text-center w-full">Market Viability Score</h3>
-          <div className="relative w-48 h-48 flex items-center justify-center mb-4">
-            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-              <circle className="text-surface-variant" cx="50" cy="50" fill="none" r="45" stroke="currentColor" strokeWidth="10" />
-              <circle
-                className="text-primary"
-                cx="50" cy="50" fill="none" r="45"
-                stroke="currentColor"
-                strokeDasharray={`${(score / 100) * 283}`}
-                strokeDashoffset="0"
-                strokeLinecap="round"
-                strokeWidth="10"
-              />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="font-display-lg text-display-lg text-primary">{score}%</span>
-            </div>
-          </div>
-          <div className="bg-primary-container/20 text-primary px-4 py-2 rounded-full font-label-lg text-label-lg flex items-center gap-2">
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>trending_up</span>
-            {score >= 80 ? 'High Potential' : score >= 60 ? 'Moderate Potential' : 'Needs Optimization'}
-          </div>
+          <h3 className="font-headline-md text-headline-md text-on-surface mb-4 text-center w-full flex items-center justify-center gap-2">
+            <span className="text-2xl">📊</span> {t('market_report.market_score')}
+          </h3>
+          <ViabilityDonut score={score} size={180} />
+          <p className="font-body-md text-body-md text-on-surface-variant text-center mt-3 max-w-[200px]">
+            {score >= 80 ? t('market_report.great_market') : score >= 60 ? t('market_report.decent_market') : t('market_report.tough_market')}
+          </p>
         </div>
 
         {/* Recommendation (Spans 2 cols) */}
         <div className="md:col-span-2 bg-surface-container-lowest rounded-2xl p-6 md:p-8 shadow-sm hover:shadow-xl transition-shadow border border-surface-variant flex flex-col justify-center relative overflow-hidden">
           <div className="absolute right-0 top-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
-          <div className="flex items-start gap-6 relative z-10">
-            <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center shrink-0 shadow-lg">
-              <span className="material-symbols-outlined text-on-primary text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-            </div>
+          <div className="flex items-start gap-5 relative z-10">
+            <span className="text-5xl shrink-0">✅</span>
             <div>
-              <h3 className="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface mb-2">Highly Recommended</h3>
+              <h3 className="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface mb-2">
+                {score >= 80 ? t('market_report.highly_recommended') : score >= 60 ? t('market_report.worth_considering') : t('market_report.needs_research')}
+              </h3>
               <p className="font-body-lg text-body-lg text-on-surface-variant mb-4">
-                {mi.opportunity_analysis || 'This venture qualifies for multiple state agricultural subsidies and shows a strong local demand trajectory. Immediate execution is advised.'}
+                {mi.opportunity_analysis || 'This business idea qualifies for government subsidies and shows good demand in your area.'}
               </p>
               <div className="flex flex-wrap gap-2">
-                <span className="px-3 py-1 bg-surface-container text-on-surface-variant rounded-full font-label-sm text-label-sm border border-outline-variant">{schemeLabel} Scheme Eligible</span>
-                <span className="px-3 py-1 bg-surface-container text-on-surface-variant rounded-full font-label-sm text-label-sm border border-outline-variant">Low Initial Risk</span>
+                <span className="status-badge status-badge--green">🎯 {schemeLabel} Eligible</span>
+                <span className="status-badge status-badge--green">✅ Low Risk</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Financial Outlook (Spans full width) */}
+        {/* Financial Outlook with Pie Chart & EMI Chart */}
         <div className="md:col-span-3 bg-surface-container-lowest rounded-2xl p-6 md:p-8 shadow-sm hover:shadow-xl transition-shadow border border-surface-variant">
-          <h3 className="font-headline-md text-headline-md text-on-surface mb-6">Financial Projections</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-surface p-6 rounded-xl border border-surface-variant flex flex-col gap-2">
-              <div className="flex items-center gap-2 text-on-surface-variant mb-2">
-                <span className="material-symbols-outlined">payments</span>
-                <span className="font-label-lg text-label-lg">Estimated ROI (12 Mo)</span>
+          <h3 className="font-headline-md text-headline-md text-on-surface mb-6 flex items-center gap-2">
+            <span className="text-2xl">💰</span> {t('market_report.money_source')}
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+            {/* Loan Breakdown Pie Chart */}
+            <div className="flex justify-center relative">
+              <LoanPieChart
+                marginAmount={marginAmount}
+                loanAmount={loanAmount}
+                subsidyAmount={subsidyAmount}
+                size={220}
+              />
+            </div>
+            {/* Key numbers — big and clear */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="village-card visual-kpi">
+                <span className="visual-kpi__icon">💵</span>
+                <span className="visual-kpi__value">22.4%</span>
+                <span className="visual-kpi__label">{t('market_report.expected_profit')}</span>
+                <span className="status-badge status-badge--green">▲ 4% above average</span>
               </div>
-              <span className="font-display-lg text-display-lg text-on-surface">22.4%</span>
-              <div className="flex items-center gap-1 text-primary mt-2">
-                <span className="material-symbols-outlined text-sm">arrow_upward</span>
-                <span className="font-label-sm text-label-sm">4% above region average</span>
+              <div className="village-card visual-kpi">
+                <span className="visual-kpi__icon">⏳</span>
+                <span className="visual-kpi__value">18 Mo</span>
+                <span className="visual-kpi__label">{t('market_report.breakeven_period')}</span>
+                <span className="status-badge status-badge--yellow">Standard cycle</span>
               </div>
             </div>
-            <div className="bg-surface p-6 rounded-xl border border-surface-variant flex flex-col gap-2">
-              <div className="flex items-center gap-2 text-on-surface-variant mb-2">
-                <span className="material-symbols-outlined">hourglass_empty</span>
-                <span className="font-label-lg text-label-lg">Break-even Period</span>
-              </div>
-              <span className="font-display-lg text-display-lg text-on-surface">18 Mo</span>
-              <div className="flex items-center gap-1 text-on-surface-variant mt-2">
-                <span className="material-symbols-outlined text-sm">info</span>
-                <span className="font-label-sm text-label-sm">Standard cycle</span>
-              </div>
-            </div>
-            <div className="bg-surface p-6 rounded-xl border border-surface-variant flex flex-col gap-2">
-              <div className="flex items-center justify-between text-on-surface-variant mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined">bar_chart</span>
-                  <span className="font-label-lg text-label-lg">Demand Trend</span>
-                </div>
-              </div>
-              <div className="flex items-end justify-between h-16 mt-4 gap-2">
-                <div className="w-full bg-primary/20 rounded-t-md h-1/4"></div>
-                <div className="w-full bg-primary/40 rounded-t-md h-2/4"></div>
-                <div className="w-full bg-primary/60 rounded-t-md h-3/4"></div>
-                <div className="w-full bg-primary/80 rounded-t-md h-full"></div>
-                <div className="w-full bg-primary rounded-t-md h-[110%]"></div>
-              </div>
+          </div>
+
+          {/* EMI Repayment Chart */}
+          <div className="mt-8 pt-6 border-t border-surface-variant">
+            <h4 className="font-headline-md text-[16px] font-semibold text-on-surface mb-4 flex items-center gap-2">
+              <span className="text-xl">📈</span> {t('market_report.emi_chart_title')}
+            </h4>
+            <EMIAreaChart
+              loanAmount={loanAmount}
+              annualRate={interestRate}
+              tenureMonths={tenureMonths}
+              height={200}
+            />
+            <div className="flex items-center justify-center gap-6 pt-3 font-label-sm text-label-sm">
+              <span className="flex items-center gap-2 text-on-surface-variant"><span className="w-3 h-3 rounded-sm" style={{ background: '#006948' }} /> {t('market_report.principal')}</span>
+              <span className="flex items-center gap-2 text-on-surface-variant"><span className="w-3 h-3 rounded-sm" style={{ background: '#9b3e3b' }} /> {t('market_report.interest')}</span>
             </div>
           </div>
         </div>
@@ -345,9 +344,9 @@ export default function MarketReport({ report, onReset, onGoHome, onGoToHistory 
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <span className="material-symbols-outlined text-primary text-2xl">calculate</span>
-                <h3 className="font-headline-md text-headline-md text-on-surface font-bold">Project Investment &amp; Loan Requirement</h3>
+                <h3 className="font-headline-md text-headline-md text-on-surface font-bold">{t('market_report.calculator_title')}</h3>
               </div>
-              <p className="font-body-md text-body-md text-on-surface-variant">Adjust required capital to see eligible loan subsidy and estimated EMI.</p>
+              <p className="font-body-md text-body-md text-on-surface-variant">{t('market_report.calculator_desc')}</p>
             </div>
             <div className="flex flex-col items-end gap-2 shrink-0">
               <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-3 py-1.5 rounded-full font-label-sm text-label-sm font-semibold">
@@ -371,7 +370,7 @@ export default function MarketReport({ report, onReset, onGoHome, onGoToHistory 
                 <div className="flex justify-between items-center mb-2">
                   <label htmlFor="project-cost-slider" className="font-label-lg text-label-lg text-on-surface font-semibold flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary text-sm">account_balance_wallet</span>
-                    Total Project Cost / Capital Requirement
+                    {t('market_report.project_cost')}
                   </label>
                   <span className="px-3 py-1 bg-primary text-on-primary rounded-lg font-bold font-label-lg text-label-lg shadow-sm">{formatINR(projectCost)}</span>
                 </div>
@@ -393,7 +392,7 @@ export default function MarketReport({ report, onReset, onGoHome, onGoToHistory 
                 <div className="flex justify-between items-center mb-2">
                   <label htmlFor="margin-slider" className="font-label-lg text-label-lg text-on-surface font-semibold flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary text-sm">pie_chart</span>
-                    Farmer / Promoter Margin Money (Equity)
+                    {t('market_report.margin_contribution')}
                   </label>
                   <span className="px-3 py-1 bg-surface-container-high text-on-surface rounded-lg font-bold font-label-lg text-label-lg border border-outline-variant">
                     {marginPercent}% ({formatINR(marginAmount)})
@@ -417,7 +416,7 @@ export default function MarketReport({ report, onReset, onGoHome, onGoToHistory 
                 <div className="flex justify-between items-center mb-2">
                   <label htmlFor="interest-rate-slider" className="font-label-lg text-label-lg text-on-surface font-semibold flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary text-sm">percent</span>
-                    Interest Rate (p.a.)
+                    {t('market_report.interest_rate')}
                   </label>
                   <span className="px-3 py-1 bg-surface-container-high text-on-surface rounded-lg font-bold font-label-lg text-label-lg border border-outline-variant">
                     {interestRate.toFixed(2)}%
@@ -441,7 +440,7 @@ export default function MarketReport({ report, onReset, onGoHome, onGoToHistory 
                 <div className="flex justify-between items-center mb-2">
                   <label htmlFor="tenure-slider" className="font-label-lg text-label-lg text-on-surface font-semibold flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary text-sm">calendar_month</span>
-                    Loan Tenure
+                    {t('market_report.loan_tenure')}
                   </label>
                   <span className="px-3 py-1 bg-surface-container-high text-on-surface rounded-lg font-bold font-label-lg text-label-lg border border-outline-variant">
                     {tenureYears} {tenureYears === 1 ? 'year' : 'years'} ({tenureMonths} mo)
@@ -465,7 +464,7 @@ export default function MarketReport({ report, onReset, onGoHome, onGoToHistory 
                 <div className="flex justify-between items-center mb-2">
                   <label htmlFor="subsidy-slider" className="font-label-lg text-label-lg text-on-surface font-semibold flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary text-sm">redeem</span>
-                    Capital Subsidy Rate
+                    {t('market_report.subsidy_amount')}
                   </label>
                   <span className="px-3 py-1 bg-surface-container-high text-on-surface rounded-lg font-bold font-label-lg text-label-lg border border-outline-variant">
                     {subsidyPct === 0
@@ -503,7 +502,7 @@ export default function MarketReport({ report, onReset, onGoHome, onGoToHistory 
               <div className="bg-surface p-5 rounded-xl border border-surface-variant flex flex-col justify-between">
                 <div className="flex items-center gap-2 text-on-surface-variant mb-2">
                   <span className="material-symbols-outlined text-primary">account_balance</span>
-                  <span className="font-label-lg text-label-lg font-medium">Eligible Bank Loan</span>
+                  <span className="font-label-lg text-label-lg font-medium">{t('market_report.bank_loan')}</span>
                 </div>
                 <div>
                   <span className="font-headline-lg text-headline-lg font-bold text-on-surface block">{formatINR(loanAmount)}</span>
@@ -520,7 +519,7 @@ export default function MarketReport({ report, onReset, onGoHome, onGoToHistory 
                 <div className="flex items-center justify-between text-on-surface-variant mb-2">
                   <div className="flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary">redeem</span>
-                    <span className="font-label-lg text-label-lg font-medium">Capital Subsidy</span>
+                    <span className="font-label-lg text-label-lg font-medium">{t('market_report.subsidy_amount')}</span>
                   </div>
                   {subsidyPct > 0 ? (
                     <span className="px-2 py-0.5 bg-primary/10 text-primary font-bold text-xs rounded-full">Eligible</span>
@@ -551,7 +550,7 @@ export default function MarketReport({ report, onReset, onGoHome, onGoToHistory 
                 <div>
                   <div className="flex items-center gap-2 text-on-surface-variant mb-1">
                     <span className="material-symbols-outlined text-primary">calendar_month</span>
-                    <span className="font-label-lg text-label-lg font-medium">Estimated Monthly Repayment (EMI)</span>
+                    <span className="font-label-lg text-label-lg font-medium">{t('market_report.monthly_emi')}</span>
                   </div>
                   <div className="flex items-baseline gap-2">
                     <span className="font-headline-lg text-headline-lg font-bold text-primary">{formatINR(Math.round(emi))}</span>
@@ -570,93 +569,31 @@ export default function MarketReport({ report, onReset, onGoHome, onGoToHistory 
           <div className="flex flex-col sm:flex-row items-center justify-end gap-4 pt-4 border-t border-surface-variant">
             <button onClick={handleDownloadSchedule} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-surface-container-high text-on-surface px-6 py-3.5 rounded-xl font-label-lg text-label-lg hover:bg-surface-container hover:shadow-md transition-all border border-outline-variant">
               <span className="material-symbols-outlined">receipt_long</span>
-              Download Repayment Schedule
+              {t('market_report.download_csv')}
             </button>
             <button onClick={() => { setSubmittedApp(null); setApplySuccess(false); setShowApply(true); }} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary text-on-primary px-8 py-3.5 rounded-xl font-label-lg text-label-lg shadow-sm hover:shadow-xl transition-shadow">
               <span className="material-symbols-outlined">verified_user</span>
-              Apply for this Loan Amount
+              {t('market_report.apply_scheme')}
             </button>
           </div>
         </div>
 
-        {/* SWOT Analysis (Spans full width, internal grid) */}
+        {/* SWOT Analysis — Visual Color-Coded Grid */}
         <div className="md:col-span-3">
-          <h3 className="font-headline-md text-headline-md text-on-surface mb-6 mt-4">SWOT Analysis</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Strengths */}
-            <div className="bg-surface-container-lowest rounded-2xl p-6 md:p-8 shadow-sm hover:shadow-xl transition-shadow border-t-4 border-primary">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-primary text-2xl">fitness_center</span>
-                </div>
-                <h4 className="font-headline-md text-headline-md text-on-surface">Strengths</h4>
-              </div>
-              <ul className="space-y-4 font-body-lg text-body-lg text-on-surface-variant">
-                {(mi.swot?.strengths || ['High availability of local, low-cost organic feed.', 'Existing land ownership reduces initial capital expenditure.', 'Growing local preference for organic produce.']).map((item, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <span className="material-symbols-outlined text-primary mt-1 text-xl">check</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            {/* Weaknesses */}
-            <div className="bg-surface-container-lowest rounded-2xl p-6 md:p-8 shadow-sm hover:shadow-xl transition-shadow border-t-4 border-tertiary">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-full bg-tertiary/10 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-tertiary text-2xl">warning</span>
-                </div>
-                <h4 className="font-headline-md text-headline-md text-on-surface">Weaknesses</h4>
-              </div>
-              <ul className="space-y-4 font-body-lg text-body-lg text-on-surface-variant">
-                {(mi.swot?.weaknesses || ['Limited access to specialized veterinary care in immediate vicinity.', 'Reliance on inconsistent grid power for temperature control.']).map((item, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <span className="material-symbols-outlined text-tertiary mt-1 text-xl">remove</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            {/* Opportunities */}
-            <div className="bg-surface-container-lowest rounded-2xl p-6 md:p-8 shadow-sm hover:shadow-xl transition-shadow border-t-4 border-inverse-primary">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-full bg-inverse-primary/20 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-primary text-2xl">lightbulb</span>
-                </div>
-                <h4 className="font-headline-md text-headline-md text-on-surface">Opportunities</h4>
-              </div>
-              <ul className="space-y-4 font-body-lg text-body-lg text-on-surface-variant">
-                {(mi.swot?.opportunities || ['Tie-ups with urban organic markets for premium pricing.', 'Solar panel installation subsidies available this quarter.']).map((item, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <span className="material-symbols-outlined text-primary mt-1 text-xl">arrow_forward</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            {/* Threats */}
-            <div className="bg-surface-container-lowest rounded-2xl p-6 md:p-8 shadow-sm hover:shadow-xl transition-shadow border-t-4 border-error">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-error text-2xl">security</span>
-                </div>
-                <h4 className="font-headline-md text-headline-md text-on-surface">Threats</h4>
-              </div>
-              <ul className="space-y-4 font-body-lg text-body-lg text-on-surface-variant">
-                {(mi.swot?.threats || ['Fluctuating prices of supplemental commercial feed.', 'Seasonal disease outbreaks requiring rapid response protocols.']).map((item, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <span className="material-symbols-outlined text-error mt-1 text-xl">close</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
+          <h3 className="font-headline-md text-headline-md text-on-surface mb-6 mt-4 flex items-center gap-2">
+            <span className="text-2xl">🎯</span> {t('market_report.swot_title')}
+          </h3>
+          <SWOTGrid swot={{
+            strengths: mi.swot?.strengths || ['High availability of local, low-cost organic feed.', 'Existing land ownership reduces capital cost.', 'Growing demand for organic produce.'],
+            weaknesses: mi.swot?.weaknesses || ['Limited access to specialized veterinary care.', 'Unreliable grid power for temperature control.'],
+            opportunities: mi.swot?.opportunities || ['Tie-ups with urban organic markets for premium pricing.', 'Solar subsidy available this quarter.'],
+            threats: mi.swot?.threats || ['Fluctuating feed prices.', 'Seasonal disease outbreaks.'],
+          }} />
         </div>
 
         {/* Next Steps */}
         <div className="md:col-span-3 bg-surface-container-lowest rounded-2xl p-8 shadow-sm border border-surface-variant mt-8">
-          <h3 className="font-bold text-2xl text-on-surface mb-6">Next Steps</h3>
+          <h3 className="font-bold text-2xl text-on-surface mb-6">{t('market_report.next_steps_title')}</h3>
           <div className="grid grid-cols-1 gap-4" id="next-steps-container">
             {NEXT_STEPS.map((step, i) => {
               const isCompleted = completedSteps.has(i);
@@ -677,8 +614,8 @@ export default function MarketReport({ report, onReset, onGoHome, onGoToHistory 
                     </span>
                   </div>
                   <div className="transition-all duration-300">
-                    <p className={`step-title font-bold transition-all duration-300 ${isCompleted ? 'line-through text-on-surface-variant' : 'text-on-surface'}`}>{step.title}</p>
-                    <p className="step-desc text-sm text-on-surface-variant transition-all duration-300">{step.desc}</p>
+                    <p className={`step-title font-bold transition-all duration-300 ${isCompleted ? 'line-through text-on-surface-variant' : 'text-on-surface'}`}>{t(step.titleKey)}</p>
+                    <p className="step-desc text-sm text-on-surface-variant transition-all duration-300">{t(step.descKey)}</p>
                   </div>
                 </div>
               );
@@ -708,15 +645,19 @@ export default function MarketReport({ report, onReset, onGoHome, onGoToHistory 
         {/* Ask about this Report Section */}
         <div className="md:col-span-3 bg-surface-container-lowest rounded-2xl p-8 shadow-sm border border-surface-variant mt-8 flex flex-col md:flex-row items-center gap-6">
           <div className="flex-1">
-            <h3 className="font-bold text-2xl text-on-surface mb-2">Ask about this Report</h3>
-            <p className="font-body-lg text-on-surface-variant">Stuck on a point? Ask our AI advisor for instant clarification in your local language.</p>
+            <h3 className="font-bold text-2xl text-on-surface mb-2">
+              {currentLang === 'mr' ? 'या अहवालाबद्दल विचारा' : currentLang === 'hi' ? 'इस रिपोर्ट के बारे में पूछें' : 'Ask about this Report'}
+            </h3>
+            <p className="font-body-lg text-on-surface-variant">
+              {currentLang === 'mr' ? 'काही शंका आहे का? आपल्या स्थानिक भाषेत त्वरित स्पष्टीकरणासाठी आमच्या AI सल्लागारास विचारा.' : currentLang === 'hi' ? 'कोई संदेह है? अपनी स्थानीय भाषा में त्वरित समाधान के लिए हमारे एआई सलाहकार से पूछें।' : 'Stuck on a point? Ask our AI advisor for instant clarification in your local language.'}
+            </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
             <button onClick={openVoiceAgent} className="flex items-center justify-center gap-2 bg-primary text-on-primary px-6 py-4 rounded-xl min-h-[56px] font-label-lg text-label-lg shadow-sm hover:shadow-xl transition-shadow whitespace-nowrap">
-              <span className="material-symbols-outlined">mic</span> Voice Assistant
+              <span className="material-symbols-outlined">mic</span> {t('voice_agent.voice_assistant')}
             </button>
             <button onClick={openChatSupport} className="flex items-center justify-center gap-2 bg-surface-container-high text-on-surface px-6 py-4 rounded-xl min-h-[56px] font-label-lg text-label-lg shadow-sm hover:shadow-md transition-shadow whitespace-nowrap border border-outline-variant">
-              <span className="material-symbols-outlined">chat</span> Chat Support
+              <span className="material-symbols-outlined">chat</span> {t('voice_agent.chat_advisor')}
             </button>
           </div>
         </div>

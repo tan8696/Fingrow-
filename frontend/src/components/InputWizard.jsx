@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { calculateOnly } from "../hooks/useReport";
+import { LoanPieChart } from "./VisualCharts";
 
 const CATEGORIES = [
   { id: "dairy",          emoji: "🐄", label: "Dairy" },
@@ -94,13 +95,13 @@ export default function InputWizard({ t, onSubmit, loading, onCancel }) {
 
   return (
     <div className="card animate-in">
-      {/* Step Indicator */}
+      {/* Step Indicator with Illustrations */}
       <div className="wizard-steps">
         {STEPS.map((label, i) => (
           <div key={label} style={{ display: "flex", alignItems: "center" }}>
             <div className={`wizard-step ${i === step ? "active" : i < step ? "completed" : ""}`}>
               <div className="wizard-step__number">
-                {i < step ? "✓" : i + 1}
+                {i < step ? "✓" : i === 0 ? "📍" : i === 1 ? "💰" : "🏪"}
               </div>
               <span className="wizard-step__label">{label}</span>
             </div>
@@ -169,24 +170,32 @@ export default function InputWizard({ t, onSubmit, loading, onCancel }) {
             <span className="form-hint">{t.capitalHint}</span>
           </div>
 
-          {/* Live Cost Preview */}
+          {/* Visual Pie Chart Preview */}
           {preview && (
-            <div className="cost-preview animate-in">
-              <div className="cost-preview__item">
-                <div className="cost-preview__value" style={{ color: "#059669" }}>
-                  {formatINR(preview.margin)}
+            <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', marginTop: '1rem' }}>
+              <LoanPieChart
+                marginAmount={preview.margin}
+                loanAmount={preview.loan}
+                subsidyAmount={0}
+                size={160}
+              />
+              <div className="cost-preview animate-in">
+                <div className="cost-preview__item">
+                  <div className="cost-preview__value" style={{ color: "#059669" }}>
+                    {formatINR(preview.margin)}
+                  </div>
+                  <div className="cost-preview__label">👤 {t.yourCapital} (10%)</div>
                 </div>
-                <div className="cost-preview__label">{t.yourCapital} (10%)</div>
-              </div>
-              <div className="cost-preview__item">
-                <div className="cost-preview__value">{formatINR(preview.projectCost)}</div>
-                <div className="cost-preview__label">{t.projectCost}</div>
-              </div>
-              <div className="cost-preview__item">
-                <div className="cost-preview__value" style={{ color: "#1d4ed8" }}>
-                  {formatINR(preview.loan)}
+                <div className="cost-preview__item">
+                  <div className="cost-preview__value">{formatINR(preview.projectCost)}</div>
+                  <div className="cost-preview__label">📦 {t.projectCost}</div>
                 </div>
-                <div className="cost-preview__label">{t.loanAmount} (90%)</div>
+                <div className="cost-preview__item">
+                  <div className="cost-preview__value" style={{ color: "#1d4ed8" }}>
+                    {formatINR(preview.loan)}
+                  </div>
+                  <div className="cost-preview__label">🏦 {t.loanAmount} (90%)</div>
+                </div>
               </div>
             </div>
           )}

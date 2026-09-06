@@ -506,3 +506,197 @@
   }
 }
 
+/* ============================================================
+   Village-Friendly Visual Styles
+   ============================================================ */
+
+/* Large touch-friendly visual card */
+.village-card {
+  background: var(--color-surface-container-lowest, #ffffff);
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1.5px solid var(--color-surface-variant, #dee4de);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.village-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+.village-card:active {
+  transform: scale(0.98);
+}
+
+/* Visual KPI card */
+.visual-kpi {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.75rem;
+  padding: 1.5rem 1rem;
+}
+
+.visual-kpi__icon {
+  font-size: 40px;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+
+.visual-kpi__value {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--color-on-surface, #171d19);
+  line-height: 1.1;
+}
+
+.visual-kpi__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-on-surface-variant, #3d4a42);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Quick action button (large, icon-heavy) */
+.quick-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1.25rem 0.75rem;
+  border-radius: 16px;
+  border: 1.5px solid var(--color-outline-variant, #bccac0);
+  background: var(--color-surface-container-lowest, #ffffff);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 100px;
+  min-width: 100px;
+}
+
+.quick-action:hover {
+  border-color: var(--color-primary, #006948);
+  background: var(--color-surface-container, #e9efe9);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.quick-action:active {
+  transform: scale(0.96);
+}
+
+.quick-action__icon {
+  font-size: 36px;
+  line-height: 1;
+}
+
+.quick-action__label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-on-surface, #171d19);
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* Status indicator badges */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.status-badge--green {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-badge--yellow {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.status-badge--red {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Chart container with label */
+.chart-section {
+  background: var(--color-surface-container-lowest, #ffffff);
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1.5px solid var(--color-surface-variant, #dee4de);
+}
+
+.chart-section__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-surface-variant, #dee4de);
+}
+
+.chart-section__title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-on-surface, #171d19);
+}
+
+.chart-section__emoji {
+  font-size: 24px;
+  line-height: 1;
+}
+
+/* Recharts tooltip override */
+.recharts-tooltip-wrapper {
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.12));
+}
+
+/* SWOT grid colors */
+.bg-green-50 { background: #f0fdf4; }
+.border-green-200 { border-color: #bbf7d0; }
+.text-green-600 { color: #16a34a; }
+.bg-amber-50 { background: #fffbeb; }
+.border-amber-200 { border-color: #fde68a; }
+.text-amber-600 { color: #d97706; }
+.bg-blue-50 { background: #eff6ff; }
+.border-blue-200 { border-color: #bfdbfe; }
+.text-blue-600 { color: #2563eb; }
+.bg-red-50 { background: #fef2f2; }
+.border-red-200 { border-color: #fecaca; }
+.text-red-600 { color: #dc2626; }
+
+/* Fade-in-up animation for visual cards */
+.fade-in-up {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Staggered animation delays */
+.delay-100 { animation-delay: 0.1s; animation-fill-mode: both; }
+.delay-200 { animation-delay: 0.2s; animation-fill-mode: both; }
+.delay-300 { animation-delay: 0.3s; animation-fill-mode: both; }
+.delay-400 { animation-delay: 0.4s; animation-fill-mode: both; }
+
+
