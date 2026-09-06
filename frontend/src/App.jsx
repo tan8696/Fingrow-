@@ -4,6 +4,8 @@ import Dashboard from './components/Dashboard';
 import AdversarialHarness from './components/AdversarialHarness';
 import OnboardingWizard from './components/OnboardingWizard';
 
+import NotFound from './components/NotFound';
+
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentView, setCurrentView] = useState('dashboard');
@@ -18,9 +20,14 @@ function App() {
     }
   }, []);
 
-  // Simple routing for the test harness
-  if (window.location.pathname === '/test') {
+  // Simple routing for the test harness and 404
+  const path = window.location.pathname;
+  if (path === '/test') {
     return <AdversarialHarness />;
+  }
+  
+  if (path !== '/' && path !== '') {
+    return <NotFound />;
   }
 
   const handleProfileComplete = (profile) => {
