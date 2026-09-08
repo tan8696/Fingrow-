@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { getPDFUrl, submitLoanApplication } from '../hooks/useReport';
 import { computeEMI, formatINR } from './ScenarioCalculator';
 import { LoanPieChart, EMIAreaChart, ViabilityDonut, SWOTGrid } from './VisualCharts';
+import WhatsAppShare from './WhatsAppShare';
+import SupplierMap from './SupplierMap';
 
 const NEXT_STEPS = [
   {
@@ -567,6 +569,10 @@ export default function MarketReport({ report, onReset, onGoHome, onGoToHistory 
 
           {/* Action CTA Buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-end gap-4 pt-4 border-t border-surface-variant">
+            <WhatsAppShare 
+              variant="report" 
+              report={report}
+            />
             <button onClick={handleDownloadSchedule} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-surface-container-high text-on-surface px-6 py-3.5 rounded-xl font-label-lg text-label-lg hover:bg-surface-container hover:shadow-md transition-all border border-outline-variant">
               <span className="material-symbols-outlined">receipt_long</span>
               {t('market_report.download_csv')}
@@ -589,6 +595,15 @@ export default function MarketReport({ report, onReset, onGoHome, onGoToHistory 
             opportunities: mi.swot?.opportunities || ['Tie-ups with urban organic markets for premium pricing.', 'Solar subsidy available this quarter.'],
             threats: mi.swot?.threats || ['Fluctuating feed prices.', 'Seasonal disease outbreaks.'],
           }} />
+        </div>
+
+        {/* Local Supplier Linkages */}
+        <div className="md:col-span-3 bg-surface-container-lowest rounded-2xl p-8 shadow-sm border border-surface-variant mt-8">
+          <SupplierMap
+            locationName={report?.location || 'Wardha, Maharashtra'}
+            businessCategory={report?.business_category || 'dairy'}
+            suppliers={osm?.suppliers || []}
+          />
         </div>
 
         {/* Next Steps */}

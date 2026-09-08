@@ -551,3 +551,48 @@ export async function downloadWeatherProtocol(location = "") {
     return false;
   }
 }
+
+/**
+ * Send a chat message to the AI assistant backend.
+ * Falls back to a client-side generic response when backend is unreachable.
+ *
+ * @param {string} message - The user's message
+ * @param {Array} history - Previous messages [{role, text}, ...]
+ * @param {string} language - Language code (en, hi, mr)
+ * @param {string} currentView - Current app page name
+ * @returns {Promise<{reply: string, navigate_to: string|null, suggestions: string[]}>}
+ */
+export async function sendChatMessage(message, history = [], language = "en", currentView = "dashboard") {
+  const data = await safeFetchJson(`${API_BASE}/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      message,
+      history: history.slice(-10).map(m => ({ role: m.role, text: m.text })),
+      language,
+      current_view: currentView,
+    }),
+  });
+
+  if (data && data.reply) {
+    return data;
+  }
+
+  // Offline / backend-unavailable fallback
+  const fallbackReplies = {
+    en: `Thank you for your question about "${message}". I'm currently unable to connect to the AI service. In the meantime, you can explore the dashboard for financial tools, check live mandi prices, or review your loan history. The AI assistant will be back shortly!`,
+    hi: `"${message}" के बारे में पूछने के लिए धन्यवाद। फिलहाल AI सेवा उपलब्ध नहीं है। इस बीच, आप डैशबोर्ड पर वित्तीय उपकरण देख सकते हैं, लाइव मंडी भाव जांच सकते हैं, या अपना ऋण इतिहास देख सकते हैं।`,
+    mr: `"${message}" बद्दल विचारल्याबद्दल धन्यवाद. सध्या AI सेवा उपलब्ध नाही. तोपर्यंत, तुम्ही डॅशबोर्डवर आर्थिक साधने पाहू शकता, थेट मंडी भाव तपासू शकता, किंवा कर्ज इतिहास पाहू शकता.`,
+  };
+
+  return {
+    reply: fallbackReplies[language] || fallbackReplies.en,
+    navigate_to: null,
+    suggestions: language === "hi"
+      ? ["सब्सिडी की जानकारी दें", "मंडी भाव दिखाएं", "ऋण के बारे में बताएं"]
+      : language === "mr"
+        ? ["सबसिडीची माहिती द्या", "मंडी भाव दाखवा", "कर्जाबद्दल सांगा"]
+        : ["Tell me about subsidies", "Show market prices", "Explain loan options"],
+  };
+}
+

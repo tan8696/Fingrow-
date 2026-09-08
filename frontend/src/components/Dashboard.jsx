@@ -501,6 +501,7 @@ export default function Dashboard({ currentView, setCurrentView, onLogout, userP
         setMargin={setMargin} 
         language={userLanguage}
         onLanguageChange={setLanguage}
+        currentView={currentView}
       />
     </div>
   );

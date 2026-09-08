@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import RepaymentTracker from './RepaymentTracker';
+import WhatsAppShare from './WhatsAppShare';
+import SubsidyMatcher from './SubsidyMatcher';
+import CommunityProof from './CommunityProof';
 import {
   LoanPieChart, EMIAreaChart, CropSparkline, WeatherGauge,
   RevenueBarChart, ProgressRing, fmtLakh,
@@ -727,37 +730,33 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
             </button>
           </section>
 
-          {/* Cluster co-op pulse (simplified) */}
+          {/* Cluster co-op pulse — upgraded to Community Proof */}
           <section className="chart-section">
             <div className="chart-section__header">
-              <span className="chart-section__emoji">👥</span>
-              <h2 className="chart-section__title">Village Activity</h2>
+              <span className="chart-section__emoji">🤝</span>
+              <h2 className="chart-section__title">Community</h2>
             </div>
+            <CommunityProof
+              cluster={cluster}
+              locationName={report?.display_name || 'Vidarbha Region'}
+              businessCategory={report?.business_category || 'dairy'}
+              lang={currentLang}
+            />
+          </section>
 
-            {cluster?.events?.length ? (
-              <div className="flex flex-col gap-2.5">
-                {cluster.events.slice(0, 4).map(event => (
-                  <div key={event.id} className="flex items-center gap-3 p-3 rounded-xl bg-surface-container-low">
-                    <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center font-label-lg text-label-lg font-bold shrink-0 ${
-                        event.kind === 'approval' ? 'bg-primary text-on-primary' : event.kind === 'harvest' ? 'bg-secondary-fixed text-on-secondary-fixed' : event.kind === 'repayment' ? 'bg-primary-fixed text-on-primary-fixed' : 'bg-surface-container-high text-on-surface-variant'
-                      }`}
-                    >
-                      {event.kind === 'approval' ? '✅' : event.kind === 'harvest' ? '🌾' : event.kind === 'repayment' ? '💸' : '📌'}
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="font-label-sm text-label-sm font-semibold text-on-surface truncate">{event.title}</span>
-                      <span className="font-label-sm text-[11px] text-on-surface-variant truncate">{event.detail}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-3 p-6 text-center">
-                <span className="text-4xl">🏘️</span>
-                <p className="font-body-md text-body-md text-on-surface-variant">Village activity will appear here as neighbors apply and harvest.</p>
-              </div>
-            )}
+          {/* Smart Subsidy Matching */}
+          <section className="chart-section">
+            <div className="chart-section__header">
+              <span className="chart-section__emoji">🎯</span>
+              <h2 className="chart-section__title">
+                {currentLang === 'hi' ? 'पात्र योजनाएँ' : currentLang === 'mr' ? 'पात्र योजना' : 'Eligible Schemes'}
+              </h2>
+            </div>
+            <SubsidyMatcher
+              userProfile={userProfile}
+              projectCost={report?.financials?.project_cost || 500000}
+              businessCategory={report?.business_category || ''}
+            />
           </section>
         </div>
       </div>

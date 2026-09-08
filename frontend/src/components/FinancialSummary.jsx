@@ -1,4 +1,5 @@
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts";
+import JargonTooltip from "./JargonTooltip";
 
 function formatINR(val) {
   return "₹" + Number(val).toLocaleString("en-IN", { maximumFractionDigits: 0 });
@@ -36,30 +37,36 @@ export default function FinancialSummary({ financials, amortization, t }) {
       <div className="fin-metrics-grid">
         <div className="fin-metric">
           <div className="fin-metric__value" style={{ color: "#059669" }}>{formatINR(margin_contribution)}</div>
-          <div className="fin-metric__label">{t.yourCapital} (10%)</div>
+          <div className="fin-metric__label flex items-center justify-center gap-1">
+            {t.yourCapital} (10%) <JargonTooltip term="Promoter Margin" lang="en" />
+          </div>
         </div>
         <div className="fin-metric">
           <div className="fin-metric__value">{formatINR(project_cost)}</div>
-          <div className="fin-metric__label">{t.projectCost}</div>
+          <div className="fin-metric__label flex items-center justify-center gap-1">
+            {t.projectCost} <JargonTooltip term="Project Cost" lang="en" />
+          </div>
         </div>
         <div className="fin-metric">
           <div className="fin-metric__value" style={{ color: "#1d4ed8" }}>{formatINR(loan_amount)}</div>
-          <div className="fin-metric__label">{t.loanAmount} (90%)</div>
+          <div className="fin-metric__label flex items-center justify-center gap-1">
+            {t.loanAmount} (90%) <JargonTooltip term="Term Loan" lang="en" />
+          </div>
         </div>
       </div>
 
       {/* Details Row */}
       <div className="fin-details-row">
         <div className="fin-detail">
-          <span className="fin-detail__label">Interest Rate</span>
+          <span className="fin-detail__label flex items-center gap-1">Interest Rate <JargonTooltip term="Interest Rate" lang="en" /></span>
           <span className="fin-detail__value">{interest_rate_pct}% p.a.</span>
         </div>
         <div className="fin-detail">
-          <span className="fin-detail__label">Tenure</span>
+          <span className="fin-detail__label flex items-center gap-1">Tenure <JargonTooltip term="Tenure" lang="en" /></span>
           <span className="fin-detail__value">{tenure_months} months ({tenure_months / 12} yrs)</span>
         </div>
         <div className="fin-detail">
-          <span className="fin-detail__label">Moratorium</span>
+          <span className="fin-detail__label flex items-center gap-1">Moratorium <JargonTooltip term="Moratorium" lang="en" /></span>
           <span className="fin-detail__value">{moratorium_months} months</span>
         </div>
         {amortization && (
@@ -89,7 +96,7 @@ export default function FinancialSummary({ financials, amortization, t }) {
                 <Cell key={index} fill={COLORS[index]} />
               ))}
             </Pie>
-            <Tooltip formatter={(val) => formatINR(val)} />
+            <RechartsTooltip formatter={(val) => formatINR(val)} />
             <Legend formatter={(val) => <span style={{ fontSize: "0.78rem" }}>{val}</span>} />
           </PieChart>
         </ResponsiveContainer>

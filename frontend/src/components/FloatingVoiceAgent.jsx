@@ -1,104 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { sendChatMessage } from '../hooks/useReport';
 
-// Built-in rural enterprise advisory Q&A for offline/instant multilingual responses
-const MULTILINGUAL_KNOWLEDGE_BASE = [
-  {
-    category: 'subsidy',
-    keywords: [
-      'subsidy', 'subsidies', 'maha-krushi', 'grant', 'government benefit', 'scheme',
-      'सब्सिडी', 'अनुदान', 'योजना', 'सरकारी लाभ', 'महा-कृषि', 'नाबार्ड',
-      'सबसिडी', 'अनुदान', 'योजना', 'सरकारी योजना', 'महा-कृषी', 'नाबार्ड'
-    ],
-    answers: {
-      en: 'Under the Maha-Krushi Scheme and NABARD priority sector norms, agricultural enterprises qualify for a 25% to 35% capital subsidy (up to ₹5,00,000 backend credit). Solar pump installations also receive a 30% PM-KUSUM subsidy.',
-      hi: 'महा-कृषि योजना और नाबार्ड प्राथमिक क्षेत्र नियमों के तहत, कृषि उद्यमों को 25% से 35% पूंजीगत सब्सिडी (₹5,00,000 तक बैकएंड क्रेडिट) मिलती है। इसके अलावा सोलर पंप स्थापना पर पीएम-कुसुम के तहत 30% सब्सिडी भी उपलब्ध है।',
-      mr: 'महा-कृषी योजना आणि नाबार्ड प्राधान्य क्षेत्र नियमांनुसार, कृषी उपक्रमांना 25% ते 35% भांडवली सबसिडी (₹5,00,000 पर्यंत बॅकएंड क्रेडिट) मिळते. तसेच सोलर पंप बसवण्यासाठी पीएम-कुसुम अंतर्गत 30% सबसिडी उपलब्ध आहे.'
-    }
-  },
-  {
-    category: 'poultry',
-    keywords: [
-      'poultry', 'chicken', 'organic poultry', 'broiler', 'feed', 'egg',
-      'पोल्ट्री', 'मुर्गी', 'कुक्कुट', 'ब्रायलर', 'अंडा', 'चारा',
-      'पोल्ट्री', 'कोंबडी', 'कुक्कुटपालन', 'ब्रॉयलर', 'अंडी', 'खाद्य'
-    ],
-    answers: {
-      en: 'Organic poultry farming in Vidarbha has an 85% market viability score with high local feed availability and an 18-month break-even period. Country eggs and organic meat command a 15-20% premium in nearby mandis.',
-      hi: 'विदर्भ में जैविक पोल्ट्री फार्मिंग की बाजार व्यवहार्यता 85% है। स्थानीय स्तर पर सस्ता दाना उपलब्ध है और 18 महीने में लागत वसूल हो जाती है। देशी अंडों और मांस पर नजदीकी मंडियों में 15-20% अधिक मूल्य मिलता है।',
-      mr: 'विदर्भात सेंद्रिय कुक्कुटपालनाचा व्यवहार्यता दर 85% आहे. स्थानिक खाद्य मुबलक असून 18 महिन्यांत नफा सुरू होतो. गावरान अंडी आणि मांसाला जवळच्या बाजार समित्यांमध्ये 15-20% जादा दर मिळतो.'
-    }
-  },
-  {
-    category: 'interest',
-    keywords: [
-      'interest', 'rate', 'emi', 'repayment', 'term loan', 'kcc',
-      'ब्याज', 'दर', 'ईएमआई', 'किस्त', 'पुनर्भुगतान', 'टर्म लोन', 'केसीसी',
-      'व्याज', 'दर', 'ईएमआय', 'हप्ता', 'परतफेड', 'टर्म लोन', 'केसीसी'
-    ],
-    answers: {
-      en: 'Priority sector agricultural term loans feature subsidized interest rates starting at 7.00% p.a. with tenures up to 7 years (84 months) and an initial 6-month moratorium. KCC loans offer 4.00% interest with prompt repayment subvention.',
-      hi: 'प्राथमिकता क्षेत्र कृषि टर्म लोन 7.00% वार्षिक रियायती ब्याज दर पर 7 साल (84 महीने) की अवधि और 6 महीने के मोराटोरियम के साथ मिलते हैं। किसान क्रेडिट कार्ड (KCC) पर समय पर भुगतान करने पर ब्याज दर मात्र 4.00% है।',
-      mr: 'प्राधान्य क्षेत्र कृषी मुदत कर्ज 7.00% सवलतीच्या वार्षिक व्याजदराने 7 वर्षे (84 महिने) मुदत आणि सुरुवातीच्या 6 महिन्यांच्या सवलतीसह (मोरोटोरियम) मिळते. KCC कर्जावर वेळेत परतफेड केल्यास केवळ 4.00% व्याजदर लागतो.'
-    }
-  },
-  {
-    category: 'eligibility',
-    keywords: [
-      'eligibility', 'documents', 'udyam', 'apply', '7/12', 'aadhaar', 'pan',
-      'पात्रता', 'दस्तावेज', 'कागजात', 'उद्यम', 'आवेदन', 'सातबारा', 'आधार',
-      'पात्रता', 'कागदपत्रे', 'दस्तऐवज', 'उद्यम', 'अर्ज', 'सातबारा', 'आधार', '८अ'
-    ],
-    answers: {
-      en: 'Basic eligibility requires farmer margin equity of 10% to 15%, Aadhaar card, land records (7/12 extract or registered lease), and Udyam micro-enterprise registration. You can apply directly through our FinGrow portal.',
-      hi: 'पात्रता के लिए किसान की 10% से 15% मार्जिन पूंजी, आधार कार्ड, भूमि अभिलेख (7/12 नकल या पट्टा) और उद्यम पंजीकरण आवश्यक है। आप सीधे इस फिनग्रो पोर्टल से ऋण आवेदन जमा कर सकते हैं।',
-      mr: 'पात्रतेसाठी शेतकऱ्याचे 10% ते 15% स्वतःचे भांडवल, आधार कार्ड, जमिनीचा सातबारा उतारा (किंवा भाडेकरार) आणि उद्यम नोंदणी आवश्यक आहे. तुम्ही या फिनग्रो पोर्टलवरून थेट अर्ज करू शकता.'
-    }
-  },
-  {
-    category: 'market',
-    keywords: [
-      'market', 'price', 'mandi', 'sell', 'soybean', 'cotton', 'tur', 'rate',
-      'बाजार', 'मंडी', 'भाव', 'दाम', 'सोयाबीन', 'कपास', 'तूर', 'कीमत',
-      'बाजार', 'मंडी', 'भाव', 'दर', 'सोयाबीन', 'कापूस', 'तूर', 'किंमत'
-    ],
-    answers: {
-      en: 'Current APMC mandi prices: Soybean is trading at ₹4,820/quintal, Cotton at ₹6,800/quintal, and Tur Dal at ₹10,400/quintal in Maharashtra mandis with steady-to-high demand.',
-      hi: 'वर्तमान APMC मंडी भाव: महाराष्ट्र की मंडियों में सोयाबीन ₹4,820/क्विंटल, कपास ₹6,800/क्विंटल और तूर दाल ₹10,400/क्विंटल पर स्थिर एवं अच्छी मांग में हैं। लाइव भाव मंडी टैब में देखें।',
-      mr: 'सध्याचे कृषी उत्पन्न बाजार दर: महाराष्ट्रातील बाजारात सोयाबीन ₹4,820/क्विंटल, कापूस ₹6,800/क्विंटल आणि तूर डाळ ₹10,400/क्विंटलवर स्थिर असून मागणी चांगली आहे. थेट दर बाजार भाव टॅबमध्ये पहा.'
-    }
-  },
-  {
-    category: 'weather',
-    keywords: [
-      'weather', 'rain', 'climate', 'pest', 'disease', 'irrigation',
-      'मौसम', 'बारिश', 'वर्षा', 'कीट', 'रोग', 'सिंचाई',
-      'हवामान', 'पाऊस', 'कीड', 'रोग', 'सिंचन', 'पाणी'
-    ],
-    answers: {
-      en: 'Weather update for Vidarbha: Humidity is around 68% with clear to scattered clouds. Favorable conditions for organic crop growth. Keep proactive drainage checks during monsoon cycles.',
-      hi: 'विदर्भ का मौसम पूर्वानुमान: आर्द्रता 68% और आंशिक बादल छाए रहने की संभावना है। जैविक फसलों और बागवानी के लिए मौसम अनुकूल है। अधिक जानकारी के लिए मौसम एवं फसल जोखिम पृष्ठ देखें।',
-      mr: 'विदर्भाचा हवामान अंदाज: आर्द्रता 68% असून हलके ढगाळ वातावरण आहे. सेंद्रिय पिके व भाजीपाल्यासाठी हवामान अनुकूल आहे. अधिक तपशीलासाठी हवामान व पीक जोखीम टॅब तपासा.'
-    }
-  }
-];
-
-function getMultilingualAdvisoryAnswer(query, lang = 'en') {
-  const lower = query.toLowerCase();
-  for (const item of MULTILINGUAL_KNOWLEDGE_BASE) {
-    if (item.keywords.some(k => lower.includes(k.toLowerCase()))) {
-      return item.answers[lang] || item.answers.en;
-    }
-  }
-  if (lang === 'hi') {
-    return `आपके प्रश्न "${query}" के लिए धन्यवाद। ग्रामीण विदर्भ में, कृषि उद्यमों के लिए 7.00% रियायती ब्याज दर पर 85% से 90% तक बैंक ऋण और राज्य पूंजी सब्सिडी उपलब्ध है। आप योजना कैलकुलेटर से तुरंत पात्रता देख सकते हैं या अपनी व्यवहार्यता रिपोर्ट से सीधे आवेदन कर सकते हैं।`;
-  } else if (lang === 'mr') {
-    return `तुमच्या "${query}" या प्रश्नाबद्दल धन्यवाद. ग्रामीण विदर्भामध्ये, कृषी आणि सूक्ष्म उपक्रमांसाठी 7.00% सवलतीच्या व्याजदराने 85% ते 90% पर्यंत बँक कर्ज आणि राज्य भांडवली सबसिडी उपलब्ध आहे. तुम्ही योजना कॅल्क्युलेटरवरून त्वरित पात्रता तपासू शकता किंवा अहवालावरून थेट अर्ज करू शकता.`;
-  }
-  return `Thank you for your question about "${query}". In rural Maharashtra, priority sector agricultural lending provides up to 85-90% bank funding at 7.00% interest with state capital subsidies. You can adjust the project calculator or apply directly from your Feasibility Report.`;
-}
-
-export default function FloatingVoiceAgent({ onNavigate, setMargin, language, onLanguageChange }) {
+export default function FloatingVoiceAgent({ onNavigate, setMargin, language, onLanguageChange, currentView }) {
   const { t, i18n } = useTranslation();
   const currentLang = language || i18n.language || 'en';
 
@@ -111,6 +15,8 @@ export default function FloatingVoiceAgent({ onNavigate, setMargin, language, on
   const [chatMessages, setChatMessages] = useState([
     { role: 'assistant', text: t('voice_agent.welcome') }
   ]);
+  const [isThinking, setIsThinking] = useState(false);
+  const [dynamicSuggestions, setDynamicSuggestions] = useState([]);
   
   const recognitionRef = useRef(null);
   const synthRef = useRef(typeof window !== 'undefined' ? window.speechSynthesis : null);
@@ -233,19 +139,18 @@ export default function FloatingVoiceAgent({ onNavigate, setMargin, language, on
     setStatusText(t('voice_agent.tap_mic'));
   }, [t]);
 
-  // Process voice or text command / question
-  const handleUserMessage = useCallback((text) => {
-    if (!text || !text.trim()) return;
+  // ─── Fast-path: keyword-based navigation (instant, no network) ─────
+  const tryKeywordNavigation = useCallback((text) => {
     const lowerText = text.toLowerCase().trim();
 
-    // 1. Language change voice commands
+    // Language change voice commands
     if (lowerText.includes('marathi') || lowerText.includes('मराठी') || lowerText.includes('मराठीत')) {
       if (onLanguageChange) onLanguageChange('mr');
       else i18n.changeLanguage('mr');
       const confirmation = 'मराठी भाषा निवडली आहे. मी तुम्हाला कशी मदत करू?';
       setChatMessages(prev => [...prev, { role: 'user', text }, { role: 'assistant', text: confirmation }]);
       speak(confirmation);
-      return;
+      return true;
     }
     if (lowerText.includes('hindi') || lowerText.includes('हिंदी') || lowerText.includes('हिन्दी')) {
       if (onLanguageChange) onLanguageChange('hi');
@@ -253,7 +158,7 @@ export default function FloatingVoiceAgent({ onNavigate, setMargin, language, on
       const confirmation = 'हिंदी भाषा चुनी गई है। मैं आपकी क्या सहायता कर सकता हूँ?';
       setChatMessages(prev => [...prev, { role: 'user', text }, { role: 'assistant', text: confirmation }]);
       speak(confirmation);
-      return;
+      return true;
     }
     if (lowerText.includes('english') || lowerText.includes('अंग्रेजी') || lowerText.includes('इंग्रजी')) {
       if (onLanguageChange) onLanguageChange('en');
@@ -261,67 +166,113 @@ export default function FloatingVoiceAgent({ onNavigate, setMargin, language, on
       const confirmation = 'English language selected. How can I help you?';
       setChatMessages(prev => [...prev, { role: 'user', text }, { role: 'assistant', text: confirmation }]);
       speak(confirmation);
-      return;
+      return true;
     }
 
-    // 2. Navigation commands in English, Hindi, and Marathi
-    const isCalc = ['calculator', 'calculate', 'कैलकुलेटर', 'कैलकुलेट', 'कॅल्क्युलेटर', 'योजना'].some(k => lowerText.includes(k));
-    const isReport = ['report', 'feasibility', 'रिपोर्ट', 'अहवाल', 'व्यवहार्यता', 'प्रोजेक्ट', 'प्रकल्प'].some(k => lowerText.includes(k));
-    const isHistory = ['history', 'loan', 'इतिहास', 'कर्ज', 'लोन', 'किस्त', 'हप्ता'].some(k => lowerText.includes(k));
-    const isMarket = ['market', 'price', 'mandi', 'बाजार', 'मंडी', 'भाव', 'दर', 'दाम'].some(k => lowerText.includes(k));
-    const isWeather = ['weather', 'rain', 'मौसम', 'हवामान', 'बारिश', 'पाऊस', 'जोखिम', 'जोखीम'].some(k => lowerText.includes(k));
-    const isHome = ['dashboard', 'home', 'डैशबोर्ड', 'डॅशबोर्ड', 'होम', 'मुख्य'].some(k => lowerText.includes(k));
+    // Navigation commands — expanded to cover all views with multilingual aliases
+    const navRules = [
+      {
+        keywords: ['calculator', 'calculate', 'कैलकुलेटर', 'कैलकुलेट', 'कॅल्क्युलेटर', 'योजना', 'scheme calc'],
+        target: 'calculator',
+        speech: { mr: 'योजना कॅल्क्युलेटर उघडत आहे.', hi: 'योजना कैलकुलेटर खोला जा रहा है।', en: 'Opening the scheme calculator.' },
+      },
+      {
+        keywords: ['report', 'feasibility', 'रिपोर्ट', 'अहवाल', 'व्यवहार्यता', 'प्रोजेक्ट', 'प्रकल्प', 'swot', 'business plan'],
+        target: 'feasibility',
+        speech: { mr: 'व्यवहार्यता अहवाल उघडत आहे.', hi: 'व्यवहार्यता रिपोर्ट खोली जा रही है।', en: 'Opening the business feasibility report.' },
+      },
+      {
+        keywords: ['history', 'loan', 'इतिहास', 'कर्ज', 'लोन', 'किस्त', 'हप्ता', 'emi', 'repayment', 'repay'],
+        target: 'history',
+        speech: { mr: 'तुमचा कर्ज इतिहास उघडत आहे.', hi: 'आपका ऋण इतिहास खोला जा रहा है।', en: 'Opening your loan history.' },
+      },
+      {
+        keywords: ['market', 'price', 'mandi', 'बाजार', 'मंडी', 'भाव', 'दर', 'दाम', 'crop price', 'soybean', 'cotton'],
+        target: 'market',
+        speech: { mr: 'थेट बाजार भाव उघडत आहे.', hi: 'लाइव मंडी भाव खोले जा रहे हैं।', en: 'Opening live market prices.' },
+      },
+      {
+        keywords: ['weather', 'rain', 'मौसम', 'हवामान', 'बारिश', 'पाऊस', 'जोखिम', 'जोखीम', 'forecast', 'spray', 'insurance', 'बीमा', 'विमा'],
+        target: 'weather',
+        speech: { mr: 'हवामान आणि पीक जोखीम उघडत आहे.', hi: 'मौसम एवं फसल जोखिम पृष्ठ खोला जा रहा है।', en: 'Opening weather and crop risk.' },
+      },
+      {
+        keywords: ['dashboard', 'home', 'डैशबोर्ड', 'डॅशबोर्ड', 'होम', 'मुख्य', 'main page', 'overview'],
+        target: 'dashboard',
+        speech: { mr: 'डॅशबोर्डवर जात आहे.', hi: 'डैशबोर्ड पर जाया जा रहा है।', en: 'Going to dashboard.' },
+      },
+      {
+        keywords: ['settings', 'setting', 'सेटिंग', 'सेटिंग्ज', 'preference', 'profile', 'प्रोफाइल', 'भाषा बदला', 'भाषा बदलें'],
+        target: 'settings',
+        speech: { mr: 'सेटिंग्ज उघडत आहे.', hi: 'सेटिंग्स खोली जा रही हैं।', en: 'Opening settings.' },
+      },
+    ];
 
-    if (isCalc) {
-      onNavigate('calculator');
-      const moneyMatch = lowerText.match(/\b(\d{4,})\b/);
-      if (moneyMatch && setMargin) setMargin(Number(moneyMatch[1]));
-      const speech = currentLang === 'mr' ? 'योजना कॅल्क्युलेटर उघडत आहे.' : currentLang === 'hi' ? 'योजना कैलकुलेटर खोला जा रहा है।' : 'Opening the scheme calculator.';
-      speak(speech);
-      setTimeout(() => closeOverlay(), 2000);
-      return;
-    } else if (isReport) {
-      onNavigate('feasibility');
-      const speech = currentLang === 'mr' ? 'व्यवहार्यता अहवाल उघडत आहे.' : currentLang === 'hi' ? 'व्यवहार्यता रिपोर्ट खोली जा रही है।' : 'Opening the business feasibility report.';
-      speak(speech);
-      setTimeout(() => closeOverlay(), 2000);
-      return;
-    } else if (isHistory) {
-      onNavigate('history');
-      const speech = currentLang === 'mr' ? 'तुमचा कर्ज इतिहास उघडत आहे.' : currentLang === 'hi' ? 'आपका ऋण इतिहास खोला जा रहा है।' : 'Opening your loan history.';
-      speak(speech);
-      setTimeout(() => closeOverlay(), 2000);
-      return;
-    } else if (isMarket) {
-      onNavigate('market');
-      const speech = currentLang === 'mr' ? 'थेट बाजार भाव उघडत आहे.' : currentLang === 'hi' ? 'लाइव मंडी भाव खोले जा रहे हैं।' : 'Opening live market prices.';
-      speak(speech);
-      setTimeout(() => closeOverlay(), 2000);
-      return;
-    } else if (isWeather) {
-      onNavigate('weather');
-      const speech = currentLang === 'mr' ? 'हवामान आणि पीक जोखीम उघडत आहे.' : currentLang === 'hi' ? 'मौसम एवं फसल जोखिम पृष्ठ खोला जा रहा है।' : 'Opening weather and crop risk.';
-      speak(speech);
-      setTimeout(() => closeOverlay(), 2000);
-      return;
-    } else if (isHome) {
-      onNavigate('dashboard');
-      const speech = currentLang === 'mr' ? 'डॅशबोर्डवर जात आहे.' : currentLang === 'hi' ? 'डैशबोर्ड पर जाया जा रहा है।' : 'Going to dashboard.';
-      speak(speech);
-      setTimeout(() => closeOverlay(), 2000);
-      return;
+    for (const rule of navRules) {
+      if (rule.keywords.some(k => lowerText.includes(k))) {
+        onNavigate(rule.target);
+        const moneyMatch = lowerText.match(/\b(\d{4,})\b/);
+        if (moneyMatch && setMargin && rule.target === 'calculator') {
+          setMargin(Number(moneyMatch[1]));
+        }
+        const speech = rule.speech[currentLang] || rule.speech.en;
+        setChatMessages(prev => [...prev, { role: 'user', text }, { role: 'assistant', text: speech }]);
+        speak(speech);
+        setTimeout(() => closeOverlay(), 2000);
+        return true;
+      }
     }
 
-    // 3. Multilingual Advisory Q&A response
-    const answer = getMultilingualAdvisoryAnswer(text, currentLang);
-    setChatMessages(prev => [
-      ...prev,
-      { role: 'user', text },
-      { role: 'assistant', text: answer }
-    ]);
-    speak(answer);
-    setStatusText(currentLang === 'mr' ? 'उत्तर दिले' : currentLang === 'hi' ? 'उत्तर दिया गया' : 'Answered');
+    return false; // No keyword match — fall through to LLM
   }, [onNavigate, setMargin, currentLang, onLanguageChange, speak, i18n, closeOverlay]);
+
+  // ─── LLM-powered chat handler ─────────────────────────────────────
+  const handleUserMessage = useCallback(async (text) => {
+    if (!text || !text.trim()) return;
+
+    // Try fast-path keyword navigation first (instant, no network needed)
+    if (tryKeywordNavigation(text)) return;
+
+    // Add user message immediately, show thinking indicator
+    setChatMessages(prev => [...prev, { role: 'user', text }]);
+    setIsThinking(true);
+    setStatusText(currentLang === 'mr' ? 'विचार करत आहे...' : currentLang === 'hi' ? 'सोच रहा हूँ...' : 'Thinking...');
+
+    try {
+      // Build history from existing chat messages (exclude current)
+      const history = chatMessages
+        .filter(m => m.role === 'user' || m.role === 'assistant')
+        .slice(-10);
+
+      const response = await sendChatMessage(text, history, currentLang, currentView || 'dashboard');
+
+      // Add assistant reply
+      setChatMessages(prev => [...prev, { role: 'assistant', text: response.reply }]);
+      speak(response.reply);
+      setStatusText(currentLang === 'mr' ? 'उत्तर दिले' : currentLang === 'hi' ? 'उत्तर दिया गया' : 'Answered');
+
+      // Handle navigation intent from LLM
+      if (response.navigate_to) {
+        onNavigate(response.navigate_to);
+        setTimeout(() => closeOverlay(), 2500);
+      }
+
+      // Update dynamic suggestions from LLM
+      if (response.suggestions && response.suggestions.length > 0) {
+        setDynamicSuggestions(response.suggestions);
+      }
+    } catch (err) {
+      console.error('Chat error:', err);
+      const errorMsg = currentLang === 'mr'
+        ? 'माफ करा, काही त्रुटी आली. कृपया पुन्हा प्रयत्न करा.'
+        : currentLang === 'hi'
+          ? 'क्षमा करें, कोई त्रुटि हुई। कृपया पुनः प्रयास करें।'
+          : 'Sorry, something went wrong. Please try again.';
+      setChatMessages(prev => [...prev, { role: 'assistant', text: errorMsg }]);
+    } finally {
+      setIsThinking(false);
+    }
+  }, [chatMessages, currentLang, currentView, onNavigate, speak, closeOverlay, tryKeywordNavigation]);
 
   // Watch transcript for voice speech
   useEffect(() => {
@@ -334,7 +285,7 @@ export default function FloatingVoiceAgent({ onNavigate, setMargin, language, on
     if (chatBottomRef.current) {
       chatBottomRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [chatMessages]);
+  }, [chatMessages, isThinking]);
 
   const startListening = () => {
     if (recognitionRef.current) {
@@ -416,8 +367,8 @@ export default function FloatingVoiceAgent({ onNavigate, setMargin, language, on
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, closeOverlay]);
 
-  // Multilingual quick suggestions for Chat mode
-  const suggestions = currentLang === 'mr' ? [
+  // Default multilingual quick suggestions (used when LLM hasn't provided any yet)
+  const defaultSuggestions = currentLang === 'mr' ? [
     'सब्सिडी किती मिळेल?',
     'व्याजदर किती आहे?',
     'कर्जासाठी पात्रता काय?',
@@ -430,9 +381,11 @@ export default function FloatingVoiceAgent({ onNavigate, setMargin, language, on
   ] : [
     'What subsidy is available?',
     'What is the interest rate?',
-    'How to apply for loan?',
+    'How to apply for a loan?',
     'Show live market prices'
   ];
+
+  const suggestions = dynamicSuggestions.length > 0 ? dynamicSuggestions : defaultSuggestions;
 
   return (
     <>
@@ -468,7 +421,7 @@ export default function FloatingVoiceAgent({ onNavigate, setMargin, language, on
                   {mode === 'voice' ? t('voice_agent.voice_assistant') : t('voice_agent.chat_advisor')}
                 </h3>
                 <p className="font-label-sm text-label-sm text-on-surface-variant truncate">
-                  {mode === 'voice' ? t('voice_agent.voice_desc') : t('voice_agent.chat_desc')}
+                  {mode === 'voice' ? t('voice_agent.voice_desc') : (currentLang === 'mr' ? 'कोणताही प्रश्न विचारा · AI सहाय्यक' : currentLang === 'hi' ? 'कोई भी सवाल पूछें · AI सहायक' : 'Ask anything · AI-powered assistant')}
                 </p>
               </div>
             </div>
@@ -542,7 +495,7 @@ export default function FloatingVoiceAgent({ onNavigate, setMargin, language, on
 
               <div className="w-full bg-surface border border-surface-variant rounded-2xl p-4 min-h-[90px] flex items-center justify-center text-center">
                 <p className="font-body-md text-body-md text-on-surface italic">
-                  {transcript ? `"${transcript}"` : t('voice_agent.example_commands')}
+                  {transcript ? `"${transcript}"` : (currentLang === 'mr' ? '"कोणताही प्रश्न विचारा किंवा पेज उघडण्यास सांगा"' : currentLang === 'hi' ? '"कोई भी सवाल पूछें या पेज खोलने को कहें"' : '"Ask any question or say a page name to navigate"')}
                 </p>
               </div>
 
@@ -588,6 +541,19 @@ export default function FloatingVoiceAgent({ onNavigate, setMargin, language, on
                     </div>
                   </div>
                 ))}
+
+                {/* Thinking indicator */}
+                {isThinking && (
+                  <div className="flex justify-start">
+                    <div className="max-w-[85%] rounded-2xl px-4 py-3 rounded-tl-none bg-surface-container border border-surface-variant flex items-center gap-2">
+                      <span className="material-symbols-outlined text-primary text-lg animate-spin">progress_activity</span>
+                      <span className="text-sm text-on-surface-variant italic">
+                        {currentLang === 'mr' ? 'विचार करत आहे...' : currentLang === 'hi' ? 'सोच रहा हूँ...' : 'Thinking...'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 <div ref={chatBottomRef} />
               </div>
 
@@ -597,7 +563,8 @@ export default function FloatingVoiceAgent({ onNavigate, setMargin, language, on
                   <button
                     key={idx}
                     onClick={() => handleUserMessage(s)}
-                    className="text-xs px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-primary-container hover:text-on-primary-container transition-colors"
+                    disabled={isThinking}
+                    className="text-xs px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-primary-container hover:text-on-primary-container transition-colors disabled:opacity-50"
                   >
                     {s}
                   </button>
@@ -610,15 +577,16 @@ export default function FloatingVoiceAgent({ onNavigate, setMargin, language, on
                   type="text"
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  placeholder={t('voice_agent.chat_placeholder')}
-                  className="flex-1 px-4 py-3 rounded-xl border border-outline-variant bg-surface text-on-surface font-body-md text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                  placeholder={currentLang === 'mr' ? 'कोणताही प्रश्न विचारा...' : currentLang === 'hi' ? 'कोई भी सवाल पूछें...' : 'Ask me anything...'}
+                  disabled={isThinking}
+                  className="flex-1 px-4 py-3 rounded-xl border border-outline-variant bg-surface text-on-surface font-body-md text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-50"
                 />
                 <button
                   type="submit"
-                  disabled={!chatInput.trim()}
+                  disabled={!chatInput.trim() || isThinking}
                   className="px-5 py-3 rounded-xl bg-primary text-on-primary font-label-lg text-sm flex items-center justify-center hover:bg-primary-container hover:text-on-primary-container disabled:opacity-50 transition-colors shadow-sm"
                 >
-                  <span className="material-symbols-outlined text-lg">send</span>
+                  <span className="material-symbols-outlined text-lg">{isThinking ? 'hourglass_empty' : 'send'}</span>
                 </button>
               </form>
             </div>

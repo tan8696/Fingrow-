@@ -2,6 +2,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   CartesianGrid, Cell, ReferenceLine
 } from "recharts";
+import JargonTooltip from "./JargonTooltip";
 
 function formatINR(val) {
   return "₹" + Number(val).toLocaleString("en-IN", { maximumFractionDigits: 0 });
@@ -28,23 +29,35 @@ export default function AmortizationTable({ amortization, t }) {
       <div className="flex items-center gap-3 border-b-2 border-slate-900 pb-2 mb-6">
         <div className="text-2xl">📅</div>
         <div>
-          <h2 className="text-xl font-bold">{t.repayment}</h2>
-          <p className="text-sm text-slate-600">Interest-only during moratorium · Reducing balance EMI thereafter</p>
+          <h2 className="text-xl font-bold flex items-center gap-2">
+            {t.repayment}
+            <JargonTooltip term="Amortization" lang="en" />
+          </h2>
+          <p className="text-sm text-slate-600">
+            Interest-only during <JargonTooltip term="Moratorium" lang="en" /> · 
+            <JargonTooltip term="Reducing Balance" lang="en" /> EMI thereafter
+          </p>
         </div>
       </div>
 
       {/* Summary Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="border-2 border-slate-900 p-4 flex flex-col justify-center items-center bg-slate-50">
-          <span className="text-sm font-bold uppercase tracking-wider text-slate-600 mb-1">{t.quarterlyEMI}</span>
+        <div className="border-2 border-slate-900 p-4 flex flex-col justify-center items-center bg-slate-50 relative group">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-sm font-bold uppercase tracking-wider text-slate-600">{t.quarterlyEMI}</span>
+            <JargonTooltip term="EMI" lang="en" />
+          </div>
           <span className="text-xl font-mono font-bold text-slate-900">{formatINR(quarterly_emi)}</span>
         </div>
         <div className="border-2 border-slate-900 p-4 flex flex-col justify-center items-center bg-slate-50">
           <span className="text-sm font-bold uppercase tracking-wider text-slate-600 mb-1">{t.totalInterest}</span>
           <span className="text-xl font-mono font-bold text-slate-900">{formatINR(total_interest_paid)}</span>
         </div>
-        <div className="border-2 border-slate-900 p-4 flex flex-col justify-center items-center bg-slate-900 text-white">
-          <span className="text-sm font-bold uppercase tracking-wider mb-1">{t.totalPaid}</span>
+        <div className="border-2 border-slate-900 p-4 flex flex-col justify-center items-center bg-slate-900 text-white relative">
+          <span className="text-sm font-bold uppercase tracking-wider mb-1 flex items-center gap-2">
+            {t.totalPaid}
+            <JargonTooltip term="Total Repayment" lang="en" />
+          </span>
           <span className="text-xl font-mono font-bold">{formatINR(total_amount_paid)}</span>
         </div>
       </div>

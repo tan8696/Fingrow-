@@ -21,6 +21,8 @@ from app.api.models import (
     AmortizationResponse,
     CalculatorRequest,
     CalculatorResponse,
+    ChatRequest,
+    ChatResponse,
     ErrorResponse,
     FullReportResponse,
     HarvestRequest,
@@ -58,7 +60,9 @@ from app.core.amortization import generate_schedule
 from app.core.calculator import SchemeError, calculate_finances
 from app.core.geocoder import LocationNotFoundError, geocode_location
 from app.core.osm_fetcher import fetch_competitors
+from app.core.supplier_fetcher import fetch_suppliers
 from app.core.advisory import generate_feasibility_report
+from app.core.chat import chat as chat_with_llm
 from app.core.loan_schedule import (
     build_monthly_schedule,
     default_scheme_terms,
@@ -202,6 +206,19 @@ async def generate_report(req: AdvisoryRequest) -> FullReportResponse:
             osm_tags_used=[],
         )
 
+    # --- Step 2.5: OSM Supplier Fetch ---
+    try:
+        supplier_result = fetch_suppliers(
+            lat=geo.latitude,
+            lon=geo.longitude,
+            business_category=req.business_category,
+            radius_km=req.radius_km * 2, # broader radius for suppliers
+        )
+        suppliers_list = [s.to_dict() for s in supplier_result.suppliers]
+    except Exception as e:
+        logger.warning(f"Supplier fetch failed: {e}. Defaulting to empty suppliers.")
+        suppliers_list = []
+
     # --- Step 3: Financial Calculation (deterministic, never fails unless bad input) ---
     try:
         scheme = calculate_finances(req.margin_capital)
@@ -258,7 +275,7 @@ async def generate_report(req: AdvisoryRequest) -> FullReportResponse:
         financials=_scheme_to_response(scheme),
         amortization=_amortization_to_response(schedule),
         market_intelligence=translated_report,
-        osm_summary=OSMSummaryResponse(**osm_result.to_summary_dict()),
+        osm_summary=OSMSummaryResponse(**osm_result.to_summary_dict(), suppliers=suppliers_list),
     )
     save_session(session_id, full_response.model_dump())
     return full_response
@@ -1169,4 +1186,52 @@ async def weather_protocol(location: Optional[str] = None) -> Response:
         media_type="text/html; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{doc["filename"]}"'},
     )
+
+
+# ---------------------------------------------------------------------------
+# Conversational Chat (LLM-powered)
+# ---------------------------------------------------------------------------
+
+@router.post(
+    "/chat",
+    response_model=ChatResponse,
+    tags=["Chat Assistant"],
+    summary="Send a message to the AI assistant",
+)
+async def chat_endpoint(req: ChatRequest) -> ChatResponse:
+    """
+    Conversational AI assistant powered by Groq LLM.
+
+    Accepts a user message with optional conversation history and returns
+    a contextual response. If the user asks to navigate to a page, the
+    response includes a `navigate_to` field that the frontend uses to
+    switch views.
+    """
+    try:
+        history = [msg.model_dump() for msg in req.history] if req.history else []
+        result = chat_with_llm(
+            message=req.message,
+            history=history,
+            language=req.language,
+            current_view=req.current_view,
+        )
+        return ChatResponse(**result)
+    except EnvironmentError as e:
+        logger.warning(f"Chat unavailable (no API key): {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI chat is not configured. Please set GROQ_API_KEY.",
+        )
+    except ValueError as e:
+        logger.warning(f"Chat LLM response error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"AI response error: {e}",
+        )
+    except Exception as e:
+        logger.error(f"Unexpected chat error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred. Please try again.",
+        )
 

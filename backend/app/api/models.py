@@ -176,6 +176,7 @@ class OSMSummaryResponse(BaseModel):
     radius_km: float
     sample_competitors: List[dict]
     osm_tags_queried: List[str]
+    suppliers: Optional[List[dict]] = None
 
 
 class FullReportResponse(BaseModel):
@@ -298,6 +299,47 @@ class RepaymentStatusResponse(BaseModel):
     outstanding_principal: float
     fully_paid: bool
     schedule: List[RepaymentEntryResponse]
+
+
+class ChatMessage(BaseModel):
+    """A single message in the conversation history."""
+    role: str = Field(..., pattern=r"^(user|assistant)$", description="Either 'user' or 'assistant'.")
+    text: str = Field(..., min_length=1, max_length=5000, description="Message content.")
+
+
+class ChatRequest(BaseModel):
+    """Request body for the conversational chat endpoint."""
+    message: str = Field(
+        ...,
+        min_length=1,
+        max_length=2000,
+        description="The user's message or question.",
+    )
+    history: List[ChatMessage] = Field(
+        default_factory=list,
+        description="Previous conversation messages for context (max 10 used).",
+    )
+    language: str = Field(
+        default="en",
+        description="Language code for the response (en, hi, mr).",
+    )
+    current_view: str = Field(
+        default="dashboard",
+        description="The app page the user is currently viewing.",
+    )
+
+
+class ChatResponse(BaseModel):
+    """Structured response from the chat assistant."""
+    reply: str = Field(..., description="The assistant's conversational response.")
+    navigate_to: Optional[str] = Field(
+        None,
+        description="App page to navigate to (e.g., 'weather', 'market'), or null.",
+    )
+    suggestions: List[str] = Field(
+        default_factory=list,
+        description="Suggested follow-up questions (2-3 items).",
+    )
 
 
 class ErrorResponse(BaseModel):

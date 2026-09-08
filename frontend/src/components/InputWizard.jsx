@@ -1,27 +1,29 @@
 import { useState, useEffect } from "react";
 import { calculateOnly } from "../hooks/useReport";
 import { LoanPieChart } from "./VisualCharts";
+import VoiceMicButton from "./VoiceMicButton";
+import CapitalSlider from "./CapitalSlider";
 
 const CATEGORIES = [
-  { id: "dairy",          emoji: "🐄", label: "Dairy" },
-  { id: "grocery",        emoji: "🛒", label: "Grocery" },
-  { id: "vegetables",     emoji: "🥦", label: "Vegetables" },
-  { id: "pharmacy",       emoji: "💊", label: "Pharmacy" },
-  { id: "tailoring",      emoji: "🧵", label: "Tailoring" },
-  { id: "electronics",    emoji: "📱", label: "Electronics" },
-  { id: "restaurant",     emoji: "🍽️", label: "Restaurant" },
-  { id: "bakery",         emoji: "🥖", label: "Bakery" },
-  { id: "hardware",       emoji: "🔧", label: "Hardware" },
-  { id: "clothing",       emoji: "👗", label: "Clothing" },
-  { id: "cattle_feed",    emoji: "🌾", label: "Cattle Feed" },
-  { id: "flour_mill",     emoji: "⚙️",  label: "Flour Mill" },
-  { id: "beauty_parlour", emoji: "💄", label: "Beauty Parlour" },
-  { id: "poultry",        emoji: "🐓", label: "Poultry" },
-  { id: "fuel",           emoji: "⛽", label: "Fuel Station" },
-  { id: "auto_repair",    emoji: "🔩", label: "Auto Repair" },
-  { id: "stationery",     emoji: "📚", label: "Stationery" },
-  { id: "fertilizer",     emoji: "🌱", label: "Fertilizer" },
-  { id: "general_store",  emoji: "🏪", label: "General Store" },
+  { id: "dairy",          emoji: "🐄", label: "Dairy",          desc: "Milk collection & distribution" },
+  { id: "grocery",        emoji: "🛒", label: "Grocery",        desc: "Daily essentials & FMCG retail" },
+  { id: "vegetables",     emoji: "🥦", label: "Vegetables",     desc: "Fresh produce vending" },
+  { id: "pharmacy",       emoji: "💊", label: "Pharmacy",       desc: "Medicine & health products" },
+  { id: "tailoring",      emoji: "🧵", label: "Tailoring",      desc: "Stitching & garment making" },
+  { id: "electronics",    emoji: "📱", label: "Electronics",    desc: "Mobile, repair & accessories" },
+  { id: "restaurant",     emoji: "🍽️", label: "Restaurant",     desc: "Food service & catering" },
+  { id: "bakery",         emoji: "🥖", label: "Bakery",         desc: "Bread, cake & confectionery" },
+  { id: "hardware",       emoji: "🔧", label: "Hardware",       desc: "Tools & building supplies" },
+  { id: "clothing",       emoji: "👗", label: "Clothing",       desc: "Garments & fashion retail" },
+  { id: "cattle_feed",    emoji: "🌾", label: "Cattle Feed",    desc: "Animal feed & supplements" },
+  { id: "flour_mill",     emoji: "⚙️",  label: "Flour Mill",    desc: "Grain milling & processing" },
+  { id: "beauty_parlour", emoji: "💄", label: "Beauty Parlour", desc: "Salon & grooming services" },
+  { id: "poultry",        emoji: "🐓", label: "Poultry",        desc: "Eggs, broiler & farm" },
+  { id: "fuel",           emoji: "⛽", label: "Fuel Station",   desc: "Petrol, diesel & CNG" },
+  { id: "auto_repair",    emoji: "🔩", label: "Auto Repair",    desc: "Vehicle servicing & parts" },
+  { id: "stationery",     emoji: "📚", label: "Stationery",     desc: "Books, copies & office supplies" },
+  { id: "fertilizer",     emoji: "🌱", label: "Fertilizer",     desc: "Agri inputs & seeds" },
+  { id: "general_store",  emoji: "🏪", label: "General Store",  desc: "All-purpose neighbourhood shop" },
 ];
 
 const STEPS = ["Location", "Capital", "Business"];
@@ -119,16 +121,23 @@ export default function InputWizard({ t, onSubmit, loading, onCancel }) {
             <label className="form-label" htmlFor="location-input">
               {t.locationLabel}
             </label>
-            <input
-              id="location-input"
-              className="form-input"
-              type="text"
-              placeholder={t.locationPlaceholder}
-              value={form.location}
-              onChange={(e) => setForm({ ...form, location: e.target.value })}
-              onKeyDown={(e) => e.key === "Enter" && handleNext()}
-              autoFocus
-            />
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <input
+                id="location-input"
+                className="form-input"
+                type="text"
+                placeholder={t.locationPlaceholder}
+                value={form.location}
+                onChange={(e) => setForm({ ...form, location: e.target.value })}
+                onKeyDown={(e) => e.key === "Enter" && handleNext()}
+                autoFocus
+                style={{ flex: 1 }}
+              />
+              <VoiceMicButton
+                onResult={(text) => setForm({ ...form, location: text })}
+                lang="hi"
+              />
+            </div>
             {errors.location && <span className="form-error">{errors.location}</span>}
             <span className="form-hint">{t.locationHint}</span>
           </div>
@@ -145,25 +154,35 @@ export default function InputWizard({ t, onSubmit, loading, onCancel }) {
         </div>
       )}
 
-      {/* Step 2: Capital */}
+      {/* Step 2: Capital — Interactive Slider */}
       {step === 1 && (
         <div className="animate-in">
           <div className="form-group">
             <label className="form-label" htmlFor="capital-input">
               {t.capitalLabel}
             </label>
-            <div className="amount-input-wrapper">
+
+            {/* Interactive slider replaces plain number input */}
+            <CapitalSlider
+              value={parseFloat(form.margin_capital) || 25000}
+              onChange={(val) => setForm({ ...form, margin_capital: String(val) })}
+              min={5000}
+              max={500000}
+            />
+
+            {/* Optional manual override */}
+            <div className="amount-input-wrapper" style={{ marginTop: '12px' }}>
               <span className="amount-input-prefix">₹</span>
               <input
                 id="capital-input"
                 className="form-input"
                 type="number"
-                placeholder="e.g., 25000"
+                placeholder="Or type exact amount"
                 min="1"
                 max="500000"
                 value={form.margin_capital}
                 onChange={(e) => setForm({ ...form, margin_capital: e.target.value })}
-                autoFocus
+                style={{ fontSize: '14px' }}
               />
             </div>
             {errors.margin_capital && <span className="form-error">{errors.margin_capital}</span>}
@@ -223,6 +242,7 @@ export default function InputWizard({ t, onSubmit, loading, onCancel }) {
                 >
                   <span className="category-card__emoji">{cat.emoji}</span>
                   <span className="category-card__label">{cat.label}</span>
+                  <span className="category-card__desc">{cat.desc}</span>
                 </button>
               ))}
             </div>
