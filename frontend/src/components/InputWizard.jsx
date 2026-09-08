@@ -26,6 +26,18 @@ const CATEGORIES = [
   { id: "general_store",  emoji: "🏪", label: "General Store",  desc: "All-purpose neighbourhood shop" },
 ];
 
+const CROP_CATEGORIES = [
+  { id: "wheat_farming", emoji: "🌾", label: "Wheat", desc: "Winter cereal crop" },
+  { id: "rice_farming", emoji: "🍚", label: "Rice/Paddy", desc: "Monsoon staple crop" },
+  { id: "cotton_farming", emoji: "🧵", label: "Cotton", desc: "Commercial cash crop" },
+  { id: "sugarcane_farming", emoji: "🎋", label: "Sugarcane", desc: "Long-term cash crop" },
+  { id: "vegetable_farming", emoji: "🥦", label: "Vegetables", desc: "Mixed seasonal vegetables" },
+  { id: "fruit_orchard", emoji: "🥭", label: "Fruit Orchard", desc: "Mango, Banana, Citrus etc." },
+  { id: "spices_farming", emoji: "🌶️", label: "Spices", desc: "Turmeric, Chilli, Coriander" },
+  { id: "pulses_farming", emoji: "🫘", label: "Pulses", desc: "Dal, Grams & Lentils" },
+  { id: "oilseeds_farming", emoji: "🌻", label: "Oilseeds", desc: "Soybean, Mustard, Sunflower" },
+];
+
 const STEPS = ["Location", "Capital", "Business"];
 
 function formatINR(amount) {
@@ -33,7 +45,7 @@ function formatINR(amount) {
   return "₹" + Number(amount).toLocaleString("en-IN", { maximumFractionDigits: 0 });
 }
 
-export default function InputWizard({ t, onSubmit, loading, onCancel }) {
+export default function InputWizard({ t, onSubmit, loading, onCancel, userProfile }) {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState({
     location: "",
@@ -137,6 +149,30 @@ export default function InputWizard({ t, onSubmit, loading, onCancel }) {
                 onResult={(text) => setForm({ ...form, location: text })}
                 lang="hi"
               />
+              <button 
+                type="button"
+                className="btn btn-secondary flex items-center justify-center p-2"
+                onClick={() => {
+                  if ('geolocation' in navigator) {
+                    navigator.geolocation.getCurrentPosition(
+                      async (pos) => {
+                        try {
+                          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`);
+                          const data = await res.json();
+                          setForm({ ...form, location: data.display_name || "Current Location" });
+                        } catch(e) {
+                          setForm({ ...form, location: "Current Location" });
+                        }
+                      },
+                      (err) => console.error("Could not fetch location", err)
+                    );
+                  }
+                }}
+                title="Locate Me"
+                style={{ width: '48px', height: '48px', flexShrink: 0 }}
+              >
+                <span className="material-symbols-outlined">my_location</span>
+              </button>
             </div>
             {errors.location && <span className="form-error">{errors.location}</span>}
             <span className="form-hint">{t.locationHint}</span>
@@ -230,9 +266,9 @@ export default function InputWizard({ t, onSubmit, loading, onCancel }) {
       {step === 2 && (
         <div className="animate-in">
           <div className="form-group">
-            <label className="form-label">{t.categoryLabel}</label>
+            <label className="form-label">{userProfile?.type === 'farmer' ? "Select a Crop to Grow" : t.categoryLabel}</label>
             <div className="category-grid">
-              {CATEGORIES.map((cat) => (
+              {(userProfile?.type === 'farmer' ? CROP_CATEGORIES : CATEGORIES).map((cat) => (
                 <button
                   key={cat.id}
                   id={`cat-${cat.id}`}

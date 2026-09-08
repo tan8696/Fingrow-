@@ -477,6 +477,7 @@ export default function Dashboard({ currentView, setCurrentView, onLogout, userP
                     onSubmit={handleGenerateReport}
                     loading={isGenerating}
                     onCancel={() => setShowWizard(false)}
+                    userProfile={userProfile}
                   />
                 </div>
               ) : (
