@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import Login from './components/Login';
-import Dashboard from './components/Dashboard';
-import AdversarialHarness from './components/AdversarialHarness';
-import OnboardingWizard from './components/OnboardingWizard';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 
-import NotFound from './components/NotFound';
+const Login = lazy(() => import('./components/Login'));
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const AdversarialHarness = lazy(() => import('./components/AdversarialHarness'));
+const OnboardingWizard = lazy(() => import('./components/OnboardingWizard'));
+const NotFound = lazy(() => import('./components/NotFound'));
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -23,11 +23,19 @@ function App() {
   // Simple routing for the test harness and 404
   const path = window.location.pathname;
   if (path === '/test') {
-    return <AdversarialHarness />;
+    return (
+      <Suspense fallback={<div className="flex h-screen items-center justify-center bg-[#f5fbf5] dark:bg-gray-900 text-[#006948] dark:text-green-400">Loading...</div>}>
+        <AdversarialHarness />
+      </Suspense>
+    );
   }
   
   if (path !== '/' && path !== '') {
-    return <NotFound />;
+    return (
+      <Suspense fallback={<div className="flex h-screen items-center justify-center bg-[#f5fbf5] dark:bg-gray-900 text-[#006948] dark:text-green-400">Loading...</div>}>
+        <NotFound />
+      </Suspense>
+    );
   }
 
   const handleProfileComplete = (profile) => {
@@ -48,7 +56,7 @@ function App() {
   };
 
   return (
-    <>
+    <Suspense fallback={<div className="flex h-screen items-center justify-center bg-[#f5fbf5] dark:bg-gray-900 text-[#006948] dark:text-green-400">Loading...</div>}>
       {!isAuthenticated ? (
         <Login onLogin={() => setIsAuthenticated(true)} />
       ) : !userProfile ? (
@@ -62,7 +70,7 @@ function App() {
           onKycComplete={handleKycComplete}
         />
       )}
-    </>
+    </Suspense>
   );
 }
 
