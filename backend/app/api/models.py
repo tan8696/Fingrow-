@@ -162,6 +162,8 @@ class SWOTResponse(BaseModel):
 
 class FeasibilityReport(BaseModel):
     """The qualitative advisory output — schema must match LLM JSON output exactly."""
+    analysis: str = Field(..., description="AI's Chain of Thought reasoning for the feasibility score.")
+    feasibility_score: int = Field(..., ge=0, le=100, description="Overall viability score (0-100).")
     market_reach: str
     opportunity_analysis: str
     competitor_mapping: str

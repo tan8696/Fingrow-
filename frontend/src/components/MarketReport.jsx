@@ -88,12 +88,8 @@ export default function MarketReport({ report, onReset, onGoHome, onGoToHistory 
     showToast._t = window.setTimeout(() => setToast(null), 3000);
   };
 
-  // Market viability score derived from real OSM competitor density
-  let score = 85;
-  if (osm.density_level?.includes('Dense')) score -= 20;
-  else if (osm.density_level?.includes('Moderate')) score -= 10;
-  else if (osm.density_level?.includes('None') || osm.density_level?.includes('Sparse')) score += 5;
-  score = Math.max(20, Math.min(100, score));
+  // Market viability score calculated by AI (fallback to 85)
+  const score = mi.feasibility_score !== undefined ? mi.feasibility_score : 85;
 
   const categoryTitle = (report?.business_category || 'Organic Poultry Farm').replace(/_/g, ' ');
   const locationShort = report?.display_name
@@ -282,6 +278,17 @@ export default function MarketReport({ report, onReset, onGoHome, onGoToHistory 
               <p className="font-body-lg text-body-lg text-on-surface-variant mb-4">
                 {mi.opportunity_analysis || 'This business idea qualifies for government subsidies and shows good demand in your area.'}
               </p>
+              {mi.analysis && (
+                <div className="mb-4 p-4 bg-primary/5 rounded-xl border border-primary/20">
+                  <h4 className="font-label-lg font-bold text-primary mb-1 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-sm">psychology</span>
+                    AI Feasibility Analysis
+                  </h4>
+                  <p className="font-body-md text-on-surface-variant text-sm">
+                    {mi.analysis}
+                  </p>
+                </div>
+              )}
               <div className="flex flex-wrap gap-2">
                 <span className="status-badge status-badge--green">🎯 {schemeLabel} Eligible</span>
                 <span className="status-badge status-badge--green">✅ Low Risk</span>

@@ -238,7 +238,7 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
           <div className="text-5xl leading-none">{isFarmer ? '🌾' : '🏪'}</div>
           <div>
             <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight">
-              {currentLang === 'mr' ? `नमस्कार, ${PROFILE_NAME} 🙏` : currentLang === 'hi' ? `नमस्ते, ${PROFILE_NAME} 🙏` : `Namaste, ${PROFILE_NAME} 🙏`}
+              {currentLang === 'mr' ? `नमस्कार, ${userProfile?.name || PROFILE_NAME} 🙏` : currentLang === 'hi' ? `नमस्ते, ${userProfile?.name || PROFILE_NAME} 🙏` : `Namaste, ${userProfile?.name || PROFILE_NAME} 🙏`}
             </h1>
             <p className="font-body-md text-body-md text-on-surface-variant mt-1">
               {p.active_loans > 0
@@ -763,6 +763,7 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
 
       {/* ---- Loan application modal ---- */}
       {loanModal && <LoanApplyModal
+        userProfile={userProfile}
         onClose={() => setLoanModal(false)}
         onSuccess={(refId) => { showToast(`Application ${refId} submitted — track it in Loan Management.`); setLoanModal(false); refreshAll(); }}
         onViewHistory={() => { setLoanModal(false); onNavigate('history'); }}
@@ -788,11 +789,11 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
 /* Loan application modal (real submission via POST /api/loans/apply)     */
 /* ===================================================================== */
 
-function LoanApplyModal({ onClose, onSuccess, onViewHistory }) {
+function LoanApplyModal({ userProfile, onClose, onSuccess, onViewHistory }) {
   const [facilityId, setFacilityId] = useState(FACILITIES[0].id);
   const [amount, setAmount] = useState('500000');
   const [tenure, setTenure] = useState(36);
-  const [name, setName] = useState(PROFILE_NAME);
+  const [name, setName] = useState(userProfile?.name || PROFILE_NAME);
   const [mobile, setMobile] = useState('');
   const [branch, setBranch] = useState('Vidarbha Agri Cluster #042, Akola');
   const [submitting, setSubmitting] = useState(false);

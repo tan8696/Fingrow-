@@ -61,6 +61,8 @@ Input Data (Ground Truth):
 
 Required Output Schema (strict JSON, no markdown):
 {{
+  "analysis": "Provide a detailed step-by-step reasoning (Chain of Thought) analyzing all factors: location, capital, competitor density, risks, and opportunities. You MUST think through this carefully before assigning the final feasibility score.",
+  "feasibility_score": <int between 0 and 100 representing the viability score based on your analysis>,
   "market_reach": "Detailed paragraph on how the business will access consumers \
 within 5–10 km. Mention specific distribution channels like village haats, block-level \
 mandis, direct-to-household, or road-side vending.",

@@ -26,6 +26,7 @@ MYMEMORY_API_URL = "https://api.mymemory.translated.net/get"
 
 # Fields in the FeasibilityReport JSON that require translation
 TRANSLATABLE_STRING_FIELDS = [
+    "analysis",
     "market_reach",
     "opportunity_analysis",
     "competitor_mapping",
