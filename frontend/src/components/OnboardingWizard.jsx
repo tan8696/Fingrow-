@@ -67,105 +67,119 @@ export default function OnboardingWizard({ onComplete }) {
             <p className="font-body-md text-on-surface-variant text-[16px] max-w-md mx-auto">{t('onboarding.subtitle')}</p>
           </div>
 
-          <div className="p-6 md:p-8">
-            {/* Role selection */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {roles.map(role => (
-                <button
-                  key={role.id}
-                  onClick={() => setSelectedRole(role.id)}
-                  className={`p-6 rounded-2xl border-2 text-left transition-all ${
-                    selectedRole === role.id 
-                      ? 'border-primary bg-primary-container/30 ring-4 ring-primary/10' 
-                      : 'border-outline-variant bg-surface hover:border-primary/40 hover:bg-surface-container-lowest shadow-sm'
-                  }`}
-                >
-                  <span className="text-4xl block mb-4">{role.icon}</span>
-                  <span className="block font-headline-md text-[18px] font-bold text-on-surface mb-2">{role.label}</span>
-                  <span className="block font-body-md text-[14px] text-on-surface-variant leading-relaxed">{role.desc}</span>
-                </button>
-              ))}
-            </div>
-
-            {/* Optional demographics for subsidy matching */}
-            {selectedRole && (
-              <div className="mt-6 p-5 rounded-2xl bg-surface-container-low border border-outline-variant animate-in">
-                <p className="font-label-sm text-label-sm text-on-surface-variant mb-1 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[16px] text-primary">tune</span>
-                  {userLanguage === 'hi' ? 'बेहतर योजना सिफारिशों के लिए (वैकल्पिक)' :
-                   userLanguage === 'mr' ? 'अधिक चांगल्या योजना शिफारशींसाठी (ऐच्छिक)' :
-                   'For better scheme recommendations (optional)'}
-                </p>
-
-                {/* Gender */}
-                <div className="mt-3">
-                  <span className="font-label-sm text-[12px] text-on-surface-variant font-semibold block mb-2">
-                    {userLanguage === 'hi' ? 'लिंग' : userLanguage === 'mr' ? 'लिंग' : 'Gender'}
-                  </span>
-                  <div className="flex gap-2">
-                    {GENDER_OPTIONS.map(opt => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => setGender(opt.id)}
-                        className={`flex-1 py-2.5 rounded-xl text-center font-label-sm text-label-sm transition-all ${
-                          gender === opt.id
-                            ? 'bg-primary text-on-primary font-bold shadow-sm'
-                            : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
-                        }`}
-                      >
-                        <span className="text-lg block mb-0.5">{opt.icon}</span>
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Social Category */}
-                <div className="mt-3">
-                  <span className="font-label-sm text-[12px] text-on-surface-variant font-semibold block mb-2">
-                    {userLanguage === 'hi' ? 'सामाजिक वर्ग' : userLanguage === 'mr' ? 'सामाजिक वर्ग' : 'Social Category'}
-                  </span>
-                  <div className="flex gap-2">
-                    {SC_OPTIONS.map(opt => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => setSocialCategory(opt.id)}
-                        className={`flex-1 py-2.5 rounded-xl text-center font-label-sm text-label-sm transition-all ${
-                          socialCategory === opt.id
-                            ? 'bg-primary text-on-primary font-bold shadow-sm'
-                            : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <p className="mt-3 font-label-sm text-[11px] text-on-surface-variant flex items-start gap-1.5">
-                  <span className="material-symbols-outlined text-[14px] shrink-0 mt-0.5">lock</span>
-                  {userLanguage === 'hi' ? 'यह जानकारी केवल योजना मिलान के लिए है और कभी साझा नहीं की जाती।' :
-                   userLanguage === 'mr' ? 'ही माहिती फक्त योजना जुळणीसाठी आहे आणि कधीही शेअर केली जात नाही.' :
-                   'This information is only used for scheme matching and is never shared.'}
-                </p>
+            <div className="p-6 md:p-8">
+              {/* Name Input */}
+              <div className="mb-6">
+                <label className="font-label-sm text-label-sm text-on-surface-variant font-semibold block mb-2">
+                  {userLanguage === 'hi' ? 'पूरा नाम' : userLanguage === 'mr' ? 'पूर्ण नाव' : 'Full Name'}
+                </label>
+                <input
+                  type="text"
+                  value={userName}
+                  onChange={(e) => setUserName(e.target.value)}
+                  placeholder={userLanguage === 'hi' ? 'अपना नाम दर्ज करें' : userLanguage === 'mr' ? 'तुमचे नाव प्रविष्ट करा' : 'Enter your name'}
+                  className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface text-on-surface font-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-shadow"
+                />
               </div>
-            )}
 
-            <div className="mt-8 flex justify-center">
-              <button
-                disabled={!selectedRole}
-                onClick={() => onComplete({ type: selectedRole, gender, socialCategory })}
-                className="w-full md:w-auto min-w-[240px] px-8 py-4 rounded-xl bg-primary text-on-primary font-label-lg text-label-lg font-bold shadow-md hover:bg-primary-container hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-              >
-                {t('onboarding.continue')}
-                <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
-              </button>
+              {/* Role selection */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {roles.map(role => (
+                  <button
+                    key={role.id}
+                    onClick={() => setSelectedRole(role.id)}
+                    className={`p-6 rounded-2xl border-2 text-left transition-all ${
+                      selectedRole === role.id 
+                        ? 'border-primary bg-primary-container/30 ring-4 ring-primary/10' 
+                        : 'border-outline-variant bg-surface hover:border-primary/40 hover:bg-surface-container-lowest shadow-sm'
+                    }`}
+                  >
+                    <span className="text-4xl block mb-4">{role.icon}</span>
+                    <span className="block font-headline-md text-[18px] font-bold text-on-surface mb-2">{role.label}</span>
+                    <span className="block font-body-md text-[14px] text-on-surface-variant leading-relaxed">{role.desc}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Optional demographics for subsidy matching */}
+              {selectedRole && (
+                <div className="mt-6 p-5 rounded-2xl bg-surface-container-low border border-outline-variant animate-in">
+                  <p className="font-label-sm text-label-sm text-on-surface-variant mb-1 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[16px] text-primary">tune</span>
+                    {userLanguage === 'hi' ? 'बेहतर योजना सिफारिशों के लिए (वैकल्पिक)' :
+                     userLanguage === 'mr' ? 'अधिक चांगल्या योजना शिफारशींसाठी (ऐच्छिक)' :
+                     'For better scheme recommendations (optional)'}
+                  </p>
+
+                  {/* Gender */}
+                  <div className="mt-3">
+                    <span className="font-label-sm text-[12px] text-on-surface-variant font-semibold block mb-2">
+                      {userLanguage === 'hi' ? 'लिंग' : userLanguage === 'mr' ? 'लिंग' : 'Gender'}
+                    </span>
+                    <div className="flex gap-2">
+                      {GENDER_OPTIONS.map(opt => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setGender(opt.id)}
+                          className={`flex-1 py-2.5 rounded-xl text-center font-label-sm text-label-sm transition-all ${
+                            gender === opt.id
+                              ? 'bg-primary text-on-primary font-bold shadow-sm'
+                              : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
+                          }`}
+                        >
+                          <span className="text-lg block mb-0.5">{opt.icon}</span>
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Social Category */}
+                  <div className="mt-3">
+                    <span className="font-label-sm text-[12px] text-on-surface-variant font-semibold block mb-2">
+                      {userLanguage === 'hi' ? 'सामाजिक वर्ग' : userLanguage === 'mr' ? 'सामाजिक वर्ग' : 'Social Category'}
+                    </span>
+                    <div className="flex gap-2">
+                      {SC_OPTIONS.map(opt => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setSocialCategory(opt.id)}
+                          className={`flex-1 py-2.5 rounded-xl text-center font-label-sm text-label-sm transition-all ${
+                            socialCategory === opt.id
+                              ? 'bg-primary text-on-primary font-bold shadow-sm'
+                              : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <p className="mt-3 font-label-sm text-[11px] text-on-surface-variant flex items-start gap-1.5">
+                    <span className="material-symbols-outlined text-[14px] shrink-0 mt-0.5">lock</span>
+                    {userLanguage === 'hi' ? 'यह जानकारी केवल योजना मिलान के लिए है और कभी साझा नहीं की जाती।' :
+                     userLanguage === 'mr' ? 'ही माहिती फक्त योजना जुळणीसाठी आहे आणि कधीही शेअर केली जात नाही.' :
+                     'This information is only used for scheme matching and is never shared.'}
+                  </p>
+                </div>
+              )}
+
+              <div className="mt-8 flex justify-center">
+                <button
+                  disabled={!selectedRole || !userName.trim()}
+                  onClick={() => onComplete({ name: userName.trim(), type: selectedRole, gender, socialCategory, kycVerified: false })}
+                  className="w-full md:w-auto min-w-[240px] px-8 py-4 rounded-xl bg-primary text-on-primary font-label-lg text-label-lg font-bold shadow-md hover:bg-primary-container hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                >
+                  {t('onboarding.continue')}
+                  <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
     </div>
   );
 }

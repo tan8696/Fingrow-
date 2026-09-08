@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 const PROFILE_AVATAR = `${import.meta.env.BASE_URL}images/profile-ramesha.jpg`;
 
-export default function Settings({ userLanguage, setUserLanguage, locationText, languages, onLogout }) {
+export default function Settings({ userLanguage, setUserLanguage, locationText, languages, onLogout, userProfile, onOpenKyc }) {
   const { t } = useTranslation();
   const [prefs, setPrefs] = useState({ smsAlerts: true, emailAlerts: false, voiceAssistant: true, marketTrends: true });
   const [toast, setToast] = useState(null);
@@ -59,22 +59,49 @@ export default function Settings({ userLanguage, setUserLanguage, locationText, 
       <div className="bg-surface-container-lowest rounded-2xl p-6 md:p-8 shadow-sm border border-surface-variant">
         <h3 className="font-headline-md text-headline-md text-on-surface mb-6">{t('settings.profile_title')}</h3>
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
-          <img alt="Entrepreneur Profile" className="w-20 h-20 rounded-full object-cover shadow-sm" src={PROFILE_AVATAR} />
+          <img alt={userProfile?.name || 'Profile'} className="w-20 h-20 rounded-full object-cover shadow-sm" src={PROFILE_AVATAR} />
           <div className="flex-1 text-center sm:text-left">
-            <p className="font-headline-md text-headline-md text-on-surface font-bold">{t('settings.name')}</p>
+            <div className="flex items-center justify-center sm:justify-start gap-2">
+              <p className="font-headline-md text-headline-md text-on-surface font-bold">{userProfile?.name || t('settings.name')}</p>
+              {userProfile?.kycVerified && (
+                <span className="material-symbols-outlined text-primary text-[20px]" title="KYC Verified">verified</span>
+              )}
+            </div>
             <p className="font-body-md text-body-md text-on-surface-variant">{t('settings.district')}</p>
             <p className="font-body-md text-body-md text-on-surface-variant">{t('settings.mobile')}</p>
             <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-4">
-              <span className="px-3 py-1 bg-primary/10 text-primary rounded-full font-label-sm text-label-sm border border-primary/20">{t('settings.badge_kcc')}</span>
+              {userProfile?.kycVerified ? (
+                <span className="px-3 py-1 bg-primary/10 text-primary rounded-full font-label-sm text-label-sm border border-primary/20 flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[14px]">check_circle</span> KYC Verified
+                </span>
+              ) : (
+                <span className="px-3 py-1 bg-error-container text-on-error-container rounded-full font-label-sm text-label-sm flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[14px]">warning</span> KYC Pending
+                </span>
+              )}
               <span className="px-3 py-1 bg-surface-container text-on-surface-variant rounded-full font-label-sm text-label-sm border border-outline-variant">{t('settings.badge_farmer')}</span>
             </div>
           </div>
-          <button
-            onClick={() => showToast(t('settings.saved_toast'))}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-xl font-label-lg text-label-lg shadow-sm hover:shadow-xl transition-shadow min-h-[48px]"
-          >
-            <span className="material-symbols-outlined text-sm">edit</span> {t('settings.edit_profile')}
-          </button>
+          <div className="flex flex-col gap-3 w-full sm:w-auto">
+            {!userProfile?.kycVerified && (
+              <button
+                onClick={onOpenKyc}
+                className="w-full flex items-center justify-center gap-2 bg-error text-on-error px-6 py-3 rounded-xl font-label-lg text-label-lg shadow-sm hover:shadow-md transition-shadow min-h-[48px]"
+              >
+                <span className="material-symbols-outlined text-sm">assignment_ind</span> Complete KYC
+              </button>
+            )}
+            <button
+              onClick={() => showToast(t('settings.saved_toast'))}
+              className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-label-lg text-label-lg min-h-[48px] ${
+                !userProfile?.kycVerified 
+                  ? 'bg-surface-container text-on-surface hover:bg-surface-container-high' 
+                  : 'bg-primary text-on-primary shadow-sm hover:shadow-xl transition-shadow'
+              }`}
+            >
+              <span className="material-symbols-outlined text-sm">edit</span> {t('settings.edit_profile')}
+            </button>
+          </div>
         </div>
       </div>
 

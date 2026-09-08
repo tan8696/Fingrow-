@@ -9,6 +9,7 @@ import MarketPrices from './MarketPrices';
 import InputWizard from './InputWizard';
 import Settings from './Settings';
 import SchemeCalculator from './SchemeCalculator';
+import KYCModal from './KYCModal';
 import { generateReport, fetchNotifications } from '../hooks/useReport';
 
 const PROFILE_AVATAR = `${import.meta.env.BASE_URL}images/profile-ramesha.jpg`;
@@ -162,12 +163,13 @@ function NotificationsPanel({ onNavigate }) {
   );
 }
 
-export default function Dashboard({ currentView, setCurrentView, onLogout, userProfile }) {
+export default function Dashboard({ currentView, setCurrentView, onLogout, userProfile, onKycComplete }) {
   const { t, i18n } = useTranslation();
   const [margin, setMargin] = useState(50000);
   const [locationText, setLocationText] = useState('Vidarbha, MH');
   const [reportData, setReportData] = useState(null);
   const [showWizard, setShowWizard] = useState(false);
+  const [showKycModal, setShowKycModal] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [userLanguage, setUserLanguage] = useState(i18n.language || 'en');
 
@@ -364,16 +366,28 @@ export default function Dashboard({ currentView, setCurrentView, onLogout, userP
 
             <div className="flex items-center gap-3 pl-1 md:pl-2">
               <div className="relative">
-                <img src={PROFILE_AVATAR} alt="Ramesh Rao" className="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover ring-2 ring-surface" />
-                <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 md:w-4 md:h-4 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center justify-center ring-2 ring-surface" title="KYC Verified">
-                  <span className="material-symbols-outlined text-[10px] md:text-[12px]">verified</span>
-                </span>
+                <img src={PROFILE_AVATAR} alt={userProfile?.name || 'Entrepreneur'} className="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover ring-2 ring-surface" />
+                {userProfile?.kycVerified ? (
+                  <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 md:w-4 md:h-4 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center justify-center ring-2 ring-surface" title="KYC Verified">
+                    <span className="material-symbols-outlined text-[10px] md:text-[12px]">verified</span>
+                  </span>
+                ) : (
+                  <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 md:w-4 md:h-4 rounded-full bg-error text-on-error flex items-center justify-center ring-2 ring-surface" title="KYC Pending">
+                    <span className="material-symbols-outlined text-[10px] md:text-[12px]">warning</span>
+                  </span>
+                )}
               </div>
-              <div className="hidden xl:flex flex-col">
-                <span className="font-label-sm text-label-sm text-on-surface font-semibold">Ramesh Rao</span>
-                <span className="font-label-sm text-label-sm text-primary flex items-center gap-0.5">
-                  <span className="material-symbols-outlined text-[12px]">check_circle</span> {t('nav.kyc_verified')}
-                </span>
+              <div className="hidden xl:flex flex-col cursor-pointer" onClick={() => setCurrentView('settings')}>
+                <span className="font-label-sm text-label-sm text-on-surface font-semibold">{userProfile?.name || 'Entrepreneur'}</span>
+                {userProfile?.kycVerified ? (
+                  <span className="font-label-sm text-label-sm text-primary flex items-center gap-0.5">
+                    <span className="material-symbols-outlined text-[12px]">check_circle</span> {t('nav.kyc_verified')}
+                  </span>
+                ) : (
+                  <span className="font-label-sm text-label-sm text-error flex items-center gap-0.5">
+                    <span className="material-symbols-outlined text-[12px]">error</span> KYC Pending
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -381,6 +395,26 @@ export default function Dashboard({ currentView, setCurrentView, onLogout, userP
 
         {/* Main canvas */}
         <main className="pt-16 md:pt-20 px-2 sm:px-4 md:px-8 pb-28 md:pb-10 bg-background min-h-screen">
+          {!userProfile?.kycVerified && (
+            <div className="mb-4 bg-error-container/20 border border-error-container rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm animate-in">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-error/10 text-error flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined">gpp_maybe</span>
+                </div>
+                <div>
+                  <h4 className="font-label-lg text-label-lg font-bold text-on-surface">Action Required: Complete Your KYC</h4>
+                  <p className="font-body-md text-body-md text-on-surface-variant mt-0.5">Your identity verification is pending. Complete e-KYC to access government schemes and direct bank transfers.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowKycModal(true)}
+                className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-error text-on-error font-label-md text-label-md font-bold shadow-sm hover:shadow-md transition-all shrink-0"
+              >
+                Complete KYC Now
+              </button>
+            </div>
+          )}
+
           {currentView === 'dashboard' && (
             <DashboardHome
               onNavigate={setCurrentView}
@@ -388,6 +422,16 @@ export default function Dashboard({ currentView, setCurrentView, onLogout, userP
               report={reportData}
               hasLiveReport={!!reportData}
               userProfile={userProfile}
+            />
+          )}
+
+          {showKycModal && (
+            <KYCModal 
+              onClose={() => setShowKycModal(false)} 
+              onKycComplete={() => {
+                onKycComplete();
+                setShowKycModal(false);
+              }} 
             />
           )}
 
@@ -473,6 +517,8 @@ export default function Dashboard({ currentView, setCurrentView, onLogout, userP
                 locationText={locationText}
                 languages={SUPPORTED_LANGUAGES}
                 onLogout={onLogout}
+                userProfile={userProfile}
+                onOpenKyc={() => setShowKycModal(true)}
               />
             </div>
           )}

@@ -35,6 +35,12 @@ function App() {
     localStorage.setItem('fingrowProfile', JSON.stringify(profile));
   };
 
+  const handleKycComplete = () => {
+    const updatedProfile = { ...userProfile, kycVerified: true };
+    setUserProfile(updatedProfile);
+    localStorage.setItem('fingrowProfile', JSON.stringify(updatedProfile));
+  };
+
   const handleLogout = () => {
     setIsAuthenticated(false);
     setUserProfile(null);
@@ -52,7 +58,8 @@ function App() {
           currentView={currentView} 
           setCurrentView={setCurrentView} 
           onLogout={handleLogout} 
-          userProfile={userProfile} 
+          userProfile={userProfile}
+          onKycComplete={handleKycComplete}
         />
       )}
     </>
