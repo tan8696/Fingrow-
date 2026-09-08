@@ -59,7 +59,7 @@ export default function Settings({ userLanguage, setUserLanguage, locationText, 
       <div className="bg-surface-container-lowest rounded-2xl p-6 md:p-8 shadow-sm border border-surface-variant">
         <h3 className="font-headline-md text-headline-md text-on-surface mb-6">{t('settings.profile_title')}</h3>
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
-          <img alt={userProfile?.name || 'Profile'} className="w-20 h-20 rounded-full object-cover shadow-sm" src={PROFILE_AVATAR} />
+          <img alt={userProfile?.name || 'Profile'} className="w-20 h-20 rounded-full object-cover shadow-sm" src={userProfile?.avatar || PROFILE_AVATAR} />
           <div className="flex-1 text-center sm:text-left">
             <div className="flex items-center justify-center sm:justify-start gap-2">
               <p className="font-headline-md text-headline-md text-on-surface font-bold">{userProfile?.name || t('settings.name')}</p>

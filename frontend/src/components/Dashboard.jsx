@@ -366,7 +366,7 @@ export default function Dashboard({ currentView, setCurrentView, onLogout, userP
 
             <div className="flex items-center gap-3 pl-1 md:pl-2">
               <div className="relative">
-                <img src={PROFILE_AVATAR} alt={userProfile?.name || 'Entrepreneur'} className="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover ring-2 ring-surface" />
+                <img src={userProfile?.avatar || PROFILE_AVATAR} alt={userProfile?.name || 'Entrepreneur'} className="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover ring-2 ring-surface" />
                 {userProfile?.kycVerified ? (
                   <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 md:w-4 md:h-4 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center justify-center ring-2 ring-surface" title="KYC Verified">
                     <span className="material-symbols-outlined text-[10px] md:text-[12px]">verified</span>

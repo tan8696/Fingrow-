@@ -4,10 +4,22 @@ import { useTranslation } from 'react-i18next';
 export default function OnboardingWizard({ onComplete }) {
   const { t, i18n } = useTranslation();
   const [userName, setUserName] = useState('');
+  const [userAvatar, setUserAvatar] = useState(null);
   const [selectedRole, setSelectedRole] = useState(null);
   const [gender, setGender] = useState('');
   const [socialCategory, setSocialCategory] = useState('');
   const [userLanguage, setUserLanguage] = useState(i18n.language || 'en');
+
+  const handleAvatarUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setUserAvatar(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   useEffect(() => {
     const handleLangChange = (e) => {
@@ -69,6 +81,26 @@ export default function OnboardingWizard({ onComplete }) {
           </div>
 
             <div className="p-6 md:p-8">
+              {/* Avatar Upload */}
+              <div className="mb-6 flex flex-col items-center">
+                <label className="font-label-sm text-label-sm text-on-surface-variant font-semibold block mb-2 cursor-pointer">
+                  <div className="w-24 h-24 rounded-full bg-surface-container-high border-2 border-dashed border-outline flex items-center justify-center overflow-hidden mb-2 relative group hover:border-primary transition-colors">
+                    {userAvatar ? (
+                      <img src={userAvatar} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="material-symbols-outlined text-[32px] text-on-surface-variant group-hover:text-primary transition-colors">add_a_photo</span>
+                    )}
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="material-symbols-outlined text-white">edit</span>
+                    </div>
+                  </div>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+                </label>
+                <span className="font-label-sm text-[12px] text-on-surface-variant">
+                  {userLanguage === 'hi' ? 'प्रोफ़ाइल फ़ोटो चुनें (वैकल्पिक)' : userLanguage === 'mr' ? 'प्रोफाइल फोटो निवडा (ऐच्छिक)' : 'Choose Profile Picture (Optional)'}
+                </span>
+              </div>
+
               {/* Name Input */}
               <div className="mb-6">
                 <label className="font-label-sm text-label-sm text-on-surface-variant font-semibold block mb-2">
@@ -171,7 +203,7 @@ export default function OnboardingWizard({ onComplete }) {
               <div className="mt-8 flex justify-center">
                 <button
                   disabled={!selectedRole || !userName.trim()}
-                  onClick={() => onComplete({ name: userName.trim(), type: selectedRole, gender, socialCategory, kycVerified: false })}
+                  onClick={() => onComplete({ name: userName.trim(), avatar: userAvatar, type: selectedRole, gender, socialCategory, kycVerified: false })}
                   className="w-full md:w-auto min-w-[240px] px-8 py-4 rounded-xl bg-primary text-on-primary font-label-lg text-label-lg font-bold shadow-md hover:bg-primary-container hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
                 >
                   {t('onboarding.continue')}
