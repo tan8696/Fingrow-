@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 export default function OnboardingWizard({ onComplete }) {
   const { t, i18n } = useTranslation();
+  const [userName, setUserName] = useState('');
   const [selectedRole, setSelectedRole] = useState(null);
   const [gender, setGender] = useState('');
   const [socialCategory, setSocialCategory] = useState('');
