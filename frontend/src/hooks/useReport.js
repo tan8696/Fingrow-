@@ -14,7 +14,20 @@ async function safeFetchJson(url, options = {}) {
   return null;
 }
 
-export function generateLiveMandiPrices() {
+/**
+ * Stamps an offline fallback payload so the UI can badge it honestly.
+ * Never used on data that actually came back from the backend.
+ */
+function markOffline(payload, what) {
+  return {
+    ...payload,
+    is_live: false,
+    source: `Offline sample ${what} — device is not reaching the server`,
+    generated_at: new Date().toISOString(),
+  };
+}
+
+export function offlineSampleMandiPrices() {
   const baseCrops = [
     { id: 1, name: "Soybean", grade: "Yellow", mandi: "Nagpur APMC Mandi", category: "Oilseeds", price: 4820, unit: "quintal", icon: "eco" },
     { id: 2, name: "Cotton", grade: "Medium", mandi: "Rajkot Mandi", category: "Cash Crops", price: 6800, unit: "quintal", icon: "local_florist" },
@@ -65,7 +78,7 @@ export function generateLiveMandiPrices() {
   });
 }
 
-export function generateLiveWeather(location = "Akola, Maharashtra") {
+export function offlineSampleWeather(location = "Akola, Maharashtra") {
   const locName = location && location !== "Vidarbha, MH" ? location : "Akola, Maharashtra";
   const now = new Date();
   
@@ -141,7 +154,7 @@ export function generateLiveWeather(location = "Akola, Maharashtra") {
   };
 }
 
-export function generateLiveLoanHistory() {
+export function offlineSampleLoanHistory() {
   const today = new Date();
   const nextMonth = new Date(today.getTime() + 15 * 86400000);
   const formattedNext = nextMonth.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -250,13 +263,8 @@ export async function fetchMarketPrices() {
   if (data && (data.crops || data.prices)) {
     return data;
   }
-  const crops = generateLiveMandiPrices();
-  return {
-    crops,
-    prices: crops,
-    generated_at: new Date().toISOString(),
-    source: "Vidarbha APMC & National Mandi Composite Feed",
-  };
+  const crops = offlineSampleMandiPrices();
+  return markOffline({ crops, prices: crops }, "mandi prices");
 }
 
 export async function fetchLoanHistory() {
@@ -264,7 +272,7 @@ export async function fetchLoanHistory() {
   if (data && data.loans) {
     return data;
   }
-  return generateLiveLoanHistory();
+  return markOffline(offlineSampleLoanHistory(), "loan history");
 }
 
 export async function approveLoanApplication(applicationId, body = {}) {
@@ -312,7 +320,7 @@ export async function fetchWeather(location = "", days = 0) {
   if (data && data.current) {
     return data;
   }
-  return generateLiveWeather(location);
+  return markOffline(offlineSampleWeather(location), "weather");
 }
 
 export async function fetchPortfolio() {

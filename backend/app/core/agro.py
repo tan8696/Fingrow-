@@ -20,8 +20,12 @@ from typing import Any, Dict, List, Optional
 # Static policy facts (used for display + claim estimation)
 # ---------------------------------------------------------------------------
 
+# NOTE: this is a worked demonstration policy, not a real PMFBY enrolment. Every
+# payload that carries it sets ``is_sample`` so the UI labels it as such — the
+# trigger logic and payout maths below are real, only the enrolment is illustrative.
 POLICY: Dict[str, Any] = {
-    "policy_id": "PMFBY-AIC-MHA-89218",
+    "is_sample": True,
+    "policy_id": "SAMPLE-PMFBY-DEMO-001",
     "scheme": "PMFBY · AWS-Linked Parametric Weather Insurance",
     "insurer": "Agriculture Insurance Company (AIC)",
     "sum_insured": 850000,
@@ -31,8 +35,10 @@ POLICY: Dict[str, Any] = {
     "status": "Active",
 }
 
+# Illustrative prior payout shown alongside the sample policy above.
 PAYOUT_HISTORY: List[Dict[str, Any]] = [
     {
+        "is_sample": True,
         "date": "2023-11-14",
         "label": "Nov 14, 2023",
         "amount": 42000,

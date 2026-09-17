@@ -59,6 +59,7 @@ from app.core.agro import (
 from app.core.amortization import generate_schedule
 from app.core.calculator import SchemeError, calculate_finances
 from app.core.geocoder import LocationNotFoundError, geocode_location
+from app.core.mandi import DEFAULT_STATE, fetch_live_prices, sample_prices
 from app.core.osm_fetcher import fetch_competitors
 from app.core.supplier_fetcher import fetch_suppliers
 from app.core.advisory import generate_feasibility_report
@@ -671,58 +672,37 @@ async def mark_repayment_paid(
 @router.get(
     "/market-prices",
     tags=["Market Data"],
-    summary="Get simulated dynamic market prices",
+    summary="Daily APMC mandi prices (AGMARKNET via data.gov.in)",
 )
-async def get_market_prices() -> dict:
-    """Returns market prices for agricultural commodities (server-generated feed)."""
-    base_crops = [
-        {"id": 1, "name": "Soybean", "grade": "Yellow", "mandi": "Nagpur APMC Mandi", "category": "Oilseeds", "price": 4820, "unit": "quintal", "icon": "eco"},
-        {"id": 2, "name": "Cotton", "grade": "Medium", "mandi": "Rajkot Mandi", "category": "Cash Crops", "price": 6800, "unit": "quintal", "icon": "local_florist"},
-        {"id": 3, "name": "Tur / Arhar Dal", "grade": "Premium", "mandi": "Akola APMC Mandi", "category": "Pulses", "price": 10400, "unit": "quintal", "icon": "eco"},
-        {"id": 4, "name": "Wheat", "grade": "Grade A", "mandi": "Akola APMC Mandi", "category": "Cereals", "price": 2450, "unit": "quintal", "icon": "grass"},
-        {"id": 5, "name": "Basmati Rice", "grade": "Premium", "mandi": "Karnal", "category": "Cereals", "price": 4200, "unit": "quintal", "icon": "rice_bowl"},
-        {"id": 6, "name": "Onion", "grade": "Red", "mandi": "Lasalgaon", "category": "Vegetables", "price": 2200, "unit": "quintal", "icon": "adjust"},
-        {"id": 7, "name": "Chana (Bengal Gram)", "grade": "Standard", "mandi": "Akola APMC Mandi", "category": "Pulses", "price": 5200, "unit": "quintal", "icon": "eco"},
-    ]
-    
-    results = []
-    for crop in base_crops:
-        fluctuation = random.uniform(-0.05, 0.05)
-        new_price = int(crop["price"] * (1 + fluctuation))
-        diff = new_price - crop["price"]
-        trend = "up" if diff > 0 else ("down" if diff < 0 else "flat")
-        trend_percent = round(abs(fluctuation) * 100, 1)
-        
-        c = crop.copy()
-        c["price"] = new_price
-        c["trend"] = trend
-        c["trendAmount"] = abs(diff)
-        c["trendPercent"] = trend_percent
-        
-        if trend == "up":
-            c["status"] = "High Demand"
-            c["trendColor"] = "text-primary"
-            c["trendBg"] = "bg-primary-container/20 text-on-primary-container"
-        elif trend == "down":
-            c["status"] = "Low Demand"
-            c["trendColor"] = "text-error"
-            c["trendBg"] = "bg-error-container/20 text-on-error-container"
-        else:
-            c["status"] = "Stable"
-            c["trendColor"] = "text-on-surface-variant"
-            c["trendBg"] = "bg-surface-variant text-on-surface-variant"
-            
-        c["barColor"] = "bg-primary/20" if trend == "up" else "bg-outline/20"
-        c["barHeight"] = f"{random.randint(30, 90)}%"
-        
-        results.append(c)
-        
-    return {
-        "crops": results,
-        "prices": results,
-        "generated_at": datetime.now().isoformat(timespec="seconds"),
-        "source": "Vidarbha cluster APMC composite feed",
-    }
+async def get_market_prices(state: Optional[str] = None) -> dict:
+    """
+    Real daily arrivals from the Government of India AGMARKNET feed.
+
+    Requires ``DATA_GOV_API_KEY``. Without it — or if the upstream call fails —
+    a clearly labelled sample set is returned with ``is_live: false`` so the UI
+    badges it as demo data instead of presenting it as live.
+    """
+    target_state = state or DEFAULT_STATE
+    try:
+        crops = fetch_live_prices(target_state)
+        return {
+            "crops": crops,
+            "prices": crops,
+            "is_live": True,
+            "source": f"AGMARKNET · data.gov.in · {target_state}",
+            "generated_at": datetime.now().isoformat(timespec="seconds"),
+        }
+    except Exception as exc:  # missing key, network error, or empty upstream feed
+        logger.warning("AGMARKNET fetch failed (%s) — serving labelled sample feed.", exc)
+        crops = sample_prices()
+        return {
+            "crops": crops,
+            "prices": crops,
+            "is_live": False,
+            "source": "Sample data — set DATA_GOV_API_KEY for live AGMARKNET prices",
+            "notice": str(exc),
+            "generated_at": datetime.now().isoformat(timespec="seconds"),
+        }
 
 
 @router.get(

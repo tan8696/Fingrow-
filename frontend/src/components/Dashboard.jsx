@@ -23,47 +23,13 @@ const NAV_ITEMS = [
   { id: 'settings', icon: 'settings', label: 'Settings' },
 ];
 
+// Keep in sync with the locales registered in src/i18n.js — offering a language
+// without a locale file silently falls back to English.
 const SUPPORTED_LANGUAGES = [
   { code: 'en', name: 'English' },
-  { code: 'hi', name: 'Hindi' },
-  { code: 'bn', name: 'Bengali' },
-  { code: 'te', name: 'Telugu' },
-  { code: 'mr', name: 'Marathi' },
-  { code: 'ta', name: 'Tamil' },
-  { code: 'gu', name: 'Gujarati' },
-  { code: 'kn', name: 'Kannada' },
-  { code: 'ml', name: 'Malayalam' },
-  { code: 'pa', name: 'Punjabi' },
-  { code: 'or', name: 'Odia' },
+  { code: 'hi', name: 'हिन्दी (Hindi)' },
+  { code: 'mr', name: 'मराठी (Marathi)' },
 ];
-
-const DEFAULT_FEASIBILITY_REPORT = {
-  business_category: 'Organic Poultry Farm',
-  display_name: 'Vidarbha Region, Maharashtra',
-  financials: {
-    selected_scheme: 'Maha-Krushi Scheme',
-    project_cost: 600000,
-    margin_contribution: 120000,
-    loan_amount: 480000,
-    interest_rate_pct: 7.0,
-    tenure_months: 84,
-    moratorium_months: 6,
-  },
-  market_intelligence: {
-    market_reach: 'Strong local market potential within Vidarbha rural-urban corridor with direct-to-retailer linkages.',
-    opportunity_analysis: 'This venture qualifies for multiple state agricultural subsidies and shows a strong local demand trajectory. Immediate execution is advised.',
-    competitor_mapping: 'Low competitor saturation within a 5 km radius, presenting high capture rate for organic country eggs and broiler birds.',
-    swot: {
-      strengths: ['High availability of local, low-cost organic feed.', 'Existing land ownership reduces initial capital expenditure.', 'Growing local preference for organic produce.'],
-      weaknesses: ['Limited access to specialized veterinary care in immediate vicinity.', 'Reliance on inconsistent grid power for temperature control.'],
-      opportunities: ['Tie-ups with urban organic markets for premium pricing.', 'Solar panel installation subsidies available this quarter.'],
-      threats: ['Fluctuating prices of supplemental commercial feed.', 'Seasonal disease outbreaks requiring rapid response protocols.'],
-    },
-    hyper_local_threats: 'Monsoon humidity fluctuations requiring proactive shelter ventilation.',
-    pricing_strategy: 'Cost-plus pricing targeting 20-25% gross margin on organic poultry batches.',
-  },
-  osm_summary: { competitor_count: 2, density_level: 'Sparse', radius_km: 5 },
-};
 
 const MOBILE_NAV = [
   { id: 'dashboard', icon: 'grid_view', label: 'Dashboard' },
@@ -237,8 +203,10 @@ export default function Dashboard({ currentView, setCurrentView, onLogout, userP
       const tenure = isMicro ? 36 : 84;
       const loanVal = Math.round(projectCostVal * 0.9);
 
+      // Financials are safe to compute offline — they are the same published
+      // scheme rule the backend applies. Market intelligence is NOT: it needs a
+      // live OSM scan, so we omit it rather than invent a SWOT nobody produced.
       const fallbackReport = {
-        ...DEFAULT_FEASIBILITY_REPORT,
         business_category: formData.business_category || 'Organic Farming',
         display_name: formData.location || 'Maharashtra, India',
         financials: {
@@ -250,6 +218,8 @@ export default function Dashboard({ currentView, setCurrentView, onLogout, userP
           tenure_months: tenure,
           moratorium_months: 6,
         },
+        market_intelligence_unavailable:
+          'Market intelligence needs a live competitor scan. Reconnect and regenerate to get the SWOT, competitor mapping and pricing strategy.',
       };
       setReportData(fallbackReport);
       setShowWizard(false);
@@ -443,11 +413,11 @@ export default function Dashboard({ currentView, setCurrentView, onLogout, userP
 
           {currentView === 'feasibility' && (
             <div className="max-w-7xl mx-auto">
-              {showWizard ? (
+              {showWizard || !reportData ? (
                 <div className="space-y-4">
                   <div className="flex items-center gap-3 mb-2">
                     <button
-                      onClick={() => setShowWizard(false)}
+                      onClick={() => (reportData ? setShowWizard(false) : setCurrentView('dashboard'))}
                       className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-on-surface hover:bg-surface-container-high transition-colors"
                     >
                       <span className="material-symbols-outlined">arrow_back</span>
@@ -476,13 +446,13 @@ export default function Dashboard({ currentView, setCurrentView, onLogout, userP
                     }}
                     onSubmit={handleGenerateReport}
                     loading={isGenerating}
-                    onCancel={() => setShowWizard(false)}
+                    onCancel={() => (reportData ? setShowWizard(false) : setCurrentView('dashboard'))}
                     userProfile={userProfile}
                   />
                 </div>
               ) : (
                 <MarketReport
-                  report={reportData || DEFAULT_FEASIBILITY_REPORT}
+                  report={reportData}
                   onReset={() => setShowWizard(true)}
                   onGoHome={() => setCurrentView('dashboard')}
                   onGoToHistory={() => setCurrentView('history')}

@@ -35,6 +35,7 @@ export default function MarketReport({ report, onReset, onGoHome, onGoToHistory 
   const financials = report?.financials || {};
   const mi = report?.market_intelligence || {};
   const osm = report?.osm_summary || {};
+  const miUnavailable = report?.market_intelligence_unavailable;
 
   const schemeName = financials.selected_scheme || 'Maha-Krushi';
   // Backend scheme names already end in "Scheme" (e.g. "Term Loan Scheme"),
@@ -226,6 +227,15 @@ export default function MarketReport({ report, onReset, onGoHome, onGoToHistory 
 
   return (
     <>
+      {miUnavailable && (
+        <div className="mb-6 flex items-start gap-3 p-4 rounded-2xl bg-error-container/20 text-on-error-container">
+          <span className="material-symbols-outlined">cloud_off</span>
+          <div>
+            <p className="font-label-lg text-label-lg">Market intelligence unavailable</p>
+            <p className="font-body-md text-body-md opacity-90">{miUnavailable}</p>
+          </div>
+        </div>
+      )}
       {/* Hero Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
         <div>

@@ -556,7 +556,7 @@ export default function WeatherRisk({ locationText = '' }) {
           icon="verified_user" iconBg="bg-primary-fixed text-on-primary-fixed" label="Parametric Insurance"
           value={<><span className="text-on-surface">{pol ? inLakh(pol.sum_insured) : '—'}</span><span className="font-body-md text-on-surface-variant"> L insured</span></>}
           sub={pol
-            ? <span className="font-semibold text-on-surface-variant">{pol.policy_id} · {pol.area_acres} acres</span>
+            ? <span className="font-semibold text-on-surface-variant">{pol.policy_id}{pol.is_sample ? ' (sample policy)' : ''} · {pol.area_acres} acres</span>
             : <span className="text-on-surface-variant">Policy feed offline</span>}
           barPct={policyHealth === 'Triggered' ? 100 : policyHealth === 'WATCHLIST' || (triggers.some(t => t.status === 'WATCHLIST') ? 62 : 8)}
           barCls={policyHealth === 'Triggered' ? 'bg-error' : 'bg-primary'}
@@ -878,7 +878,7 @@ export default function WeatherRisk({ locationText = '' }) {
                 <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-label-sm text-[11px] font-semibold uppercase">{policyHealth}</span>
               </div>
               <p className="font-label-sm text-label-sm text-on-surface-variant">
-                {pol ? `${pol.policy_id} · Sum insured ${inr(pol.sum_insured)} across ${pol.area_acres} acres · ${pol.crop}` : 'Policy feed offline — trigger meters paused.'}
+                {pol ? `${pol.policy_id}${pol.is_sample ? ' (sample)' : ''} · Sum insured ${inr(pol.sum_insured)} across ${pol.area_acres} acres · ${pol.crop}` : 'Policy feed offline — trigger meters paused.'}
               </p>
             </div>
           </div>
@@ -954,7 +954,7 @@ export default function WeatherRisk({ locationText = '' }) {
           </div>
           <div>
             <h3 className="font-headline-md text-headline-md text-on-surface leading-tight">Raise Weather Damage Claim</h3>
-            <p className="font-label-sm text-label-sm text-on-surface-variant">{pol ? `${pol.policy_id} · ${inr(pol.sum_insured)} insured` : 'PMFBY · AWS-Linked Parametric'}</p>
+            <p className="font-label-sm text-label-sm text-on-surface-variant">{pol ? `${pol.policy_id}${pol.is_sample ? ' (sample)' : ''} · ${inr(pol.sum_insured)} insured` : 'PMFBY · AWS-Linked Parametric'}</p>
           </div>
         </div>
 
@@ -1014,7 +1014,7 @@ export default function WeatherRisk({ locationText = '' }) {
           </div>
           <div>
             <h3 className="font-headline-md text-headline-md text-on-surface leading-tight">Policy Ledger</h3>
-            <p className="font-label-sm text-label-sm text-on-surface-variant">{pol ? `${pol.policy_id} · ${pol.insurer}` : 'PMFBY · AWS-Linked Parametric'}</p>
+            <p className="font-label-sm text-label-sm text-on-surface-variant">{pol ? `${pol.policy_id}${pol.is_sample ? ' (sample)' : ''} · ${pol.insurer}` : 'PMFBY · AWS-Linked Parametric'}</p>
           </div>
         </div>
 

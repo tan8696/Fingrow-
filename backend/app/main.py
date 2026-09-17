@@ -70,13 +70,3 @@ app.add_middleware(
 # Register Routes
 # ---------------------------------------------------------------------------
 app.include_router(router, prefix="/api")
-
-# Include the voice websocket skill router
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "agent", "skills", "websocket-voice-stream"))
-try:
-    from voice_server import router as voice_router
-    app.include_router(voice_router)
-except ImportError as e:
-    logger.error(f"Failed to import voice_server skill: {e}")

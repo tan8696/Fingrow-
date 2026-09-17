@@ -1,12 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fetchMarketPrices, generateLiveMandiPrices } from '../hooks/useReport';
+import { fetchMarketPrices, offlineSampleMandiPrices } from '../hooks/useReport';
 
 export default function MarketPrices() {
   const { t, i18n } = useTranslation();
   const currentLang = i18n.language || 'en';
 
   const [crops, setCrops] = useState([]);
+  const [feed, setFeed] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -20,18 +21,23 @@ export default function MarketPrices() {
     setError(null);
     fetchMarketPrices()
       .then(data => {
-        if (isMounted) {
-          const list = data?.crops || data?.prices || [];
-          setCrops(list.length > 0 ? list : generateLiveMandiPrices());
-          setLoading(false);
+        if (!isMounted) return;
+        const list = data?.crops || data?.prices || [];
+        if (list.length > 0) {
+          setCrops(list);
+          setFeed({ isLive: data?.is_live === true, source: data?.source, at: data?.generated_at });
+        } else {
+          setCrops(offlineSampleMandiPrices());
+          setFeed({ isLive: false, source: 'Offline sample prices — server returned no arrivals' });
         }
+        setLoading(false);
       })
       .catch(err => {
-        if (isMounted) {
-          console.warn('Using live calibrated APMC feed:', err);
-          setCrops(generateLiveMandiPrices());
-          setLoading(false);
-        }
+        if (!isMounted) return;
+        console.warn('Mandi feed unreachable, showing offline sample:', err);
+        setCrops(offlineSampleMandiPrices());
+        setFeed({ isLive: false, source: 'Offline sample prices — device is not reaching the server' });
+        setLoading(false);
       });
     return () => { isMounted = false; };
   }, []);
@@ -51,6 +57,21 @@ export default function MarketPrices() {
       <div className="mb-stack-gap">
         <h2 className="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface mb-2">{t('market_prices.title')}</h2>
         <p className="font-body-lg text-body-lg text-on-surface-variant">{t('market_prices.subtitle')}</p>
+        {feed && (
+          <div
+            className={`mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full font-label-sm text-label-sm ${
+              feed.isLive
+                ? 'bg-primary-container/20 text-on-primary-container'
+                : 'bg-error-container/20 text-on-error-container'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px]">
+              {feed.isLive ? 'verified' : 'warning'}
+            </span>
+            <span>{feed.isLive ? 'Live' : 'Demo data'} · {feed.source}</span>
+            {feed.at && <span className="opacity-70">· {new Date(feed.at).toLocaleString('en-IN')}</span>}
+          </div>
+        )}
       </div>
 
       {/* Search & Filters */}
@@ -126,12 +147,23 @@ export default function MarketPrices() {
               <span className="material-symbols-outlined text-sm">
                 {crop.trend === 'up' ? 'trending_up' : crop.trend === 'down' ? 'trending_down' : 'trending_flat'}
               </span>
-              {crop.trend === 'up' ? '+' : crop.trend === 'down' ? '-' : ''}₹{crop.trendAmount} ({crop.trendPercent}%) today
+              {crop.trend === 'up' ? '+' : crop.trend === 'down' ? '-' : ''}₹{crop.trendAmount} ({crop.trendPercent}%)
+              <span className="opacity-70 font-body-sm">· {crop.trendBasis || 'day-on-day'}</span>
             </div>
 
-            <div className="mt-auto h-16 bg-surface-variant rounded-lg relative overflow-hidden flex items-end">
-              {/* Using a simpler approach since dynamic Tailwind classes like h-1/2 might be purged if not explicitly safelisted */}
-              <div className={`w-full ${crop.barColor} rounded-t-lg`} style={{ height: crop.barHeight === '1/2' ? '50%' : crop.barHeight === '1/3' ? '33.33%' : crop.barHeight === '3/4' ? '75%' : crop.barHeight === '2/3' ? '66.66%' : '25%' }}></div>
+            {/* Where today's modal price sits inside the day's min-max band */}
+            <div className="mt-auto">
+              <div className="relative h-2 bg-surface-variant rounded-full">
+                <div
+                  className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-primary border-2 border-surface-container-lowest"
+                  style={{ left: crop.barHeight || '50%' }}
+                  title={`Modal ₹${crop.price?.toLocaleString()}`}
+                ></div>
+              </div>
+              <div className="flex justify-between mt-2 font-label-sm text-label-sm text-on-surface-variant">
+                <span>Low ₹{(crop.minPrice ?? crop.price)?.toLocaleString()}</span>
+                <span>High ₹{(crop.maxPrice ?? crop.price)?.toLocaleString()}</span>
+              </div>
             </div>
           </div>
         ))}
