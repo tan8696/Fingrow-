@@ -87,6 +87,7 @@ from app.core.loan_schedule import (
     default_scheme_terms,
     schedule_to_csv,
 )
+from app.core import demo_seed
 from app.core.cluster import build_activity
 from app.core.harvest_store import (
     delete_harvest,
@@ -927,6 +928,41 @@ async def get_market_prices(state: Optional[str] = None) -> dict:
             "notice": str(exc),
             "generated_at": datetime.now().isoformat(timespec="seconds"),
         }
+
+
+@router.post(
+    "/demo/seed",
+    tags=["Demo"],
+    summary="Fill this account with a demonstration portfolio",
+)
+async def seed_demo_data(user: Dict[str, Any] = Depends(current_user)) -> dict:
+    """
+    Populate the signed-in account with realistic loans and harvest lots.
+
+    Nothing is ever seeded automatically — a new account starts empty and stays
+    that way until this is called. Every record created here is flagged so the
+    UI can label it and so wiping removes exactly what was added.
+    """
+    return demo_seed.seed(user["user_id"])
+
+
+@router.delete(
+    "/demo/seed",
+    tags=["Demo"],
+    summary="Remove the demonstration data from this account",
+)
+async def wipe_demo_data(user: Dict[str, Any] = Depends(current_user)) -> dict:
+    """Removes only seeded records. Anything the account created itself stays."""
+    return demo_seed.wipe(user["user_id"])
+
+
+@router.get(
+    "/demo/status",
+    tags=["Demo"],
+    summary="Whether this account currently holds demonstration data",
+)
+async def demo_status(user: Dict[str, Any] = Depends(current_user)) -> dict:
+    return demo_seed.status(user["user_id"])
 
 
 @router.get(
