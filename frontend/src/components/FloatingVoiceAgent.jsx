@@ -34,7 +34,7 @@ export default function FloatingVoiceAgent({ onNavigate, setMargin, language, on
   }, [currentLang, t]);
 
   // Determine speech recognition locale string
-  const speechLang = currentLang === 'mr' ? 'mr-IN' : currentLang === 'hi' ? 'hi-IN' : 'en-IN';
+  const speechLang = `${currentLang || 'en'}-IN`;
 
   // Initialize Web Speech API recognition
   useEffect(() => {
@@ -71,9 +71,9 @@ export default function FloatingVoiceAgent({ onNavigate, setMargin, language, on
       recognition.onerror = (event) => {
         console.warn('Speech recognition status:', event.error);
         if (event.error === 'no-speech') {
-          setStatusText(currentLang === 'mr' ? 'आवाज ऐकू आला नाही. पुन्हा बोला.' : currentLang === 'hi' ? 'कोई आवाज नहीं मिली। कृपया पुनः प्रयास करें।' : 'No speech detected. Please tap mic and try again.');
+          setStatusText(t('inline.no_speech_detected_please_tap_mic_and_tr'));
         } else if (event.error === 'not-allowed') {
-          setStatusText(currentLang === 'mr' ? 'मायक्रोफोन परवानगी नाही. चॅट वापरा.' : currentLang === 'hi' ? 'माइक की अनुमति नहीं है। चैट मोड का उपयोग करें।' : 'Microphone access not allowed. You can type in Chat mode.');
+          setStatusText(t('inline.microphone_access_not_allowed_you_can_ty'));
         } else {
           setStatusText(`Status: ${event.error}`);
         }
@@ -236,7 +236,7 @@ export default function FloatingVoiceAgent({ onNavigate, setMargin, language, on
     // Add user message immediately, show thinking indicator
     setChatMessages(prev => [...prev, { role: 'user', text }]);
     setIsThinking(true);
-    setStatusText(currentLang === 'mr' ? 'विचार करत आहे...' : currentLang === 'hi' ? 'सोच रहा हूँ...' : 'Thinking...');
+    setStatusText(t('inline.thinking'));
 
     try {
       // Build history from existing chat messages (exclude current)
@@ -249,7 +249,7 @@ export default function FloatingVoiceAgent({ onNavigate, setMargin, language, on
       // Add assistant reply
       setChatMessages(prev => [...prev, { role: 'assistant', text: response.reply }]);
       speak(response.reply);
-      setStatusText(currentLang === 'mr' ? 'उत्तर दिले' : currentLang === 'hi' ? 'उत्तर दिया गया' : 'Answered');
+      setStatusText(t('inline.answered'));
 
       // Handle navigation intent from LLM
       if (response.navigate_to) {
@@ -263,11 +263,7 @@ export default function FloatingVoiceAgent({ onNavigate, setMargin, language, on
       }
     } catch (err) {
       console.error('Chat error:', err);
-      const errorMsg = currentLang === 'mr'
-        ? 'माफ करा, काही त्रुटी आली. कृपया पुन्हा प्रयत्न करा.'
-        : currentLang === 'hi'
-          ? 'क्षमा करें, कोई त्रुटि हुई। कृपया पुनः प्रयास करें।'
-          : 'Sorry, something went wrong. Please try again.';
+      const errorMsg = t('inline.sorry_something_went_wrong_please_try_ag');
       setChatMessages(prev => [...prev, { role: 'assistant', text: errorMsg }]);
     } finally {
       setIsThinking(false);
@@ -290,7 +286,7 @@ export default function FloatingVoiceAgent({ onNavigate, setMargin, language, on
   const startListening = () => {
     if (recognitionRef.current) {
       setTranscript('');
-      setStatusText(currentLang === 'mr' ? 'ऐकत आहे...' : currentLang === 'hi' ? 'सुन रहा हूँ...' : 'Listening...');
+      setStatusText(t('inline.listening'));
       try {
         recognitionRef.current.lang = speechLang;
         recognitionRef.current.start();
@@ -299,7 +295,7 @@ export default function FloatingVoiceAgent({ onNavigate, setMargin, language, on
         // Recognition might already be running
       }
     } else {
-      setStatusText(currentLang === 'mr' ? 'व्हॉइस उपलब्ध नाही. चॅट वापरा.' : currentLang === 'hi' ? 'वॉइस उपलब्ध नहीं है। चैट करें।' : 'Speech recognition not available. Use Chat mode.');
+      setStatusText(t('inline.speech_recognition_not_available_use_cha'));
     }
   };
 
@@ -421,7 +417,7 @@ export default function FloatingVoiceAgent({ onNavigate, setMargin, language, on
                   {mode === 'voice' ? t('voice_agent.voice_assistant') : t('voice_agent.chat_advisor')}
                 </h3>
                 <p className="font-label-sm text-label-sm text-on-surface-variant truncate">
-                  {mode === 'voice' ? t('voice_agent.voice_desc') : (currentLang === 'mr' ? 'कोणताही प्रश्न विचारा · AI सहाय्यक' : currentLang === 'hi' ? 'कोई भी सवाल पूछें · AI सहायक' : 'Ask anything · AI-powered assistant')}
+                  {mode === 'voice' ? t('voice_agent.voice_desc') : (t('inline.ask_anything_ai_powered_assistant'))}
                 </p>
               </div>
             </div>
@@ -429,7 +425,7 @@ export default function FloatingVoiceAgent({ onNavigate, setMargin, language, on
             <div className="flex items-center gap-2 shrink-0">
               {/* Language Indicator in Bot Header */}
               <span className="px-2.5 py-1 rounded-lg bg-surface-container font-label-sm text-label-sm text-primary font-bold border border-outline-variant">
-                {currentLang === 'mr' ? 'मराठी' : currentLang === 'hi' ? 'हिन्दी' : 'EN'}
+                {t('inline.en')}
               </span>
 
               {/* Mode toggle */}
@@ -495,7 +491,7 @@ export default function FloatingVoiceAgent({ onNavigate, setMargin, language, on
 
               <div className="w-full bg-surface border border-surface-variant rounded-2xl p-4 min-h-[90px] flex items-center justify-center text-center">
                 <p className="font-body-md text-body-md text-on-surface italic">
-                  {transcript ? `"${transcript}"` : (currentLang === 'mr' ? '"कोणताही प्रश्न विचारा किंवा पेज उघडण्यास सांगा"' : currentLang === 'hi' ? '"कोई भी सवाल पूछें या पेज खोलने को कहें"' : '"Ask any question or say a page name to navigate"')}
+                  {transcript ? `"${transcript}"` : (t('inline.ask_any_question_or_say_a_page_name_to_n'))}
                 </p>
               </div>
 
@@ -548,7 +544,7 @@ export default function FloatingVoiceAgent({ onNavigate, setMargin, language, on
                     <div className="max-w-[85%] rounded-2xl px-4 py-3 rounded-tl-none bg-surface-container border border-surface-variant flex items-center gap-2">
                       <span className="material-symbols-outlined text-primary text-lg animate-spin">progress_activity</span>
                       <span className="text-sm text-on-surface-variant italic">
-                        {currentLang === 'mr' ? 'विचार करत आहे...' : currentLang === 'hi' ? 'सोच रहा हूँ...' : 'Thinking...'}
+                        {t('inline.thinking_2')}
                       </span>
                     </div>
                   </div>
@@ -577,7 +573,7 @@ export default function FloatingVoiceAgent({ onNavigate, setMargin, language, on
                   type="text"
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  placeholder={currentLang === 'mr' ? 'कोणताही प्रश्न विचारा...' : currentLang === 'hi' ? 'कोई भी सवाल पूछें...' : 'Ask me anything...'}
+                  placeholder={t('inline.ask_me_anything')}
                   disabled={isThinking}
                   className="flex-1 px-4 py-3 rounded-xl border border-outline-variant bg-surface text-on-surface font-body-md text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-50"
                 />

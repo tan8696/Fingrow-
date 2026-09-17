@@ -98,7 +98,15 @@ export function useTranslation(lang) {
 }
 
 export const SUPPORTED_LANGUAGES = [
-  { code: "en", label: "English" },
-  { code: "hi", label: "हिन्दी" },
-  { code: "mr", label: "मराठी" },
+  { code: 'en', label: 'English' },
+  { code: 'hi', label: 'हिन्दी (Hindi)' },
+  { code: 'mr', label: 'मराठी (Marathi)' },
+  { code: 'bn', label: 'বাংলা (Bengali)' },
+  { code: 'te', label: 'తెలుగు (Telugu)' },
+  { code: 'ta', label: 'தமிழ் (Tamil)' },
+  { code: 'gu', label: 'ગુજરાતી (Gujarati)' },
+  { code: 'kn', label: 'ಕನ್ನಡ (Kannada)' },
+  { code: 'ml', label: 'മലയാളം (Malayalam)' },
+  { code: 'pa', label: 'ਪੰਜਾਬੀ (Punjabi)' },
+  { code: 'or', label: 'ଓଡ଼ିଆ (Odia)' },
 ];

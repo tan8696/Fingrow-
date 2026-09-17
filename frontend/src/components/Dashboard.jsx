@@ -29,6 +29,14 @@ const SUPPORTED_LANGUAGES = [
   { code: 'en', name: 'English' },
   { code: 'hi', name: 'हिन्दी (Hindi)' },
   { code: 'mr', name: 'मराठी (Marathi)' },
+  { code: 'bn', name: 'বাংলা (Bengali)' },
+  { code: 'te', name: 'తెలుగు (Telugu)' },
+  { code: 'ta', name: 'தமிழ் (Tamil)' },
+  { code: 'gu', name: 'ગુજરાતી (Gujarati)' },
+  { code: 'kn', name: 'ಕನ್ನಡ (Kannada)' },
+  { code: 'ml', name: 'മലയാളം (Malayalam)' },
+  { code: 'pa', name: 'ਪੰਜਾਬੀ (Punjabi)' },
+  { code: 'or', name: 'ଓଡ଼ିଆ (Odia)' },
 ];
 
 const MOBILE_NAV = [

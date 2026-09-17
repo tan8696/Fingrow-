@@ -173,7 +173,7 @@ export default function LoanHistory({ onNavigate }) {
           >
             <span className="material-symbols-outlined text-[20px]">admin_panel_settings</span>
             <span className="hidden sm:inline">
-              {currentLang === 'mr' ? 'बँक अधिकारी दृश्य' : currentLang === 'hi' ? 'बैंक अधिकारी दृश्य' : 'Officer View'}
+              {t('inline.officer_view')}
             </span>
             {pendingApplications.length > 0 && (
               <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${officerMode ? 'bg-on-primary-container/20' : 'bg-primary text-on-primary'}`}>

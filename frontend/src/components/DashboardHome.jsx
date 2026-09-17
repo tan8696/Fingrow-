@@ -247,11 +247,7 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
                     : currentLang === 'hi'
                     ? `आपके पास ${p.active_loans} सक्रिय ऋण खाते हैं • ${p.months_total} में से ${p.months_paid} ईएमआई भुगतान पूर्ण`
                     : `You have ${p.active_loans} active loan${p.active_loans > 1 ? 's' : ''} • ${p.months_paid} of ${p.months_total} EMIs paid`)
-                : (currentLang === 'mr'
-                    ? 'स्वागत आहे! नवीन व्यवसाय कल्पना तपासा किंवा कर्जासाठी अर्ज करा.'
-                    : currentLang === 'hi'
-                    ? 'स्वागत है! नया व्यवसाय विचार जांचें या ऋण के लिए आवेदन करें।'
-                    : 'Welcome! Start by checking a business idea or applying for a loan.')}
+                : (t('inline.welcome_start_by_checking_a_business_ide'))}
             </p>
           </div>
         </div>
@@ -271,7 +267,7 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
         </button>
         <button className="quick-action" onClick={() => setHarvestModal(true)}>
           <span className="quick-action__icon">{isFarmer ? '🌾' : '📦'}</span>
-          <span className="quick-action__label">{isFarmer ? t('dashboard_home.harvest_btn') : (currentLang === 'mr' ? 'विक्री नोंदवा' : currentLang === 'hi' ? 'बिक्री दर्ज करें' : 'Log Sales')}</span>
+          <span className="quick-action__label">{isFarmer ? t('dashboard_home.harvest_btn') : (t('inline.log_sales'))}</span>
         </button>
         <button className="quick-action" onClick={openVoiceAgent}>
           <span className="quick-action__icon">🎙️</span>
@@ -305,7 +301,7 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
               {p.next_due_date && (
                 <span className="status-badge status-badge--green">
                   <span className="material-symbols-outlined text-[14px]">event</span>
-                  {currentLang === 'mr' ? 'पुढील: ' : currentLang === 'hi' ? 'अगला: ' : 'Next: '}{fmtDateLabel(p.next_due_date)}
+                  {t('inline.next')}{fmtDateLabel(p.next_due_date)}
                 </span>
               )}
             </button>
@@ -314,17 +310,17 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
             <button onClick={() => setHarvestModal(true)} className="village-card visual-kpi">
               <span className="visual-kpi__icon">{isFarmer ? '🌾' : '📈'}</span>
               <span className="visual-kpi__value">{fmtINR(harvestData?.summary?.total_revenue)}</span>
-              <span className="visual-kpi__label">{currentLang === 'mr' ? 'उत्पन्न' : currentLang === 'hi' ? 'राजस्व' : 'Revenue'}</span>
+              <span className="visual-kpi__label">{t('inline.revenue')}</span>
               {(harvestData?.summary?.by_month || []).length > 0 ? (
                 <RevenueBarChart months={(harvestData?.summary?.by_month || []).slice(0, 4)} height={60} />
               ) : (
                 <span className="text-[12px] text-on-surface-variant italic">
-                  {currentLang === 'mr' ? 'नोंदवण्यासाठी टॅप करा' : currentLang === 'hi' ? 'दर्ज करने के लिए टैप करें' : 'Tap to log revenue'}
+                  {t('inline.tap_to_log_revenue')}
                 </span>
               )}
               <span className="status-badge status-badge--green">
                 <span className="material-symbols-outlined text-[14px]">trending_up</span>
-                {harvestData?.summary?.lots || 0} {currentLang === 'mr' ? 'नोंदी' : currentLang === 'hi' ? 'प्रविष्टियां' : 'records'}
+                {harvestData?.summary?.lots || 0} {t('inline.records')}
               </span>
             </button>
 
@@ -369,7 +365,7 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
                     <span className="visual-kpi__value">—</span>
                     <span className="visual-kpi__label">{t('dashboard_home.weather_title')}</span>
                     <span className="text-[12px] text-on-surface-variant italic">
-                      {weatherFailed ? (currentLang === 'mr' ? 'अनुपलब्ध' : currentLang === 'hi' ? 'अनुपलब्ध' : 'Unavailable') : (currentLang === 'mr' ? 'लोड होत आहे...' : currentLang === 'hi' ? 'लोड हो रहा है...' : 'Loading...')}
+                      {weatherFailed ? (t('inline.unavailable')) : (t('inline.loading'))}
                     </span>
                   </>
                 )}
@@ -394,11 +390,11 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
         <div className="chart-section__header">
           <span className="chart-section__emoji">📈</span>
           <h2 className="chart-section__title">
-            {currentLang === 'mr' ? 'कर्ज परतफेड (EMI) प्रवास' : currentLang === 'hi' ? 'समय के साथ ईएमआई भुगतान' : 'EMI Payment Over Time'}
+            {t('inline.emi_payment_over_time')}
           </h2>
           {activeApps.length > 0 && (
             <span className="ml-auto status-badge status-badge--green">
-              {p.months_paid}/{p.months_total} {currentLang === 'mr' ? 'वेळेत' : currentLang === 'hi' ? 'सही समय पर' : 'on track'}
+              {p.months_paid}/{p.months_total} {t('inline.on_track')}
             </span>
           )}
         </div>
@@ -433,8 +429,8 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
         {/* Legend */}
         {(activeApps.length > 0 || shownMonths.length > 0) && (
           <div className="flex items-center justify-center gap-6 pt-4 font-label-sm text-label-sm">
-            <span className="flex items-center gap-2 text-on-surface-variant"><span className="w-3 h-3 rounded-sm" style={{ background: '#006948' }} /> {currentLang === 'mr' ? 'मुद्दल (Principal)' : currentLang === 'hi' ? 'मूलधन (Principal)' : 'Principal (मूलधन)'}</span>
-            <span className="flex items-center gap-2 text-on-surface-variant"><span className="w-3 h-3 rounded-sm" style={{ background: '#9b3e3b' }} /> {currentLang === 'mr' ? 'व्याज (Interest)' : currentLang === 'hi' ? 'ब्याज (Interest)' : 'Interest (ब्याज)'}</span>
+            <span className="flex items-center gap-2 text-on-surface-variant"><span className="w-3 h-3 rounded-sm" style={{ background: '#006948' }} /> {t('inline.principal')}</span>
+            <span className="flex items-center gap-2 text-on-surface-variant"><span className="w-3 h-3 rounded-sm" style={{ background: '#9b3e3b' }} /> {t('inline.interest')}</span>
           </div>
         )}
       </section>
@@ -454,7 +450,7 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
                 onClick={() => onNavigate('history')}
                 className="ml-auto text-primary font-label-sm text-label-sm font-semibold hover:underline flex items-center gap-1"
               >
-                {currentLang === 'mr' ? 'सर्व पहा' : currentLang === 'hi' ? 'सभी देखें' : 'View all'} <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                {t('inline.view_all')} <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
               </button>
             </div>
 
@@ -463,7 +459,7 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
                 <div className="p-8 text-center flex flex-col items-center gap-3">
                   <span className="text-4xl">📑</span>
                   <p className="text-on-surface-variant font-body-md text-body-md">
-                    {currentLang === 'mr' ? 'अजून कोणतेही कर्ज नाही. सुरू करण्यासाठी अर्ज करा!' : currentLang === 'hi' ? 'अभी कोई ऋण नहीं है। शुरू करने के लिए आवेदन करें!' : 'No loans yet. Apply to get started!'}
+                    {t('inline.no_loans_yet_apply_to_get_started')}
                   </p>
                 </div>
               )}
@@ -584,13 +580,13 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
               <span className="chart-section__emoji">🤖</span>
               <h2 className="chart-section__title">{t('nav.ask_bot')}</h2>
               <span className="ml-auto status-badge status-badge--green">
-                {currentLang === 'mr' ? 'सक्रिय' : currentLang === 'hi' ? 'सक्रिय' : 'Active'}
+                {t('inline.active')}
               </span>
             </div>
 
             <div className="p-4 rounded-xl bg-surface-container-low flex flex-col gap-3">
               <span className="font-label-sm text-label-sm text-on-surface-variant">
-                {currentLang === 'mr' ? 'मराठी, हिंदी किंवा इंग्रजीत विचारा' : currentLang === 'hi' ? 'हिंदी, मराठी या अंग्रेजी में पूछें' : 'Ask in English, मराठी or हिन्दी'}
+                {t('inline.ask_in_english_or')}
               </span>
               <form
                 onSubmit={(e) => {

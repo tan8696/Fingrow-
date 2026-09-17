@@ -687,10 +687,10 @@ export default function MarketReport({ report, onReset, onGoHome, onGoToHistory 
         <div className="md:col-span-3 bg-surface-container-lowest rounded-2xl p-8 shadow-sm border border-surface-variant mt-8 flex flex-col md:flex-row items-center gap-6">
           <div className="flex-1">
             <h3 className="font-bold text-2xl text-on-surface mb-2">
-              {currentLang === 'mr' ? 'या अहवालाबद्दल विचारा' : currentLang === 'hi' ? 'इस रिपोर्ट के बारे में पूछें' : 'Ask about this Report'}
+              {t('inline.ask_about_this_report')}
             </h3>
             <p className="font-body-lg text-on-surface-variant">
-              {currentLang === 'mr' ? 'काही शंका आहे का? आपल्या स्थानिक भाषेत त्वरित स्पष्टीकरणासाठी आमच्या AI सल्लागारास विचारा.' : currentLang === 'hi' ? 'कोई संदेह है? अपनी स्थानीय भाषा में त्वरित समाधान के लिए हमारे एआई सलाहकार से पूछें।' : 'Stuck on a point? Ask our AI advisor for instant clarification in your local language.'}
+              {t('inline.stuck_on_a_point_ask_our_ai_advisor_for_')}
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">

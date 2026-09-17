@@ -92,18 +92,18 @@ export default function MarketPrices() {
             value={category}
             onChange={(e) => setCategory(e.target.value)}
           >
-            <option value="all">{currentLang === 'mr' ? 'सर्व श्रेणी' : currentLang === 'hi' ? 'सभी श्रेणियां' : 'All Categories'}</option>
-            <option value="cereals">{currentLang === 'mr' ? 'धान्य (Cereals)' : currentLang === 'hi' ? 'अनाज (Cereals)' : 'Cereals'}</option>
-            <option value="pulses">{currentLang === 'mr' ? 'डाळी (Pulses)' : currentLang === 'hi' ? 'दलहन (Pulses)' : 'Pulses'}</option>
-            <option value="oilseeds">{currentLang === 'mr' ? 'गळीत धान्य (Oilseeds)' : currentLang === 'hi' ? 'तिलहन (Oilseeds)' : 'Oilseeds'}</option>
-            <option value="cash">{currentLang === 'mr' ? 'नगदी पिके (Cash Crops)' : currentLang === 'hi' ? 'नकदी फसलें (Cash Crops)' : 'Cash Crops'}</option>
+            <option value="all">{t('inline.all_categories')}</option>
+            <option value="cereals">{t('inline.cereals')}</option>
+            <option value="pulses">{t('inline.pulses')}</option>
+            <option value="oilseeds">{t('inline.oilseeds')}</option>
+            <option value="cash">{t('inline.cash_crops')}</option>
           </select>
           <select 
             className="pl-4 pr-10 py-4 rounded-xl border border-outline-variant bg-surface-bright text-on-surface focus:ring-2 focus:ring-primary font-body-md text-body-md min-h-[56px] min-w-[160px]"
             value={mandi}
             onChange={(e) => setMandi(e.target.value)}
           >
-            <option value="all">{currentLang === 'mr' ? 'सर्व बाजार समित्या' : currentLang === 'hi' ? 'सभी मंडियां' : 'All Mandis'}</option>
+            <option value="all">{t('inline.all_mandis')}</option>
             <option value="akola">Akola APMC</option>
             <option value="nagpur">Nagpur Mandi</option>
             <option value="rajkot">Rajkot Mandi</option>
