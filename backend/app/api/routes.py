@@ -17,6 +17,7 @@ from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import Response
 
 from app.api.models import (
+    FeasibilityReport,
     RepaymentPlanRequest,
     StressTestReport,
     StressTestRequest,
@@ -274,15 +275,7 @@ async def generate_report(req: AdvisoryRequest) -> FullReportResponse:
     if req.language != "en":
         feasibility_dict = translate_report(feasibility_dict, req.language)
 
-    from app.api.models import FeasibilityReport, SWOTResponse
-    translated_report = FeasibilityReport(
-        market_reach=feasibility_dict["market_reach"],
-        opportunity_analysis=feasibility_dict["opportunity_analysis"],
-        competitor_mapping=feasibility_dict["competitor_mapping"],
-        swot=SWOTResponse(**feasibility_dict["swot"]),
-        hyper_local_threats=feasibility_dict["hyper_local_threats"],
-        pricing_strategy=feasibility_dict["pricing_strategy"],
-    )
+    translated_report = FeasibilityReport(**feasibility_dict)
 
     # --- Step 5.5: Place the repayment schedule against real earning months ---
     alignment = align_schedule(
