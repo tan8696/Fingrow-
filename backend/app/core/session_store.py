@@ -21,6 +21,8 @@ import threading
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from app.core.db import ensure_column
+
 logger = logging.getLogger(__name__)
 
 # <backend>/sessions.db unless SESSION_DB_PATH is set
@@ -32,6 +34,7 @@ _SCHEMA = """
 CREATE TABLE IF NOT EXISTS report_sessions (
     session_id   TEXT PRIMARY KEY,
     report_json  TEXT NOT NULL,
+    user_id      TEXT,
     created_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 """
@@ -56,13 +59,19 @@ def _ensure_schema(db_path: Path) -> None:
         conn = sqlite3.connect(str(db_path))
         try:
             conn.execute(_SCHEMA)
+            ensure_column(conn, "report_sessions", "user_id", "TEXT")
             conn.commit()
         finally:
             conn.close()
         _initialized_paths.add(resolved)
 
 
-def save_session(session_id: str, report_data: Dict[str, Any], db_path: Optional[Path] = None) -> None:
+def save_session(
+    session_id: str,
+    report_data: Dict[str, Any],
+    user_id: Optional[str] = None,
+    db_path: Optional[Path] = None,
+) -> None:
     """
     Store (or replace) a full report payload for the given session id.
 
@@ -76,8 +85,9 @@ def save_session(session_id: str, report_data: Dict[str, Any], db_path: Optional
     conn = sqlite3.connect(str(path))
     try:
         conn.execute(
-            "INSERT OR REPLACE INTO report_sessions (session_id, report_json) VALUES (?, ?)",
-            (session_id, json.dumps(report_data, ensure_ascii=False)),
+            "INSERT OR REPLACE INTO report_sessions (session_id, report_json, user_id) "
+            "VALUES (?, ?, ?)",
+            (session_id, json.dumps(report_data, ensure_ascii=False), user_id),
         )
         conn.commit()
     finally:
@@ -85,7 +95,11 @@ def save_session(session_id: str, report_data: Dict[str, Any], db_path: Optional
     logger.debug("Saved report session %s", session_id)
 
 
-def get_session(session_id: str, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
+def get_session(
+    session_id: str,
+    user_id: Optional[str] = None,
+    db_path: Optional[Path] = None,
+) -> Optional[Dict[str, Any]]:
     """
     Fetch a previously stored report payload.
 
@@ -96,7 +110,9 @@ def get_session(session_id: str, db_path: Optional[Path] = None) -> Optional[Dic
     conn = sqlite3.connect(str(path))
     try:
         row = conn.execute(
-            "SELECT report_json FROM report_sessions WHERE session_id = ?", (session_id,)
+            "SELECT report_json FROM report_sessions WHERE session_id = ?"
+            + ("" if user_id is None else " AND user_id = ?"),
+            (session_id,) if user_id is None else (session_id, user_id),
         ).fetchone()
     finally:
         conn.close()

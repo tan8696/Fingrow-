@@ -23,7 +23,7 @@ SAMPLE_APP = {
 
 def test_save_and_get_roundtrip(tmp_path):
     db = tmp_path / "loans.db"
-    assert loan_store.save_application("LN-2026-1234", SAMPLE_APP, db_path=db) is True
+    assert loan_store.save_application("LN-2026-1234", SAMPLE_APP, user_id="u1", db_path=db) is True
 
     loaded = loan_store.get_application("LN-2026-1234", db_path=db)
     assert loaded == SAMPLE_APP
@@ -34,8 +34,8 @@ def test_duplicate_id_is_rejected_not_overwritten(tmp_path):
     db = tmp_path / "loans.db"
     changed = dict(SAMPLE_APP, applicant_name="Someone Else")
 
-    assert loan_store.save_application("LN-2026-1234", SAMPLE_APP, db_path=db) is True
-    assert loan_store.save_application("LN-2026-1234", changed, db_path=db) is False
+    assert loan_store.save_application("LN-2026-1234", SAMPLE_APP, user_id="u1", db_path=db) is True
+    assert loan_store.save_application("LN-2026-1234", changed, user_id="u1", db_path=db) is False
 
     loaded = loan_store.get_application("LN-2026-1234", db_path=db)
     assert loaded["applicant_name"] == "Ramesh Kumar"
@@ -46,16 +46,16 @@ def test_list_applications_newest_first(tmp_path):
     first = dict(SAMPLE_APP, id="LN-2026-1000")
     second = dict(SAMPLE_APP, id="LN-2026-2000")
 
-    loan_store.save_application(first["id"], first, db_path=db)
-    loan_store.save_application(second["id"], second, db_path=db)
+    loan_store.save_application(first["id"], first, user_id="u1", db_path=db)
+    loan_store.save_application(second["id"], second, user_id="u1", db_path=db)
 
-    apps = loan_store.list_applications(db_path=db)
+    apps = loan_store.list_applications(user_id="u1", db_path=db)
     assert [a["id"] for a in apps] == ["LN-2026-2000", "LN-2026-1000"]
 
 
 def test_list_applications_empty_database(tmp_path):
     db = tmp_path / "empty.db"
-    assert loan_store.list_applications(db_path=db) == []
+    assert loan_store.list_applications(user_id="u1", db_path=db) == []
 
 
 def test_legacy_row_without_id_is_hydrated(tmp_path):
@@ -63,9 +63,9 @@ def test_legacy_row_without_id_is_hydrated(tmp_path):
     db = tmp_path / "loans.db"
     legacy = {k: v for k, v in SAMPLE_APP.items() if k != "id"}
 
-    assert loan_store.save_application("LN-2026-7777", legacy, db_path=db) is True
+    assert loan_store.save_application("LN-2026-7777", legacy, user_id="u1", db_path=db) is True
 
-    apps = loan_store.list_applications(db_path=db)
+    apps = loan_store.list_applications(user_id="u1", db_path=db)
     assert len(apps) == 1
     assert apps[0]["id"] == "LN-2026-7777"
     assert apps[0]["scheme_name"] == "Term Loan Scheme"

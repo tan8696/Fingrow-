@@ -37,7 +37,7 @@ SAMPLE_REPORT = {
 
 def test_save_and_get_roundtrip(tmp_path):
     db = tmp_path / "sessions.db"
-    session_store.save_session("abc-123", SAMPLE_REPORT, db_path=db)
+    session_store.save_session("abc-123", SAMPLE_REPORT, user_id="u1", db_path=db)
 
     loaded = session_store.get_session("abc-123", db_path=db)
     assert loaded is not None
@@ -49,7 +49,7 @@ def test_save_and_get_roundtrip(tmp_path):
 def test_report_survives_new_connection(tmp_path):
     """Each store call opens a fresh connection; fetching again simulates a server restart."""
     db = tmp_path / "sessions.db"
-    session_store.save_session("abc-123", SAMPLE_REPORT, db_path=db)
+    session_store.save_session("abc-123", SAMPLE_REPORT, user_id="u1", db_path=db)
 
     # Re-open from a brand-new connection (as a restarted server would)
     loaded = session_store.get_session("abc-123", db_path=db)
@@ -62,7 +62,7 @@ def test_report_survives_new_connection(tmp_path):
 
 def test_get_unknown_session_returns_none(tmp_path):
     db = tmp_path / "sessions.db"
-    session_store.save_session("known-id", SAMPLE_REPORT, db_path=db)
+    session_store.save_session("known-id", SAMPLE_REPORT, user_id="u1", db_path=db)
     assert session_store.get_session("missing-id", db_path=db) is None
 
 
@@ -70,8 +70,8 @@ def test_save_replaces_existing_session(tmp_path):
     db = tmp_path / "sessions.db"
     updated = dict(SAMPLE_REPORT, location="Updated Village, Wardha, Maharashtra")
 
-    session_store.save_session("abc-123", SAMPLE_REPORT, db_path=db)
-    session_store.save_session("abc-123", updated, db_path=db)
+    session_store.save_session("abc-123", SAMPLE_REPORT, user_id="u1", db_path=db)
+    session_store.save_session("abc-123", updated, user_id="u1", db_path=db)
 
     loaded = session_store.get_session("abc-123", db_path=db)
     assert loaded is not None
@@ -80,7 +80,7 @@ def test_save_replaces_existing_session(tmp_path):
 
 def test_delete_session(tmp_path):
     db = tmp_path / "sessions.db"
-    session_store.save_session("abc-123", SAMPLE_REPORT, db_path=db)
+    session_store.save_session("abc-123", SAMPLE_REPORT, user_id="u1", db_path=db)
 
     assert session_store.delete_session("abc-123", db_path=db) is True
     assert session_store.get_session("abc-123", db_path=db) is None

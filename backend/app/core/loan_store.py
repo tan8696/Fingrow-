@@ -20,6 +20,8 @@ import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from app.core.db import ensure_column
+
 logger = logging.getLogger(__name__)
 
 # <backend>/loans.db unless LOANS_DB_PATH is set
@@ -31,6 +33,7 @@ _SCHEMA = """
 CREATE TABLE IF NOT EXISTS loan_applications (
     application_id   TEXT PRIMARY KEY,
     application_json TEXT NOT NULL,
+    user_id          TEXT,
     created_at       TEXT NOT NULL DEFAULT (datetime('now'))
 );
 """
@@ -55,6 +58,7 @@ def _ensure_schema(db_path: Path) -> None:
         conn = sqlite3.connect(str(db_path))
         try:
             conn.execute(_SCHEMA)
+            ensure_column(conn, "loan_applications", "user_id", "TEXT")
             conn.commit()
         finally:
             conn.close()
@@ -64,6 +68,7 @@ def _ensure_schema(db_path: Path) -> None:
 def save_application(
     application_id: str,
     application_data: Dict[str, Any],
+    user_id: str,
     db_path: Optional[Path] = None,
 ) -> bool:
     """
@@ -77,8 +82,9 @@ def save_application(
     conn = sqlite3.connect(str(path))
     try:
         conn.execute(
-            "INSERT INTO loan_applications (application_id, application_json) VALUES (?, ?)",
-            (application_id, json.dumps(application_data, ensure_ascii=False)),
+            "INSERT INTO loan_applications (application_id, application_json, user_id) "
+            "VALUES (?, ?, ?)",
+            (application_id, json.dumps(application_data, ensure_ascii=False), user_id),
         )
         conn.commit()
         return True
@@ -92,6 +98,7 @@ def save_application(
 def update_application(
     application_id: str,
     updates: Dict[str, Any],
+    user_id: Optional[str] = None,
     db_path: Optional[Path] = None,
 ) -> Optional[Dict[str, Any]]:
     """
@@ -99,7 +106,7 @@ def update_application(
 
     Returns the updated application dict, or None when the id is unknown.
     """
-    current = get_application(application_id, db_path=db_path)
+    current = get_application(application_id, user_id=user_id, db_path=db_path)
     if current is None:
         return None
 
@@ -118,16 +125,33 @@ def update_application(
     return current
 
 
-def get_application(application_id: str, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
-    """Fetch a single stored application, or None when unknown."""
+def get_application(
+    application_id: str,
+    user_id: Optional[str] = None,
+    db_path: Optional[Path] = None,
+) -> Optional[Dict[str, Any]]:
+    """
+    Fetch a single stored application, or None when unknown.
+
+    Passing ``user_id`` also returns None when the application belongs to
+    somebody else, so a caller cannot read another account's loan by guessing
+    its reference id.
+    """
     path = _resolve(db_path)
     _ensure_schema(path)
     conn = sqlite3.connect(str(path))
     try:
-        row = conn.execute(
-            "SELECT application_json FROM loan_applications WHERE application_id = ?",
-            (application_id,),
-        ).fetchone()
+        if user_id is None:
+            row = conn.execute(
+                "SELECT application_json FROM loan_applications WHERE application_id = ?",
+                (application_id,),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT application_json FROM loan_applications "
+                "WHERE application_id = ? AND user_id = ?",
+                (application_id, user_id),
+            ).fetchone()
     finally:
         conn.close()
 
@@ -136,15 +160,31 @@ def get_application(application_id: str, db_path: Optional[Path] = None) -> Opti
     return json.loads(row[0])
 
 
-def list_applications(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
-    """Return all stored applications, newest first."""
+def list_applications(
+    user_id: Optional[str] = None,
+    db_path: Optional[Path] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Stored applications, newest first.
+
+    Without ``user_id`` this returns every account's applications, which is
+    only appropriate for officer/admin views — never for a borrower request.
+    """
     path = _resolve(db_path)
     _ensure_schema(path)
     conn = sqlite3.connect(str(path))
     try:
-        rows = conn.execute(
-            "SELECT application_id, application_json FROM loan_applications ORDER BY rowid DESC"
-        ).fetchall()
+        if user_id is None:
+            rows = conn.execute(
+                "SELECT application_id, application_json FROM loan_applications "
+                "ORDER BY rowid DESC"
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT application_id, application_json FROM loan_applications "
+                "WHERE user_id = ? ORDER BY rowid DESC",
+                (user_id,),
+            ).fetchall()
     finally:
         conn.close()
 

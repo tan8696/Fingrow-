@@ -13,11 +13,14 @@ import uuid
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
 
+from app.api.auth_routes import current_user
+from app.core.auth import update_profile
 from app.api.models import (
     FeasibilityReport,
+    InsuranceEnrolRequest,
     RepaymentPlanRequest,
     StressTestReport,
     StressTestRequest,
@@ -54,8 +57,7 @@ from app.core.advisory_store import (
 from app.core.agro import (
     CLAIM_FACTORS,
     DAMAGE_TYPES,
-    PAYOUT_HISTORY,
-    POLICY as INSURANCE_POLICY,
+    new_policy,
     estimate_claim,
     evaluate_triggers,
     protocol_document,
@@ -184,7 +186,7 @@ async def calculate(req: CalculatorRequest) -> CalculatorResponse:
     tags=["Full Advisory Report"],
     summary="Generate Complete Business Feasibility Report",
 )
-async def generate_report(req: AdvisoryRequest) -> FullReportResponse:
+async def generate_report(req: AdvisoryRequest, user: Dict[str, Any] = Depends(current_user)) -> FullReportResponse:
     """
     Orchestrates all modules to generate a complete, bank-ready report:
       1. Geocode the location (Nominatim)
@@ -343,7 +345,7 @@ async def generate_report(req: AdvisoryRequest) -> FullReportResponse:
         receipt=receipt,
         repayment_alignment=alignment,
     )
-    save_session(session_id, full_response.model_dump())
+    save_session(session_id, full_response.model_dump(), user_id=user["user_id"])
     return full_response
 
 
@@ -354,7 +356,7 @@ async def generate_report(req: AdvisoryRequest) -> FullReportResponse:
     summary="Argue the case against a generated report",
     responses={404: {"model": ErrorResponse}},
 )
-async def stress_test(session_id: str, req: Optional[StressTestRequest] = None) -> StressTestReport:
+async def stress_test(session_id: str, req: Optional[StressTestRequest] = None, user: Dict[str, Any] = Depends(current_user)) -> StressTestReport:
     """
     Re-examine a stored report from the opposite direction: what would make
     this proposal fail.
@@ -364,7 +366,7 @@ async def stress_test(session_id: str, req: Optional[StressTestRequest] = None) 
     instalments the crop calendar flagged as falling in months with no income —
     so the critique is specific to this proposal rather than generic caution.
     """
-    report = get_session(session_id)
+    report = get_session(session_id, user_id=user["user_id"])
     if report is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -466,7 +468,7 @@ async def repayment_plan(req: RepaymentPlanRequest) -> dict:
     summary="Re-derive a report's financials and confirm they reproduce",
     responses={404: {"model": ErrorResponse}},
 )
-async def verify_report(session_id: str) -> dict:
+async def verify_report(session_id: str, user: Dict[str, Any] = Depends(current_user)) -> dict:
     """
     Independently recompute the financial figures of a stored report from the
     inputs recorded on its receipt, and report whether they still match.
@@ -476,7 +478,7 @@ async def verify_report(session_id: str) -> dict:
     changed. A report issued before a scheme amendment comes back as
     ``rules_changed`` rather than as an error — it was correct when issued.
     """
-    report = get_session(session_id)
+    report = get_session(session_id, user_id=user["user_id"])
     if report is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -508,12 +510,12 @@ async def verify_report(session_id: str) -> dict:
     summary="Download Report as PDF",
     responses={404: {"model": ErrorResponse}},
 )
-async def download_pdf(session_id: str) -> Response:
+async def download_pdf(session_id: str, user: Dict[str, Any] = Depends(current_user)) -> Response:
     """
     Generates and returns a downloadable PDF of a previously generated report.
     The session must have been created via POST /generate-report first.
     """
-    report_data = get_session(session_id)
+    report_data = get_session(session_id, user_id=user["user_id"])
     if report_data is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -656,7 +658,7 @@ def _application_to_loan_entry(application: Dict[str, Any]) -> dict:
     tags=["Loan Applications"],
     summary="Submit a new loan application",
 )
-async def apply_for_loan(req: LoanApplicationRequest) -> LoanApplicationResponse:
+async def apply_for_loan(req: LoanApplicationRequest, user: Dict[str, Any] = Depends(current_user)) -> LoanApplicationResponse:
     """
     Persists a loan application submitted from the feasibility report and
     returns it with a generated reference id (e.g. LN-2026-4821).
@@ -671,7 +673,7 @@ async def apply_for_loan(req: LoanApplicationRequest) -> LoanApplicationResponse
     for _ in range(20):
         candidate = f"LN-{year}-{random.randint(1000, 9999)}"
         payload_with_id = dict(payload, id=candidate)
-        if save_application(candidate, payload_with_id):
+        if save_application(candidate, payload_with_id, user_id=user["user_id"]):
             application_id = candidate
             payload = payload_with_id
             break
@@ -695,6 +697,7 @@ async def apply_for_loan(req: LoanApplicationRequest) -> LoanApplicationResponse
 async def approve_loan(
     application_id: str,
     req: Optional[LoanApprovalRequest] = None,
+    user: Dict[str, Any] = Depends(current_user),
 ) -> LoanApprovalResponse:
     """
     Bank-officer action that moves a Pending application to Active.
@@ -704,7 +707,7 @@ async def approve_loan(
     loan then appears as Active in loan history and gains a downloadable
     statement.
     """
-    application = get_application(application_id)
+    application = get_application(application_id, user_id=user["user_id"])
     if application is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -743,7 +746,7 @@ async def approve_loan(
         "schedule": schedule["schedule"],
         "officer_note": (req.officer_note if req and req.officer_note else None),
     }
-    updated = update_application(application_id, updates)
+    updated = update_application(application_id, updates, user_id=user["user_id"])
     if updated is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -763,9 +766,9 @@ async def approve_loan(
     tags=["Loan Applications"],
     summary="Download an approved loan's repayment statement (CSV)",
 )
-async def download_loan_statement(application_id: str) -> Response:
+async def download_loan_statement(application_id: str, user: Dict[str, Any] = Depends(current_user)) -> Response:
     """Streams the approved loan's full monthly repayment schedule as CSV."""
-    application = get_application(application_id)
+    application = get_application(application_id, user_id=user["user_id"])
     if application is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -798,12 +801,12 @@ async def download_loan_statement(application_id: str) -> Response:
     tags=["Loan Applications"],
     summary="Get repayment tracking status for an approved loan",
 )
-async def get_repayment_status(application_id: str) -> RepaymentStatusResponse:
+async def get_repayment_status(application_id: str, user: Dict[str, Any] = Depends(current_user)) -> RepaymentStatusResponse:
     """
     Returns the full monthly schedule with paid flags, the next due
     instalment, and the outstanding principal for an approved loan.
     """
-    application = get_application(application_id)
+    application = get_application(application_id, user_id=user["user_id"])
     if application is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -827,12 +830,13 @@ async def mark_repayment_paid(
     application_id: str,
     month: int,
     req: Optional[MarkPaymentRequest] = None,
+    user: Dict[str, Any] = Depends(current_user),
 ) -> RepaymentStatusResponse:
     """
     Records payment of the next due instalment (instalments must be paid in
     order). Returns the updated repayment status.
     """
-    application = get_application(application_id)
+    application = get_application(application_id, user_id=user["user_id"])
     if application is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -876,7 +880,7 @@ async def mark_repayment_paid(
     }
     payments.append(payment)
 
-    updated = update_application(application_id, {"payments": payments})
+    updated = update_application(application_id, {"payments": payments}, user_id=user["user_id"])
     if updated is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -930,57 +934,19 @@ async def get_market_prices(state: Optional[str] = None) -> dict:
     tags=["Loan History"],
     summary="Get user loan history",
 )
-async def get_loan_history() -> dict:
+async def get_loan_history(user: Dict[str, Any] = Depends(current_user)) -> dict:
     """
-    Returns the user's loan history: applications submitted through the app
-    (persisted, newest first) followed by simulated demo loans.
+    The signed-in account's loan applications, newest first.
+
+    A new account has none. Nothing is seeded here — use POST /api/demo/seed
+    to populate a demonstration portfolio explicitly.
     """
     today = datetime.now()
     stored_loans = [
         _application_to_loan_entry(application)
-        for application in list_applications()
+        for application in list_applications(user_id=user["user_id"])
     ]
-    return {"loans": stored_loans + [
-        {
-            "id": "LN-2023-8942",
-            "name": "Seasonal Crop Loan",
-            "status": "Active",
-            "dateLabel": "Next Repayment",
-            "date": (today + timedelta(days=15)).strftime("%b %d, %Y"),
-            "amount": 8500,
-            "amountLabel": "Principal",
-            "icon": "agriculture",
-            "iconBg": "bg-primary-container/10",
-            "iconColor": "text-primary",
-            "statusBg": "bg-primary-container/20 text-primary-container",
-        },
-        {
-            "id": "LN-2023-9105",
-            "name": "Equipment Finance",
-            "status": "Active",
-            "dateLabel": "Next Repayment",
-            "date": (today + timedelta(days=30)).strftime("%b %d, %Y"),
-            "amount": 6000,
-            "amountLabel": "Principal",
-            "icon": "precision_manufacturing",
-            "iconBg": "bg-primary-container/10",
-            "iconColor": "text-primary",
-            "statusBg": "bg-primary-container/20 text-primary-container",
-        },
-        {
-            "id": "LN-2024-0021",
-            "name": "Solar Irrigation Advance",
-            "status": "Pending",
-            "dateLabel": "",
-            "date": "Awaiting Approval",
-            "amount": 12000,
-            "amountLabel": "Requested",
-            "icon": "hourglass_empty",
-            "iconBg": "bg-surface-container-high",
-            "iconColor": "text-on-surface-variant",
-            "statusBg": "bg-surface-container text-on-surface",
-        }
-    ]}
+    return {"loans": stored_loans}
 
 
 # ---------------------------------------------------------------------------
@@ -1021,7 +987,7 @@ async def weather_forecast(
     tags=["Harvest Logging"],
     summary="Log a harvest lot",
 )
-async def add_harvest_lot(req: HarvestRequest) -> dict:
+async def add_harvest_lot(req: HarvestRequest, user: Dict[str, Any] = Depends(current_user)) -> dict:
     """Persist a harvest lot and return it with its computed revenue."""
     payload = req.model_dump()
     if not payload.get("harvest_date"):
@@ -1030,7 +996,7 @@ async def add_harvest_lot(req: HarvestRequest) -> dict:
     harvest_id = None
     for _ in range(20):
         candidate = f"HV-{datetime.now().year}-{random.randint(1000, 9999)}"
-        if save_harvest(candidate, dict(payload, id=candidate)):
+        if save_harvest(candidate, dict(payload, id=candidate), user_id=user["user_id"]):
             harvest_id = candidate
             break
 
@@ -1051,9 +1017,9 @@ async def add_harvest_lot(req: HarvestRequest) -> dict:
     tags=["Harvest Logging"],
     summary="List logged harvest lots with revenue summary",
 )
-async def get_harvest_logs(limit: int = 200) -> dict:
+async def get_harvest_logs(limit: int = 200, user: Dict[str, Any] = Depends(current_user)) -> dict:
     """Returns stored harvest lots plus a dashboard-ready revenue summary."""
-    lots = list_harvests()[: max(1, min(limit, 500))]
+    lots = list_harvests(user_id=user["user_id"])[: max(1, min(limit, 500))]
     return {"lots": lots, "summary": harvest_summary(lots)}
 
 
@@ -1062,9 +1028,9 @@ async def get_harvest_logs(limit: int = 200) -> dict:
     tags=["Harvest Logging"],
     summary="Delete a harvest lot",
 )
-async def remove_harvest_lot(harvest_id: str) -> dict:
+async def remove_harvest_lot(harvest_id: str, user: Dict[str, Any] = Depends(current_user)) -> dict:
     """Removes a mistakenly logged harvest lot."""
-    if not delete_harvest(harvest_id):
+    if not delete_harvest(harvest_id, user_id=user["user_id"]):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Harvest lot '{harvest_id}' not found.",
@@ -1081,9 +1047,9 @@ async def remove_harvest_lot(harvest_id: str) -> dict:
     tags=["Portfolio"],
     summary="Aggregated portfolio figures for the dashboard",
 )
-async def portfolio_overview() -> dict:
+async def portfolio_overview(user: Dict[str, Any] = Depends(current_user)) -> dict:
     """Outstanding balances, EMI commitments, subsidy totals and pipeline."""
-    return portfolio_summary(list_applications())
+    return portfolio_summary(list_applications(user_id=user["user_id"]))
 
 
 @router.get(
@@ -1091,10 +1057,10 @@ async def portfolio_overview() -> dict:
     tags=["Portfolio"],
     summary="Upcoming EMI cashflow and detailed repayment ledger",
 )
-async def portfolio_cashflow_view(horizon: int = 6) -> dict:
+async def portfolio_cashflow_view(horizon: int = 6, user: Dict[str, Any] = Depends(current_user)) -> dict:
     """Monthly EMI obligations (chart buckets) plus a per-loan repayment ledger."""
     horizon = max(1, min(horizon, 24))
-    return portfolio_cashflow(list_applications(), horizon=horizon)
+    return portfolio_cashflow(list_applications(user_id=user["user_id"]), horizon=horizon)
 
 
 # ---------------------------------------------------------------------------
@@ -1106,9 +1072,9 @@ async def portfolio_cashflow_view(horizon: int = 6) -> dict:
     tags=["Cluster"],
     summary="Recent co-op cluster activity (real portal events)",
 )
-async def cluster_activity(limit: int = 10) -> dict:
+async def cluster_activity(limit: int = 10, user: Dict[str, Any] = Depends(current_user)) -> dict:
     """Recent applications, approvals, repayments and harvests in the cluster."""
-    return build_activity(list_applications(), list_harvests(), limit=max(1, min(limit, 30)))
+    return build_activity(list_applications(user_id=user["user_id"]), list_harvests(user_id=user["user_id"]), limit=max(1, min(limit, 30)))
 
 
 # ---------------------------------------------------------------------------
@@ -1151,7 +1117,7 @@ def _cached_weather_notification() -> Optional[dict]:
     tags=["Notifications"],
     summary="Real notifications derived from portfolio & weather state",
 )
-async def get_notifications() -> dict:
+async def get_notifications(user: Dict[str, Any] = Depends(current_user)) -> dict:
     """
     Notifications are assembled from genuine app state: EMI instalments due
     within 7 days, applications awaiting officer sanction, and live weather
@@ -1160,7 +1126,7 @@ async def get_notifications() -> dict:
     today = datetime.now().date()
     items: List[Dict[str, Any]] = []
 
-    pending_count = sum(1 for a in list_applications() if a.get("status") == "Pending")
+    pending_count = sum(1 for a in list_applications(user_id=user["user_id"]) if a.get("status") == "Pending")
     if pending_count:
         items.append({
             "id": "pending-queue",
@@ -1171,7 +1137,7 @@ async def get_notifications() -> dict:
             "view": "history",
         })
 
-    for application in list_applications():
+    for application in list_applications(user_id=user["user_id"]):
         if application.get("status") != "Active":
             continue
         due = portfolio_next_due(application)
@@ -1197,7 +1163,7 @@ async def get_notifications() -> dict:
     if weather_alert:
         items.append(weather_alert)
 
-    for claim in list_claims()[:3]:
+    for claim in list_claims(user_id=user["user_id"])[:3]:
         items.append({
             "id": f"claim-{claim.get('id')}",
             "type": "claim",
@@ -1220,11 +1186,14 @@ async def get_notifications() -> dict:
     tags=["Weather & Crop Risk"],
     summary="Parametric insurance policy with live trigger evaluation & claims",
 )
-async def insurance_policy(location: Optional[str] = None) -> dict:
+async def insurance_policy(location: Optional[str] = None, user: Dict[str, Any] = Depends(current_user)) -> dict:
     """
-    Policy facts plus trigger meters evaluated against the live 7-day forecast,
-    and any claims the user has filed. Degrades gracefully when the weather
-    feed is unreachable (triggers report 'Offline').
+    Trigger meters evaluated against the live 7-day forecast, plus the
+    borrower's own policy and claims.
+
+    ``policy`` is null and ``enrolled`` false until the account enrols via
+    POST /api/insurance/enrol. The trigger meters still work without a policy —
+    they read the weather, not the cover — so the page stays useful either way.
     """
     try:
         weather = get_weather(location=location, days=7)
@@ -1236,15 +1205,22 @@ async def insurance_policy(location: Optional[str] = None) -> dict:
         triggers["triggers"] = [dict(t, status="Offline", note="Live feed unreachable — recheck later.") for t in triggers["triggers"]]
         weather_error = str(e)
 
-    claims = list_claims()
+    policy = (user.get("profile") or {}).get("insurance_policy")
+
+    claims = list_claims(user_id=user["user_id"])
     for claim in claims:
-        claim["estimate"] = estimate_claim(claim.get("damage_type", "excess_rain"), float(claim.get("area_acres") or 0))
+        claim["estimate"] = estimate_claim(
+            claim.get("damage_type", "excess_rain"),
+            float(claim.get("area_acres") or 0),
+            policy=policy,
+        )
 
     return {
-        "policy": INSURANCE_POLICY,
+        "enrolled": policy is not None,
+        "policy": policy,
         "damage_types": DAMAGE_TYPES,
         "claim_factors": CLAIM_FACTORS,
-        "payout_history": PAYOUT_HISTORY,
+        "payout_history": [],
         "triggers": triggers.get("triggers", []),
         "policy_health": triggers.get("policy_health", "Offline"),
         "claims": claims,
@@ -1254,11 +1230,40 @@ async def insurance_policy(location: Optional[str] = None) -> dict:
 
 
 @router.post(
+    "/insurance/enrol",
+    tags=["Weather & Crop Risk"],
+    summary="Enrol this account in a crop insurance policy",
+)
+async def enrol_insurance(
+    req: InsuranceEnrolRequest,
+    user: Dict[str, Any] = Depends(current_user),
+) -> dict:
+    """
+    Create the account's policy. Until this is called the account has no cover,
+    and no claim can be filed against it.
+    """
+    profile = user.get("profile") or {}
+    if profile.get("insurance_policy"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This account is already enrolled in a policy.",
+        )
+
+    policy = new_policy(req.crop, req.area_acres, req.sum_insured, req.season)
+    updated = update_profile(user["user_id"], {"insurance_policy": policy})
+    if updated is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found.")
+
+    logger.info("Enrolled %s in policy %s", user["user_id"], policy["policy_id"])
+    return {"enrolled": True, "policy": policy}
+
+
+@router.post(
     "/insurance/claims",
     tags=["Weather & Crop Risk"],
     summary="File a parametric weather damage claim",
 )
-async def add_insurance_claim(req: InsuranceClaimRequest) -> dict:
+async def add_insurance_claim(req: InsuranceClaimRequest, user: Dict[str, Any] = Depends(current_user)) -> dict:
     """
     Persists a claim with a deterministic payout estimate and returns the
     filed record (a notification is raised so the claim surfaces in the bell).
@@ -1270,7 +1275,22 @@ async def add_insurance_claim(req: InsuranceClaimRequest) -> dict:
             detail=f"Unsupported damage type '{payload['damage_type']}'. Choose from {list(CLAIM_FACTORS)}.",
         )
 
-    estimate = estimate_claim(payload["damage_type"], float(payload["area_acres"]))
+    policy = (user.get("profile") or {}).get("insurance_policy")
+    if policy is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Enrol in a crop insurance policy before filing a claim.",
+        )
+    if float(payload["area_acres"]) > float(policy.get("area_acres") or 0):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"Claimed area ({payload['area_acres']} acres) exceeds the "
+                f"{policy.get('area_acres')} acres insured under this policy."
+            ),
+        )
+
+    estimate = estimate_claim(payload["damage_type"], float(payload["area_acres"]), policy=policy)
 
     claim_id = None
     for _ in range(20):
@@ -1283,7 +1303,7 @@ async def add_insurance_claim(req: InsuranceClaimRequest) -> dict:
             estimate_amount=estimate["estimate_amount"],
             basis=estimate["basis"],
         )
-        if save_claim(candidate, record):
+        if save_claim(candidate, record, user_id=user["user_id"]):
             claim_id = candidate
             break
 
@@ -1305,9 +1325,9 @@ async def add_insurance_claim(req: InsuranceClaimRequest) -> dict:
     tags=["Weather & Crop Risk"],
     summary="Withdraw a submitted claim",
 )
-async def remove_insurance_claim(claim_id: str) -> dict:
+async def remove_insurance_claim(claim_id: str, user: Dict[str, Any] = Depends(current_user)) -> dict:
     """Removes a mistakenly filed claim."""
-    if not delete_claim(claim_id):
+    if not delete_claim(claim_id, user_id=user["user_id"]):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Claim '{claim_id}' not found.",
@@ -1320,9 +1340,9 @@ async def remove_insurance_claim(claim_id: str) -> dict:
     tags=["Weather & Crop Risk"],
     summary="List scheduled field reminders",
 )
-async def get_reminders() -> dict:
+async def get_reminders(user: Dict[str, Any] = Depends(current_user)) -> dict:
     """Return stored SMS/call/push field reminders, newest first."""
-    return {"reminders": list_reminders()}
+    return {"reminders": list_reminders(user_id=user["user_id"])}
 
 
 @router.post(
@@ -1330,13 +1350,13 @@ async def get_reminders() -> dict:
     tags=["Weather & Crop Risk"],
     summary="Schedule a spray/field reminder",
 )
-async def add_reminder(req: ReminderRequest) -> dict:
+async def add_reminder(req: ReminderRequest, user: Dict[str, Any] = Depends(current_user)) -> dict:
     """Persist a field reminder for the chosen spray window."""
     reminder_id = None
     for _ in range(20):
         candidate = f"RM-{datetime.now().year}-{random.randint(1000, 9999)}"
         record = dict(req.model_dump(), id=candidate, created_at=datetime.now().isoformat(timespec="seconds"))
-        if save_reminder(candidate, record):
+        if save_reminder(candidate, record, user_id=user["user_id"]):
             reminder_id = candidate
             break
     if reminder_id is None:
@@ -1353,9 +1373,9 @@ async def add_reminder(req: ReminderRequest) -> dict:
     tags=["Weather & Crop Risk"],
     summary="Cancel a scheduled reminder",
 )
-async def remove_reminder(reminder_id: str) -> dict:
+async def remove_reminder(reminder_id: str, user: Dict[str, Any] = Depends(current_user)) -> dict:
     """Cancel a previously scheduled reminder."""
-    if not delete_reminder(reminder_id):
+    if not delete_reminder(reminder_id, user_id=user["user_id"]):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Reminder '{reminder_id}' not found.",

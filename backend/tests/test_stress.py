@@ -11,6 +11,19 @@ from app.core import stress
 from app.core.session_store import save_session
 from app.main import app
 
+
+def _authed_client():
+    """A TestClient signed in as a fresh account (every data route needs one)."""
+    import uuid
+
+    from app.core.auth import create_token, create_user
+
+    user = create_user(f"9{uuid.uuid4().int % 10**9:09d}", "test-password", "Test User")
+    c = TestClient(app)
+    c.headers.update({"Authorization": f"Bearer {create_token(user['user_id'])}"})
+    c.user_id = user["user_id"]
+    return c
+
 VALID_PAYLOAD = {
     "verdict": "reconsider",
     "headline": "Three instalments fall due before this business earns anything.",
@@ -166,9 +179,10 @@ def test_report_requires_at_least_one_failure_mode():
 def test_endpoint_runs_against_the_stored_report(monkeypatch):
     client, sent = _fake_client([json.dumps(VALID_PAYLOAD)])
     monkeypatch.setattr("app.core.stress._get_groq_client", lambda: client)
-    save_session("stress-demo", _stored_report())
+    api = _authed_client()
+    save_session("stress-demo", _stored_report(), user_id=api.user_id)
 
-    body = TestClient(app).post(
+    body = api.post(
         "/api/stress-test/stress-demo", json={"expected_annual_income": 260000}
     ).json()
 
@@ -179,7 +193,7 @@ def test_endpoint_runs_against_the_stored_report(monkeypatch):
 
 
 def test_endpoint_404s_on_unknown_session():
-    assert TestClient(app).post("/api/stress-test/nope", json={}).status_code == 404
+    assert _authed_client().post("/api/stress-test/nope", json={}).status_code == 404
 
 
 def test_endpoint_reports_unconfigured_llm_as_unavailable(monkeypatch):
@@ -187,7 +201,8 @@ def test_endpoint_reports_unconfigured_llm_as_unavailable(monkeypatch):
         raise EnvironmentError("GROQ_API_KEY environment variable is not set.")
 
     monkeypatch.setattr("app.core.stress._get_groq_client", _no_key)
-    save_session("stress-nokey", _stored_report())
+    api = _authed_client()
+    save_session("stress-nokey", _stored_report(), user_id=api.user_id)
 
-    res = TestClient(app).post("/api/stress-test/stress-nokey", json={})
+    res = api.post("/api/stress-test/stress-nokey", json={})
     assert res.status_code == 503

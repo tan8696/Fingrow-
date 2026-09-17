@@ -13,8 +13,10 @@ trivially testable.
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-# Pre-approved credit limit shown across the UI (₹25,00,000)
-PORTFOLIO_LIMIT = 2_500_000.0
+# No credit limit exists until a lender sanctions one. Callers pass the
+# sanctioned total; the default of zero means "nothing approved yet" rather
+# than a pre-approved line the borrower does not actually have.
+PORTFOLIO_LIMIT = 0.0
 
 
 def _payments(application: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -82,11 +84,22 @@ def summary(applications: List[Dict[str, Any]], limit: float = PORTFOLIO_LIMIT) 
     )
     requested_pipeline = round(sum(float(a.get("loan_amount") or 0.0) for a in pending), 2)
 
-    utilization = min(100.0, round(outstanding_total / limit * 100, 1)) if limit > 0 else 0.0
+    # The only credit limit a borrower actually has is what a lender has
+    # sanctioned. When nothing is sanctioned, there is no limit and no
+    # utilisation — not a pre-approved line they can spend against.
+    sanctioned_total = round(
+        sum(float(a.get("approved_amount") or a.get("loan_amount") or 0.0) for a in active), 2
+    )
+    effective_limit = limit if limit > 0 else sanctioned_total
+    utilization = (
+        min(100.0, round(outstanding_total / effective_limit * 100, 1))
+        if effective_limit > 0 else 0.0
+    )
 
     return {
         "active_loans": len(active),
         "pending_applications": len(pending),
+        "outstanding": outstanding_total,
         "outstanding_total": outstanding_total,
         "monthly_emi_total": monthly_emi_total,
         "next_due_date": next_due_date,
@@ -98,7 +111,8 @@ def summary(applications: List[Dict[str, Any]], limit: float = PORTFOLIO_LIMIT) 
         "subsidy_pipeline_total": subsidy_pipeline,
         "requested_pipeline_total": requested_pipeline,
         "utilization_pct": utilization,
-        "credit_limit": limit,
+        "credit_limit": effective_limit,
+        "sanctioned_total": sanctioned_total,
     }
 
 

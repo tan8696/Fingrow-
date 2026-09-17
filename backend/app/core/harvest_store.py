@@ -20,6 +20,8 @@ import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from app.core.db import ensure_column
+
 logger = logging.getLogger(__name__)
 
 # <backend>/harvest.db unless HARVEST_DB_PATH is set
@@ -55,6 +57,7 @@ def _ensure_schema(db_path: Path) -> None:
         conn = sqlite3.connect(str(db_path))
         try:
             conn.execute(_SCHEMA)
+            ensure_column(conn, "harvest_logs", "user_id", "TEXT")
             conn.commit()
         finally:
             conn.close()
@@ -64,6 +67,7 @@ def _ensure_schema(db_path: Path) -> None:
 def save_harvest(
     harvest_id: str,
     harvest_data: Dict[str, Any],
+    user_id: str,
     db_path: Optional[Path] = None,
 ) -> bool:
     """
@@ -77,8 +81,8 @@ def save_harvest(
     conn = sqlite3.connect(str(path))
     try:
         conn.execute(
-            "INSERT INTO harvest_logs (harvest_id, harvest_json) VALUES (?, ?)",
-            (harvest_id, json.dumps(harvest_data, ensure_ascii=False)),
+            "INSERT INTO harvest_logs (harvest_id, harvest_json, user_id) VALUES (?, ?, ?)",
+            (harvest_id, json.dumps(harvest_data, ensure_ascii=False), user_id),
         )
         conn.commit()
         return True
@@ -89,14 +93,20 @@ def save_harvest(
         conn.close()
 
 
-def get_harvest(harvest_id: str, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
+def get_harvest(
+    harvest_id: str,
+    user_id: Optional[str] = None,
+    db_path: Optional[Path] = None,
+) -> Optional[Dict[str, Any]]:
     """Fetch a single harvest lot, or None when unknown."""
     path = _resolve(db_path)
     _ensure_schema(path)
     conn = sqlite3.connect(str(path))
     try:
         row = conn.execute(
-            "SELECT harvest_json FROM harvest_logs WHERE harvest_id = ?", (harvest_id,)
+            "SELECT harvest_json FROM harvest_logs WHERE harvest_id = ?"
+            + ("" if user_id is None else " AND user_id = ?"),
+            (harvest_id,) if user_id is None else (harvest_id, user_id),
         ).fetchone()
     finally:
         conn.close()
@@ -106,14 +116,20 @@ def get_harvest(harvest_id: str, db_path: Optional[Path] = None) -> Optional[Dic
     return json.loads(row[0])
 
 
-def list_harvests(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+def list_harvests(
+    user_id: Optional[str] = None,
+    db_path: Optional[Path] = None,
+) -> List[Dict[str, Any]]:
     """Return all harvest lots, newest first."""
     path = _resolve(db_path)
     _ensure_schema(path)
     conn = sqlite3.connect(str(path))
     try:
         rows = conn.execute(
-            "SELECT harvest_id, harvest_json FROM harvest_logs ORDER BY rowid DESC"
+            "SELECT harvest_id, harvest_json FROM harvest_logs"
+            + ("" if user_id is None else " WHERE user_id = ?")
+            + " ORDER BY rowid DESC",
+            () if user_id is None else (user_id,),
         ).fetchall()
     finally:
         conn.close()
@@ -127,14 +143,20 @@ def list_harvests(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
     return harvests
 
 
-def delete_harvest(harvest_id: str, db_path: Optional[Path] = None) -> bool:
+def delete_harvest(
+    harvest_id: str,
+    user_id: Optional[str] = None,
+    db_path: Optional[Path] = None,
+) -> bool:
     """Remove a stored harvest lot. Returns True if a row was deleted."""
     path = _resolve(db_path)
     _ensure_schema(path)
     conn = sqlite3.connect(str(path))
     try:
         cur = conn.execute(
-            "DELETE FROM harvest_logs WHERE harvest_id = ?", (harvest_id,)
+            "DELETE FROM harvest_logs WHERE harvest_id = ?"
+            + ("" if user_id is None else " AND user_id = ?"),
+            (harvest_id,) if user_id is None else (harvest_id, user_id),
         )
         conn.commit()
         return cur.rowcount > 0

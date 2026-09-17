@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
+from app.api.auth_routes import router as auth_router
 from app.api.routes import router
 
 # ---------------------------------------------------------------------------
@@ -69,4 +70,5 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 # Register Routes
 # ---------------------------------------------------------------------------
+app.include_router(auth_router, prefix="/api")
 app.include_router(router, prefix="/api")

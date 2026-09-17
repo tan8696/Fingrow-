@@ -80,7 +80,14 @@ def test_summary_aggregates_active_and_pending():
     assert data["subsidy_approved_total"] == 120000.0
     assert data["subsidy_pipeline_total"] == 22500.0
     assert data["requested_pipeline_total"] == 90000.0
-    assert round(data["utilization_pct"], 1) == round(480000 / 2500000 * 100, 1)
+    # Utilisation is measured against what was sanctioned, not against an
+    # invented pre-approved line. A fully drawn loan is 100% utilised.
+    assert data["sanctioned_total"] == 480000.0
+    assert round(data["utilization_pct"], 1) == 100.0
+
+    # An explicit limit still overrides the derived one.
+    with_limit = summary([_active_app(), pending], limit=2_500_000.0)
+    assert round(with_limit["utilization_pct"], 1) == round(480000 / 2500000 * 100, 1)
 
 
 def test_summary_tracks_repayment_progress():

@@ -20,6 +20,8 @@ import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from app.core.db import ensure_column
+
 logger = logging.getLogger(__name__)
 
 # <backend>/advisory.db unless ADVISORY_DB_PATH is set
@@ -31,11 +33,13 @@ _SCHEMA = """
 CREATE TABLE IF NOT EXISTS insurance_claims (
     claim_id    TEXT PRIMARY KEY,
     claim_json  TEXT NOT NULL,
+    user_id      TEXT,
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE TABLE IF NOT EXISTS field_reminders (
     reminder_id  TEXT PRIMARY KEY,
     reminder_json TEXT NOT NULL,
+    user_id      TEXT,
     created_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 """
@@ -60,6 +64,8 @@ def _ensure_schema(db_path: Path) -> None:
         conn = sqlite3.connect(str(db_path))
         try:
             conn.executescript(_SCHEMA)
+            ensure_column(conn, "insurance_claims", "user_id", "TEXT")
+            ensure_column(conn, "field_reminders", "user_id", "TEXT")
             conn.commit()
         finally:
             conn.close()
@@ -70,15 +76,20 @@ def _ensure_schema(db_path: Path) -> None:
 # Insurance claims
 # ---------------------------------------------------------------------------
 
-def save_claim(claim_id: str, claim_data: Dict[str, Any], db_path: Optional[Path] = None) -> bool:
+def save_claim(
+    claim_id: str,
+    claim_data: Dict[str, Any],
+    user_id: str,
+    db_path: Optional[Path] = None,
+) -> bool:
     """Insert a new insurance claim. Returns True when inserted (no overwrite)."""
     path = _resolve(db_path)
     _ensure_schema(path)
     conn = sqlite3.connect(str(path))
     try:
         conn.execute(
-            "INSERT INTO insurance_claims (claim_id, claim_json) VALUES (?, ?)",
-            (claim_id, json.dumps(claim_data, ensure_ascii=False)),
+            "INSERT INTO insurance_claims (claim_id, claim_json, user_id) VALUES (?, ?, ?)",
+            (claim_id, json.dumps(claim_data, ensure_ascii=False), user_id),
         )
         conn.commit()
         return True
@@ -89,14 +100,20 @@ def save_claim(claim_id: str, claim_data: Dict[str, Any], db_path: Optional[Path
         conn.close()
 
 
-def list_claims(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+def list_claims(
+    user_id: Optional[str] = None,
+    db_path: Optional[Path] = None,
+) -> List[Dict[str, Any]]:
     """Return stored claims, newest first."""
     path = _resolve(db_path)
     _ensure_schema(path)
     conn = sqlite3.connect(str(path))
     try:
         rows = conn.execute(
-            "SELECT claim_id, claim_json FROM insurance_claims ORDER BY rowid DESC"
+            "SELECT claim_id, claim_json FROM insurance_claims"
+            + ("" if user_id is None else " WHERE user_id = ?")
+            + " ORDER BY rowid DESC",
+            () if user_id is None else (user_id,),
         ).fetchall()
     finally:
         conn.close()
@@ -109,14 +126,20 @@ def list_claims(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
     return claims
 
 
-def delete_claim(claim_id: str, db_path: Optional[Path] = None) -> bool:
+def delete_claim(
+    claim_id: str,
+    user_id: Optional[str] = None,
+    db_path: Optional[Path] = None,
+) -> bool:
     """Remove a stored claim. Returns True if a row was deleted."""
     path = _resolve(db_path)
     _ensure_schema(path)
     conn = sqlite3.connect(str(path))
     try:
         cur = conn.execute(
-            "DELETE FROM insurance_claims WHERE claim_id = ?", (claim_id,)
+            "DELETE FROM insurance_claims WHERE claim_id = ?"
+            + ("" if user_id is None else " AND user_id = ?"),
+            (claim_id,) if user_id is None else (claim_id, user_id),
         )
         conn.commit()
         return cur.rowcount > 0
@@ -128,15 +151,20 @@ def delete_claim(claim_id: str, db_path: Optional[Path] = None) -> bool:
 # Field reminders (SMS / spray reminders)
 # ---------------------------------------------------------------------------
 
-def save_reminder(reminder_id: str, reminder_data: Dict[str, Any], db_path: Optional[Path] = None) -> bool:
+def save_reminder(
+    reminder_id: str,
+    reminder_data: Dict[str, Any],
+    user_id: str,
+    db_path: Optional[Path] = None,
+) -> bool:
     """Insert a new field reminder. Returns True when inserted (no overwrite)."""
     path = _resolve(db_path)
     _ensure_schema(path)
     conn = sqlite3.connect(str(path))
     try:
         conn.execute(
-            "INSERT INTO field_reminders (reminder_id, reminder_json) VALUES (?, ?)",
-            (reminder_id, json.dumps(reminder_data, ensure_ascii=False)),
+            "INSERT INTO field_reminders (reminder_id, reminder_json, user_id) VALUES (?, ?, ?)",
+            (reminder_id, json.dumps(reminder_data, ensure_ascii=False), user_id),
         )
         conn.commit()
         return True
@@ -147,14 +175,20 @@ def save_reminder(reminder_id: str, reminder_data: Dict[str, Any], db_path: Opti
         conn.close()
 
 
-def list_reminders(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+def list_reminders(
+    user_id: Optional[str] = None,
+    db_path: Optional[Path] = None,
+) -> List[Dict[str, Any]]:
     """Return stored reminders, newest first."""
     path = _resolve(db_path)
     _ensure_schema(path)
     conn = sqlite3.connect(str(path))
     try:
         rows = conn.execute(
-            "SELECT reminder_id, reminder_json FROM field_reminders ORDER BY rowid DESC"
+            "SELECT reminder_id, reminder_json FROM field_reminders"
+            + ("" if user_id is None else " WHERE user_id = ?")
+            + " ORDER BY rowid DESC",
+            () if user_id is None else (user_id,),
         ).fetchall()
     finally:
         conn.close()
@@ -167,14 +201,20 @@ def list_reminders(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
     return reminders
 
 
-def delete_reminder(reminder_id: str, db_path: Optional[Path] = None) -> bool:
+def delete_reminder(
+    reminder_id: str,
+    user_id: Optional[str] = None,
+    db_path: Optional[Path] = None,
+) -> bool:
     """Remove a stored reminder. Returns True if a row was deleted."""
     path = _resolve(db_path)
     _ensure_schema(path)
     conn = sqlite3.connect(str(path))
     try:
         cur = conn.execute(
-            "DELETE FROM field_reminders WHERE reminder_id = ?", (reminder_id,)
+            "DELETE FROM field_reminders WHERE reminder_id = ?"
+            + ("" if user_id is None else " AND user_id = ?"),
+            (reminder_id,) if user_id is None else (reminder_id, user_id),
         )
         conn.commit()
         return cur.rowcount > 0

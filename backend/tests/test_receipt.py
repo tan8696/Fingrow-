@@ -19,6 +19,19 @@ from app.core.session_store import save_session
 from app.main import app
 
 
+def _authed_client():
+    """A TestClient signed in as a fresh account (every data route needs one)."""
+    import uuid
+
+    from app.core.auth import create_token, create_user
+
+    user = create_user(f"9{uuid.uuid4().int % 10**9:09d}", "test-password", "Test User")
+    c = TestClient(app)
+    c.headers.update({"Authorization": f"Bearer {create_token(user['user_id'])}"})
+    c.user_id = user["user_id"]
+    return c
+
+
 def _receipt_for(margin: float):
     scheme = calculate_finances(margin)
     financials = scheme.to_dict()
@@ -109,24 +122,29 @@ def test_scheme_gate_states_the_threshold_that_applied():
 
 def test_verify_endpoint_returns_the_verdict_for_a_stored_report():
     rec, financials = _receipt_for(50_000)
-    save_session("test-receipt-ok", {"financials": financials, "receipt": rec})
+    client = _authed_client()
+    # The report must belong to the account asking about it.
+    save_session("test-receipt-ok", {"financials": financials, "receipt": rec},
+                 user_id=client.user_id)
 
-    body = TestClient(app).get("/api/verify/test-receipt-ok").json()
+    body = client.get("/api/verify/test-receipt-ok").json()
     assert body["status"] == "verified"
     assert body["short_hash"] == rec["short_hash"]
     assert len(body["sources"]) == 3
 
 
 def test_verify_endpoint_flags_a_report_issued_before_receipts_existed():
-    save_session("test-receipt-legacy", {"financials": {"loan_amount": 1}})
+    client = _authed_client()
+    save_session("test-receipt-legacy", {"financials": {"loan_amount": 1}},
+                 user_id=client.user_id)
 
-    body = TestClient(app).get("/api/verify/test-receipt-legacy").json()
+    body = client.get("/api/verify/test-receipt-legacy").json()
     assert body["status"] == "unverifiable"
     assert "predates" in body["reason"]
 
 
 def test_verify_endpoint_404s_on_unknown_session():
-    assert TestClient(app).get("/api/verify/does-not-exist").status_code == 404
+    assert _authed_client().get("/api/verify/does-not-exist").status_code == 404
 
 
 def test_pdf_embeds_the_receipt_reference():

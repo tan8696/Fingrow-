@@ -18,7 +18,6 @@ from app.core.advisory_store import (
 )
 from app.core.agro import (
     CLAIM_FACTORS,
-    POLICY,
     best_spray_window,
     estimate_claim,
     evaluate_triggers,
@@ -118,12 +117,17 @@ def test_evaluate_triggers_heat_wave():
 
 
 def test_estimate_claim_scales_by_area():
-    est = estimate_claim("excess_rain", POLICY["area_acres"])
-    assert est["estimate_amount"] == pytest.approx(POLICY["sum_insured"] * 0.25)
-    half = estimate_claim("excess_rain", POLICY["area_acres"] / 2)
+    # A policy the borrower actually holds, rather than a module constant.
+    policy = {"area_acres": 28.5, "sum_insured": 850_000}
+
+    est = estimate_claim("excess_rain", policy["area_acres"], policy=policy)
+    assert est["estimate_amount"] == pytest.approx(policy["sum_insured"] * 0.25)
+
+    half = estimate_claim("excess_rain", policy["area_acres"] / 2, policy=policy)
     assert half["estimate_amount"] == pytest.approx(est["estimate_amount"] / 2)
-    assert estimate_claim("excess_rain", 0.0)["estimate_amount"] == 0.0
-    assert "excess_rain" in CLAIM_FACTORS
+
+    # Without a policy there is nothing to claim against.
+    assert estimate_claim("excess_rain", 10.0)["estimate_amount"] == 0.0
 
 
 def test_protocol_document_renders_live_data():
@@ -151,18 +155,18 @@ def test_advisory_store_claims_roundtrip(tmp_path):
     db = tmp_path / "advisory.db"
     claim = {"id": "CLM-1", "damage_type": "hailstorm", "area_acres": 4.0,
              "estimate_amount": 41754.39, "status": "Submitted"}
-    assert save_claim("CLM-1", claim, db) is True
-    assert save_claim("CLM-1", claim, db) is False  # no overwrite
-    assert list_claims(db)[0]["id"] == "CLM-1"
-    assert delete_claim("CLM-1", db) is True
-    assert list_claims(db) == []
+    assert save_claim("CLM-1", claim, user_id="u1", db_path=db) is True
+    assert save_claim("CLM-1", claim, user_id="u1", db_path=db) is False  # no overwrite
+    assert list_claims(user_id="u1", db_path=db)[0]["id"] == "CLM-1"
+    assert delete_claim("CLM-1", user_id="u1", db_path=db) is True
+    assert list_claims(user_id="u1", db_path=db) == []
 
 
 def test_advisory_store_reminders_roundtrip(tmp_path):
     db = tmp_path / "advisory.db"
     reminder = {"id": "RM-1", "kind": "sms", "contact": "9876543210",
                 "target_date": "2026-09-11", "time_slot": "06:30 AM – 10:30 AM"}
-    assert save_reminder("RM-1", reminder, db) is True
-    assert list_reminders(db)[0]["contact"] == "9876543210"
-    assert delete_reminder("RM-1", db) is True
-    assert list_reminders(db) == []
+    assert save_reminder("RM-1", reminder, user_id="u1", db_path=db) is True
+    assert list_reminders(user_id="u1", db_path=db)[0]["contact"] == "9876543210"
+    assert delete_reminder("RM-1", user_id="u1", db_path=db) is True
+    assert list_reminders(user_id="u1", db_path=db) == []

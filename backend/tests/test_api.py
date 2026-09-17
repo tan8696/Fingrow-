@@ -9,11 +9,21 @@ Tests FastAPI routes using TestClient:
   - POST /api/calculate error handling
 """
 
+import uuid
+
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
+from app.core.auth import create_token, create_user
+
+# Every data route requires a session, so this module's client is signed in as
+# one account for the whole file. Cross-account isolation is covered separately
+# in test_accounts.py.
+_USER = create_user(f"9{uuid.uuid4().int % 10**9:09d}", "test-password", "API Test User")
+TEST_USER_ID = _USER["user_id"]
 
 client = TestClient(app)
+client.headers.update({"Authorization": f"Bearer {create_token(TEST_USER_ID)}"})
 
 
 def test_health_check():
@@ -94,7 +104,7 @@ def test_apply_for_loan(monkeypatch):
     """POST /api/loans/apply persists and returns a generated reference."""
     saved = {}
 
-    def fake_save(app_id, payload):
+    def fake_save(app_id, payload, **kwargs):
         saved[app_id] = payload
         return True
 
@@ -124,7 +134,7 @@ def test_apply_persists_requested_terms(monkeypatch):
     """Calculator-quoted rate/tenure ride along on the application."""
     saved = {}
 
-    def fake_save(app_id, payload):
+    def fake_save(app_id, payload, **kwargs):
         saved[app_id] = payload
         return True
 
@@ -167,19 +177,21 @@ def test_loan_history_merges_stored_applications(monkeypatch):
             "applied_at": "Sep 03, 2026",
         }
     ]
-    monkeypatch.setattr("app.api.routes.list_applications", lambda: stored)
+    monkeypatch.setattr("app.api.routes.list_applications", lambda **kwargs: stored)
 
     response = client.get("/api/loan-history")
     assert response.status_code == 200
     loans = response.json()["loans"]
-    assert len(loans) == 4  # 1 stored + 3 demo loans
+    # Only what this account actually applied for — nothing is seeded.
+    assert len(loans) == 1
     assert loans[0]["id"] == "LN-2026-4821"
     assert loans[0]["status"] == "Pending"
     assert loans[0]["amountLabel"] == "Requested"
     assert loans[0]["statement_available"] is False
     assert loans[0]["source"] == "application"
     assert "Poultry" in loans[0]["name"]
-    assert loans[1]["id"] == "LN-2023-8942"  # demo loans still present after
+    # Nothing is appended after the account's own applications.
+    assert all(l["source"] == "application" for l in loans)
 
 
 PENDING_APP = {
@@ -197,7 +209,7 @@ PENDING_APP = {
 
 
 def test_approve_unknown_application(monkeypatch):
-    monkeypatch.setattr("app.api.routes.get_application", lambda _: None)
+    monkeypatch.setattr("app.api.routes.get_application", lambda _id, **kwargs: None)
     response = client.post("/api/loans/LN-2026-9999/approve", json={})
     assert response.status_code == 404
 
@@ -206,10 +218,10 @@ def test_approve_pending_application(monkeypatch):
     """Approval flips status to Active and adds scheme-default EMI terms."""
     updated = dict(PENDING_APP)
 
-    def fake_get(app_id):
+    def fake_get(app_id, **kwargs):
         return dict(PENDING_APP)
 
-    def fake_update(app_id, updates):
+    def fake_update(app_id, updates, **kwargs):
         updated.update(updates)
         return dict(updated)
 
@@ -232,10 +244,10 @@ def test_approve_pending_application(monkeypatch):
 def test_approve_with_officer_overrides(monkeypatch):
     updated = dict(PENDING_APP)
 
-    def fake_get(app_id):
+    def fake_get(app_id, **kwargs):
         return dict(PENDING_APP)
 
-    def fake_update(app_id, updates):
+    def fake_update(app_id, updates, **kwargs):
         updated.update(updates)
         return dict(updated)
 
@@ -261,10 +273,10 @@ def test_approve_uses_calculator_quoted_terms(monkeypatch):
     pending = dict(PENDING_APP, annual_rate_pct=6.75, tenure_months=60)
     updated = dict(pending)
 
-    def fake_get(app_id):
+    def fake_get(app_id, **kwargs):
         return dict(pending)
 
-    def fake_update(app_id, updates):
+    def fake_update(app_id, updates, **kwargs):
         updated.update(updates)
         return dict(updated)
 
@@ -292,7 +304,7 @@ def test_approve_uses_calculator_quoted_terms(monkeypatch):
 def test_approve_already_active_rejected(monkeypatch):
     active = dict(PENDING_APP, status="Active", monthly_emi=7000.0)
 
-    def fake_get(app_id):
+    def fake_get(app_id, **kwargs):
         return dict(active)
 
     monkeypatch.setattr("app.api.routes.get_application", fake_get)
@@ -315,7 +327,7 @@ def test_loan_history_maps_active_application(monkeypatch):
         total_payable=628000.0,
         schedule=[],
     )
-    monkeypatch.setattr("app.api.routes.list_applications", lambda: [active])
+    monkeypatch.setattr("app.api.routes.list_applications", lambda **kwargs: [active])
 
     response = client.get("/api/loan-history")
     loans = response.json()["loans"]
@@ -336,7 +348,7 @@ def test_loan_history_shows_next_due_after_payments(monkeypatch):
             {"month": 1, "amount": 162078.0, "paid_on": "2026-09-10"},
         ],
     )
-    monkeypatch.setattr("app.api.routes.list_applications", lambda: [active])
+    monkeypatch.setattr("app.api.routes.list_applications", lambda **kwargs: [active])
 
     response = client.get("/api/loan-history")
     loans = response.json()["loans"]
@@ -347,7 +359,7 @@ def test_loan_history_shows_next_due_after_payments(monkeypatch):
 
 
 def test_statement_requires_approval(monkeypatch):
-    monkeypatch.setattr("app.api.routes.get_application", lambda _: dict(PENDING_APP))
+    monkeypatch.setattr("app.api.routes.get_application", lambda _id, **kwargs: dict(PENDING_APP))
     response = client.get("/api/loans/LN-2026-4821/statement")
     assert response.status_code == 409
 
@@ -372,7 +384,7 @@ def test_statement_download_for_active_loan(monkeypatch):
              "interest": 1074.6, "principal": 160110.2, "total_payment": 161184.8, "closing_balance": 0.0},
         ],
     )
-    monkeypatch.setattr("app.api.routes.get_application", lambda _: dict(active))
+    monkeypatch.setattr("app.api.routes.get_application", lambda _id, **kwargs: dict(active))
 
     response = client.get("/api/loans/LN-2026-4821/statement")
     assert response.status_code == 200
@@ -407,19 +419,19 @@ ACTIVE_APP = dict(
 
 
 def test_repayment_status_unknown_application(monkeypatch):
-    monkeypatch.setattr("app.api.routes.get_application", lambda _: None)
+    monkeypatch.setattr("app.api.routes.get_application", lambda _id, **kwargs: None)
     response = client.get("/api/loans/LN-2026-9999/repayment")
     assert response.status_code == 404
 
 
 def test_repayment_status_requires_approval(monkeypatch):
-    monkeypatch.setattr("app.api.routes.get_application", lambda _: dict(PENDING_APP))
+    monkeypatch.setattr("app.api.routes.get_application", lambda _id, **kwargs: dict(PENDING_APP))
     response = client.get("/api/loans/LN-2026-4821/repayment")
     assert response.status_code == 409
 
 
 def test_repayment_status_initial_state(monkeypatch):
-    monkeypatch.setattr("app.api.routes.get_application", lambda _: dict(ACTIVE_APP))
+    monkeypatch.setattr("app.api.routes.get_application", lambda _id, **kwargs: dict(ACTIVE_APP))
     response = client.get("/api/loans/LN-2026-4821/repayment")
     assert response.status_code == 200
     data = response.json()
@@ -437,10 +449,10 @@ def test_repayment_status_initial_state(monkeypatch):
 def test_mark_repayment_paid(monkeypatch):
     updated = dict(ACTIVE_APP)
 
-    def fake_get(app_id):
+    def fake_get(app_id, **kwargs):
         return dict(updated)
 
-    def fake_update(app_id, updates):
+    def fake_update(app_id, updates, **kwargs):
         updated.update(updates)
         return dict(updated)
 
@@ -485,7 +497,7 @@ def test_repayment_status_reflects_existing_payments(monkeypatch):
         {"month": 1, "paid_on": "2026-10-10", "amount": 162078.0},
         {"month": 2, "paid_on": "2026-11-10", "amount": 162078.0},
     ])
-    monkeypatch.setattr("app.api.routes.get_application", lambda _: dict(active))
+    monkeypatch.setattr("app.api.routes.get_application", lambda _id, **kwargs: dict(active))
     response = client.get("/api/loans/LN-2026-4821/repayment")
     data = response.json()
     assert data["months_paid"] == 2
@@ -501,7 +513,7 @@ def test_loan_history_maps_payment_progress(monkeypatch):
         ACTIVE_APP,
         payments=[{"month": 1, "paid_on": "2026-10-10", "amount": 162078.0}],
     )
-    monkeypatch.setattr("app.api.routes.list_applications", lambda: [active])
+    monkeypatch.setattr("app.api.routes.list_applications", lambda **kwargs: [active])
     response = client.get("/api/loan-history")
     first = response.json()["loans"][0]
     assert first["months_paid"] == 1
@@ -552,7 +564,7 @@ def test_harvest_rejects_bad_input():
 
 
 def test_portfolio_overview_from_stored_applications(monkeypatch):
-    monkeypatch.setattr("app.api.routes.list_applications", lambda: [dict(ACTIVE_APP)])
+    monkeypatch.setattr("app.api.routes.list_applications", lambda **kwargs: [dict(ACTIVE_APP)])
     response = client.get("/api/portfolio")
     assert response.status_code == 200
     data = response.json()
@@ -560,11 +572,12 @@ def test_portfolio_overview_from_stored_applications(monkeypatch):
     assert data["outstanding_total"] == 480000.0
     assert data["monthly_emi_total"] == 162078.0
     assert data["next_due_date"] == "2026-10-10"
-    assert data["credit_limit"] == 2500000.0
+    # The limit is what has been sanctioned, not an invented pre-approval.
+    assert data["credit_limit"] == 480000.0
 
 
 def test_portfolio_cashflow_from_stored_applications(monkeypatch):
-    monkeypatch.setattr("app.api.routes.list_applications", lambda: [dict(ACTIVE_APP)])
+    monkeypatch.setattr("app.api.routes.list_applications", lambda **kwargs: [dict(ACTIVE_APP)])
     response = client.get("/api/portfolio/cashflow?horizon=6")
     assert response.status_code == 200
     data = response.json()
@@ -602,8 +615,8 @@ def test_weather_endpoint_502_when_service_down(monkeypatch):
 
 
 def test_cluster_activity_built_from_real_records(monkeypatch):
-    monkeypatch.setattr("app.api.routes.list_applications", lambda: [dict(ACTIVE_APP)])
-    monkeypatch.setattr("app.api.routes.list_harvests", lambda: [])
+    monkeypatch.setattr("app.api.routes.list_applications", lambda **kwargs: [dict(ACTIVE_APP)])
+    monkeypatch.setattr("app.api.routes.list_harvests", lambda **kwargs: [])
     response = client.get("/api/cluster/activity")
     assert response.status_code == 200
     data = response.json()
@@ -617,7 +630,7 @@ def test_notifications_include_due_emi(monkeypatch):
 
     due = (datetime.now().date() + timedelta(days=2)).isoformat()
     app = dict(ACTIVE_APP, schedule=[dict(ACTIVE_APP["schedule"][0], payment_date=due)])
-    monkeypatch.setattr("app.api.routes.list_applications", lambda: [app])
+    monkeypatch.setattr("app.api.routes.list_applications", lambda **kwargs: [app])
     monkeypatch.setattr("app.api.routes._cached_weather_notification", lambda: None)
 
     response = client.get("/api/notifications")
@@ -636,7 +649,7 @@ def test_notifications_include_weather_alert(monkeypatch):
         "time": "Live",
         "view": "weather",
     }
-    monkeypatch.setattr("app.api.routes.list_applications", lambda: [])
+    monkeypatch.setattr("app.api.routes.list_applications", lambda **kwargs: [])
     monkeypatch.setattr("app.api.routes._cached_weather_notification", lambda: alert)
 
     response = client.get("/api/notifications")
@@ -671,20 +684,57 @@ _FAKE_WEATHER_PAYLOAD = {
 
 
 def _stub_weather(monkeypatch, payload=None):
-    def fake_get_weather(location=None, days=5):
+    def fake_get_weather(location=None, days=5, **kwargs):
         return payload if payload is not None else _FAKE_WEATHER_PAYLOAD
     monkeypatch.setattr("app.api.routes.get_weather", fake_get_weather)
 
 
+def _enrol(area_acres=28.5, sum_insured=850000):
+    """Give the shared test account a policy to claim against."""
+    res = client.post("/api/insurance/enrol", json={
+        "crop": "Kharif mix", "area_acres": area_acres,
+        "sum_insured": sum_insured, "season": "Kharif 2026",
+    })
+    assert res.status_code in (200, 409), res.text
+    return res
+
+
+def test_insurance_policy_is_empty_until_the_account_enrols(monkeypatch):
+    """A new account has no cover, and the page must say so plainly."""
+    _stub_weather(monkeypatch)
+    from app.core.auth import create_token, create_user
+    import uuid
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    fresh_user = create_user(f"9{uuid.uuid4().int % 10**9:09d}", "test-password", "Fresh")
+    fresh = TestClient(app)
+    fresh.headers.update({"Authorization": f"Bearer {create_token(fresh_user['user_id'])}"})
+
+    data = fresh.get("/api/insurance/policy").json()
+    assert data["enrolled"] is False
+    assert data["policy"] is None
+    assert data["payout_history"] == []
+    # Trigger meters read the weather, not the policy, so they still work.
+    assert len(data["triggers"]) == 3
+
+    # And a claim cannot be filed without cover.
+    refused = fresh.post("/api/insurance/claims", json={
+        "damage_type": "hailstorm", "area_acres": 1.0,
+    })
+    assert refused.status_code == 409
+
+
 def test_insurance_policy_returns_triggers(monkeypatch):
     _stub_weather(monkeypatch)
+    _enrol()
     response = client.get("/api/insurance/policy")
     assert response.status_code == 200
     data = response.json()
+    assert data["enrolled"] is True
     assert data["policy"]["sum_insured"] == 850000
     assert len(data["triggers"]) == 3
     assert any(t["key"] == "excess_rain" and t["status"] == "SAFE" for t in data["triggers"])
-    assert data["payout_history"][0]["amount"] == 42000
     assert data["weather_error"] is None
 
 
@@ -703,6 +753,7 @@ def test_insurance_policy_degrades_when_weather_offline(monkeypatch):
 
 def test_insurance_claim_roundtrip(monkeypatch):
     _stub_weather(monkeypatch)
+    _enrol()
     response = client.post("/api/insurance/claims", json={
         "damage_type": "hailstorm", "area_acres": 4.0, "mobile": "9876543210",
         "note": "Hail damage to soybean pods",
@@ -721,6 +772,7 @@ def test_insurance_claim_roundtrip(monkeypatch):
 
 
 def test_insurance_claim_rejects_unknown_damage_type():
+    _enrol()
     response = client.post("/api/insurance/claims", json={
         "damage_type": "alien_invasion", "area_acres": 2.0,
     })
@@ -767,9 +819,9 @@ def test_weather_protocol_502_when_offline(monkeypatch):
 def test_notifications_include_weather_claims(monkeypatch):
     claim = {"id": "CLM-2099", "damage_type": "excess_rain",
              "area_acres": 5.0, "estimate_amount": 37280.70, "status": "Submitted"}
-    monkeypatch.setattr("app.api.routes.list_applications", lambda: [])
+    monkeypatch.setattr("app.api.routes.list_applications", lambda **kwargs: [])
     monkeypatch.setattr("app.api.routes._cached_weather_notification", lambda: None)
-    monkeypatch.setattr("app.api.routes.list_claims", lambda: [claim])
+    monkeypatch.setattr("app.api.routes.list_claims", lambda **kwargs: [claim])
 
     response = client.get("/api/notifications")
     data = response.json()

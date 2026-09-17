@@ -16,6 +16,19 @@ from app.core.geocoder import GeoLocation
 from app.core.osm_fetcher import Competitor, OSMResult
 from app.main import app
 
+
+def _authed_client():
+    """A TestClient signed in as a fresh account (every data route needs one)."""
+    import uuid
+
+    from app.core.auth import create_token, create_user
+
+    user = create_user(f"9{uuid.uuid4().int % 10**9:09d}", "test-password", "Test User")
+    c = TestClient(app)
+    c.headers.update({"Authorization": f"Bearer {create_token(user['user_id'])}"})
+    c.user_id = user["user_id"]
+    return c
+
 GEO = GeoLocation(latitude=20.7, longitude=77.0, display_name="Akola, Maharashtra", importance=0.5)
 
 OSM = OSMResult(
@@ -51,13 +64,17 @@ REQUEST = {
 @pytest.fixture
 def report(monkeypatch):
     """A generated report with geocoding, OSM and the LLM all stubbed."""
+    client = _authed_client()
     with patch("app.api.routes.geocode_location", return_value=GEO), \
          patch("app.api.routes.fetch_competitors", return_value=OSM), \
          patch("app.api.routes.fetch_suppliers", side_effect=Exception("offline")), \
          patch("app.api.routes.generate_feasibility_report", return_value=FEASIBILITY):
-        res = TestClient(app).post("/api/generate-report", json=REQUEST)
+        res = client.post("/api/generate-report", json=REQUEST)
     assert res.status_code == 200, res.text
-    return res.json()
+    # Follow-up requests must come from the account that owns the report.
+    body = res.json()
+    body["_client"] = client
+    return body
 
 
 def test_every_advisory_field_survives_the_response(report):
@@ -81,7 +98,7 @@ def test_report_carries_a_receipt_covering_every_section(report):
 
 
 def test_generated_report_verifies_against_its_own_receipt(report):
-    body = TestClient(app).get(f"/api/verify/{report['session_id']}").json()
+    body = report["_client"].get(f"/api/verify/{report['session_id']}").json()
 
     assert body["status"] == "verified"
     assert body["short_hash"] == report["receipt"]["short_hash"]
@@ -96,7 +113,7 @@ def test_report_places_instalments_against_earning_months(report):
 
 
 def test_pdf_renders_for_a_generated_report(report):
-    res = TestClient(app).get(f"/api/report/{report['session_id']}/pdf")
+    res = report["_client"].get(f"/api/report/{report['session_id']}/pdf")
     assert res.status_code == 200
     assert res.content[:4] == b"%PDF"
 
@@ -113,7 +130,7 @@ def test_unreachable_overpass_is_not_reported_as_a_measurement():
          patch("app.api.routes.fetch_competitors", side_effect=Exception("overpass down")), \
          patch("app.api.routes.fetch_suppliers", side_effect=Exception("offline")), \
          patch("app.api.routes.generate_feasibility_report", return_value=FEASIBILITY):
-        body = TestClient(app).post("/api/generate-report", json=REQUEST).json()
+        body = _authed_client().post("/api/generate-report", json=REQUEST).json()
 
     osm_source = next(s for s in body["receipt"]["sources"] if s["field"] == "osm_summary")
     assert "Overpass unreachable" in osm_source["detail"]
@@ -125,6 +142,6 @@ def test_margin_beyond_every_scheme_limit_is_rejected():
          patch("app.api.routes.fetch_competitors", return_value=OSM), \
          patch("app.api.routes.fetch_suppliers", return_value=None), \
          patch("app.api.routes.generate_feasibility_report", return_value=FEASIBILITY):
-        res = TestClient(app).post("/api/generate-report", json={**REQUEST, "margin_capital": 10_000_000})
+        res = _authed_client().post("/api/generate-report", json={**REQUEST, "margin_capital": 10_000_000})
 
     assert res.status_code == 422

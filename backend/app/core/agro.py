@@ -12,6 +12,7 @@ into the pieces the Weather & Crop Risk page shows:
 Everything here is pure — no I/O — so it is unit-testable offline.
 """
 
+import uuid
 from datetime import datetime, timezone
 from html import escape
 from typing import Any, Dict, List, Optional
@@ -20,32 +21,9 @@ from typing import Any, Dict, List, Optional
 # Static policy facts (used for display + claim estimation)
 # ---------------------------------------------------------------------------
 
-# NOTE: this is a worked demonstration policy, not a real PMFBY enrolment. Every
-# payload that carries it sets ``is_sample`` so the UI labels it as such — the
-# trigger logic and payout maths below are real, only the enrolment is illustrative.
-POLICY: Dict[str, Any] = {
-    "is_sample": True,
-    "policy_id": "SAMPLE-PMFBY-DEMO-001",
-    "scheme": "PMFBY · AWS-Linked Parametric Weather Insurance",
-    "insurer": "Agriculture Insurance Company (AIC)",
-    "sum_insured": 850000,
-    "area_acres": 28.5,
-    "crop": "Kharif mix — Soybean, Cotton, Tur",
-    "season": "Kharif 2024-25",
-    "status": "Active",
-}
-
-# Illustrative prior payout shown alongside the sample policy above.
-PAYOUT_HISTORY: List[Dict[str, Any]] = [
-    {
-        "is_sample": True,
-        "date": "2023-11-14",
-        "label": "Nov 14, 2023",
-        "amount": 42000,
-        "reason": "Kharif terminal drought (deficit-trigger payout)",
-        "mode": "DBT — Bank of Maharashtra A/c",
-    }
-]
+# There is no default policy. A borrower has cover only once they enrol, and
+# until then every insurance surface reports "not enrolled" rather than showing
+# a specimen policy that could be mistaken for real cover.
 
 # Share of the sum insured paid per damage type when the trigger fires.
 CLAIM_FACTORS: Dict[str, float] = {
@@ -254,23 +232,66 @@ def evaluate_triggers(payload: Dict[str, Any]) -> Dict[str, Any]:
     return {"policy_health": policy_health, "triggers": triggers}
 
 
-def estimate_claim(damage_type: str, area_acres: float) -> Dict[str, Any]:
+def estimate_claim(
+    damage_type: str,
+    area_acres: float,
+    policy: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     """
-    Deterministic payout estimate: share of the sum insured scaled by the
-    affected area relative to the policy's total insured acreage.
+    Deterministic payout estimate: a share of the sum insured, scaled by the
+    affected area relative to the acreage the borrower actually insured.
+
+    ``policy`` is the borrower's own enrolment. Without one there is nothing to
+    claim against, and the estimate is zero rather than a number computed from
+    somebody else's cover.
     """
     factor = CLAIM_FACTORS.get(damage_type, 0.15)
-    share = max(0.0, min(1.0, float(area_acres) / float(POLICY["area_acres"])))
-    amount = round(float(POLICY["sum_insured"]) * factor * share, 2)
+    if not policy:
+        return {
+            "damage_type": damage_type,
+            "factor": factor,
+            "area_acres": area_acres,
+            "estimate_amount": 0.0,
+            "basis": "No insurance policy on this account — nothing to claim against.",
+        }
+
+    insured_acres = float(policy.get("area_acres") or 0)
+    sum_insured = float(policy.get("sum_insured") or 0)
+    if insured_acres <= 0 or sum_insured <= 0:
+        return {
+            "damage_type": damage_type,
+            "factor": factor,
+            "area_acres": area_acres,
+            "estimate_amount": 0.0,
+            "basis": "Policy has no insured acreage or sum insured recorded.",
+        }
+
+    share = max(0.0, min(1.0, float(area_acres) / insured_acres))
+    amount = round(sum_insured * factor * share, 2)
     return {
         "damage_type": damage_type,
         "factor": factor,
         "area_acres": area_acres,
         "estimate_amount": amount,
         "basis": (
-            f"{factor * 100:.0f}% of the ₹{POLICY['sum_insured']:,} sum insured "
-            f"× affected {area_acres:.1f} of {POLICY['area_acres']:.1f} insured acres"
+            f"{factor * 100:.0f}% of the Rs {sum_insured:,.0f} sum insured "
+            f"x affected {area_acres:.1f} of {insured_acres:.1f} insured acres"
         ),
+    }
+
+
+def new_policy(crop: str, area_acres: float, sum_insured: float, season: str) -> Dict[str, Any]:
+    """Build a policy record from what the borrower actually enrolled."""
+    return {
+        "policy_id": f"PMFBY-{uuid.uuid4().hex[:8].upper()}",
+        "scheme": "PMFBY - AWS-Linked Parametric Weather Insurance",
+        "insurer": "Agriculture Insurance Company (AIC)",
+        "crop": crop,
+        "area_acres": round(float(area_acres), 2),
+        "sum_insured": round(float(sum_insured), 2),
+        "season": season,
+        "status": "Active",
+        "enrolled_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
 
 

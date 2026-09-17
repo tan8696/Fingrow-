@@ -30,7 +30,7 @@ def _sample_lot(**overrides):
 def test_save_and_fetch(tmp_path):
     db = tmp_path / "harvest.db"
     lot = _sample_lot()
-    assert save_harvest(lot["id"], lot, db_path=db) is True
+    assert save_harvest(lot["id"], lot, user_id="u1", db_path=db) is True
     fetched = get_harvest(lot["id"], db_path=db)
     assert fetched == lot
 
@@ -38,13 +38,13 @@ def test_save_and_fetch(tmp_path):
 def test_save_rejects_duplicate_id(tmp_path):
     db = tmp_path / "harvest.db"
     lot = _sample_lot()
-    assert save_harvest(lot["id"], lot, db_path=db) is True
-    assert save_harvest(lot["id"], dict(lot, quantity_qtl=99.0), db_path=db) is False
+    assert save_harvest(lot["id"], lot, user_id="u1", db_path=db) is True
+    assert save_harvest(lot["id"], dict(lot, quantity_qtl=99.0), user_id="u1", db_path=db) is False
 
 
 def test_delete_harvest(tmp_path):
     db = tmp_path / "harvest.db"
-    save_harvest("HV-1", _sample_lot(id="HV-1"), db_path=db)
+    save_harvest("HV-1", _sample_lot(id="HV-1"), user_id="u1", db_path=db)
     assert delete_harvest("HV-1", db_path=db) is True
     assert delete_harvest("HV-1", db_path=db) is False
     assert get_harvest("HV-1", db_path=db) is None
@@ -52,10 +52,10 @@ def test_delete_harvest(tmp_path):
 
 def test_persists_across_fresh_connections(tmp_path):
     db = tmp_path / "harvest.db"
-    save_harvest("HV-1", _sample_lot(id="HV-1"), db_path=db)
-    save_harvest("HV-2", _sample_lot(id="HV-2", quantity_qtl=5.0, price_per_qtl=1000.0), db_path=db)
+    save_harvest("HV-1", _sample_lot(id="HV-1"), user_id="u1", db_path=db)
+    save_harvest("HV-2", _sample_lot(id="HV-2", quantity_qtl=5.0, price_per_qtl=1000.0), user_id="u1", db_path=db)
     # Fresh list (simulates a restart / new worker) still sees both rows
-    lots = list_harvests(db_path=db)
+    lots = list_harvests(user_id="u1", db_path=db)
     assert [lot["id"] for lot in lots] == ["HV-2", "HV-1"]
     assert lots[0]["quantity_qtl"] == 5.0
 

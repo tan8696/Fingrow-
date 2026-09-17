@@ -225,6 +225,14 @@ class StressTestRequest(BaseModel):
     )
 
 
+class InsuranceEnrolRequest(BaseModel):
+    """What the borrower is actually insuring."""
+    crop: str = Field(..., min_length=2, max_length=80)
+    area_acres: float = Field(..., gt=0, le=10_000)
+    sum_insured: float = Field(..., gt=0, le=50_000_000)
+    season: str = Field(..., min_length=2, max_length=40)
+
+
 class RepaymentPlanRequest(BaseModel):
     """Inputs for checking a repayment schedule against real earning months."""
     margin_capital: float = Field(..., gt=0, description="Borrower's own contribution in INR")

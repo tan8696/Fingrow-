@@ -15,6 +15,19 @@ from app.core.crop_calendar import (
 from app.main import app
 
 
+def _authed_client():
+    """A TestClient signed in as a fresh account (every data route needs one)."""
+    import uuid
+
+    from app.core.auth import create_token, create_user
+
+    user = create_user(f"9{uuid.uuid4().int % 10**9:09d}", "test-password", "Test User")
+    c = TestClient(app)
+    c.headers.update({"Authorization": f"Bearer {create_token(user['user_id'])}"})
+    c.user_id = user["user_id"]
+    return c
+
+
 @pytest.fixture
 def schedule_rows():
     scheme = calculate_finances(50_000)
@@ -122,7 +135,7 @@ def test_capacity_is_not_assessable_without_an_income_estimate():
 
 
 def test_repayment_plan_endpoint_returns_alignment_and_capacity():
-    body = TestClient(app).post("/api/repayment-plan", json={
+    body = _authed_client().post("/api/repayment-plan", json={
         "margin_capital": 50_000,
         "business_category": "vegetables",
         "expected_annual_income": 260_000,
@@ -135,7 +148,7 @@ def test_repayment_plan_endpoint_returns_alignment_and_capacity():
 
 
 def test_repayment_plan_rejects_a_malformed_date():
-    res = TestClient(app).post("/api/repayment-plan", json={
+    res = _authed_client().post("/api/repayment-plan", json={
         "margin_capital": 50_000,
         "business_category": "dairy",
         "disbursement_date": "15-08-2026",
