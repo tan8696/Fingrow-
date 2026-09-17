@@ -60,9 +60,19 @@ from app.core.amortization import generate_schedule
 from app.core.calculator import SchemeError, calculate_finances
 from app.core.geocoder import LocationNotFoundError, geocode_location
 from app.core.mandi import DEFAULT_STATE, fetch_live_prices, sample_prices
+from app.core.receipt import (
+    ENGINE_VERSION,
+    KIND_MODEL,
+    KIND_OBSERVATION,
+    KIND_RULE,
+    build_receipt,
+    scheme_gate,
+    source,
+    verify_receipt,
+)
 from app.core.osm_fetcher import fetch_competitors
 from app.core.supplier_fetcher import fetch_suppliers
-from app.core.advisory import generate_feasibility_report
+from app.core.advisory import GROQ_MODEL, generate_feasibility_report
 from app.core.chat import chat as chat_with_llm
 from app.core.loan_schedule import (
     build_monthly_schedule,
@@ -179,14 +189,17 @@ async def generate_report(req: AdvisoryRequest) -> FullReportResponse:
       6. Return structured FullReportResponse
     """
     # --- Step 1: Geocode ---
+    geo_live = True
     try:
         geo = geocode_location(req.location)
     except Exception as e:
         logger.warning(f"Geocoding exception for '{req.location}': {e}. Falling back to regional default.")
         from app.core.geocoder import _get_fallback_location
         geo = _get_fallback_location(req.location)
+        geo_live = False
 
     # --- Step 2: OSM Competitor Fetch ---
+    osm_live = True
     try:
         osm_result = fetch_competitors(
             lat=geo.latitude,
@@ -196,6 +209,7 @@ async def generate_report(req: AdvisoryRequest) -> FullReportResponse:
         )
     except Exception as e:
         logger.warning(f"OSM fetch failed: {e}. Falling back to default sparse competitor profile.")
+        osm_live = False
         from app.core.osm_fetcher import OSMResult
         osm_result = OSMResult(
             query_location=geo.display_name,
@@ -265,7 +279,47 @@ async def generate_report(req: AdvisoryRequest) -> FullReportResponse:
         pricing_strategy=feasibility_dict["pricing_strategy"],
     )
 
-    # --- Step 6: Assemble & store session ---
+    # --- Step 6: Decision receipt (provenance + reproducible hash) ---
+    financials_dict = scheme.to_dict()
+    receipt = build_receipt(
+        inputs={
+            "margin_capital": req.margin_capital,
+            "location": req.location,
+            "business_category": req.business_category,
+            "radius_km": req.radius_km,
+        },
+        financials=financials_dict,
+        sources=[
+            source(
+                "financials", KIND_RULE, f"deterministic engine v{ENGINE_VERSION}",
+                scheme_gate(scheme.project_cost),
+            ),
+            source(
+                "amortization", KIND_RULE, f"deterministic engine v{ENGINE_VERSION}",
+                f"quarterly reducing balance at {scheme.interest_rate_pct}% over "
+                f"{scheme.tenure_months} months, {scheme.moratorium_months}-month moratorium",
+            ),
+            source(
+                "display_name", KIND_OBSERVATION,
+                "Nominatim (OpenStreetMap)" if geo_live else "regional fallback table",
+                f"{geo.display_name} at {geo.latitude:.4f}, {geo.longitude:.4f}"
+                + ("" if geo_live else " — geocoder unreachable, coarse district centroid used"),
+            ),
+            source(
+                "osm_summary", KIND_OBSERVATION,
+                "OpenStreetMap Overpass API" if osm_live else "default sparse profile",
+                f"{osm_result.competitor_count} competitors within {osm_result.radius_km} km; "
+                f"tags {', '.join(osm_result.osm_tags_used) or 'none'}"
+                + ("" if osm_live else " — Overpass unreachable, density not measured"),
+            ),
+            source(
+                "market_intelligence", KIND_MODEL, f"Groq {GROQ_MODEL}",
+                "narrative only, grounded in the OSM counts above; excluded from all financial math",
+            ),
+        ],
+    )
+
+    # --- Step 7: Assemble & store session ---
     session_id = str(uuid.uuid4())
     full_response = FullReportResponse(
         session_id=session_id,
@@ -277,9 +331,52 @@ async def generate_report(req: AdvisoryRequest) -> FullReportResponse:
         amortization=_amortization_to_response(schedule),
         market_intelligence=translated_report,
         osm_summary=OSMSummaryResponse(**osm_result.to_summary_dict(), suppliers=suppliers_list),
+        receipt=receipt,
     )
     save_session(session_id, full_response.model_dump())
     return full_response
+
+
+@router.get(
+    "/verify/{session_id}",
+    tags=["Full Advisory Report"],
+    summary="Re-derive a report's financials and confirm they reproduce",
+    responses={404: {"model": ErrorResponse}},
+)
+async def verify_report(session_id: str) -> dict:
+    """
+    Independently recompute the financial figures of a stored report from the
+    inputs recorded on its receipt, and report whether they still match.
+
+    This is what makes the report auditable: a lender can re-run it months
+    later and get either an exact reproduction, or a precise statement of what
+    changed. A report issued before a scheme amendment comes back as
+    ``rules_changed`` rather than as an error — it was correct when issued.
+    """
+    report = get_session(session_id)
+    if report is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No report found for session '{session_id}'.",
+        )
+
+    receipt = report.get("receipt")
+    if not receipt:
+        return {
+            "session_id": session_id,
+            "status": "unverifiable",
+            "reason": "this report predates decision receipts — regenerate it to get a verifiable copy",
+        }
+
+    verdict = verify_receipt(receipt, report.get("financials") or {})
+    return {
+        "session_id": session_id,
+        "issued_at": receipt.get("issued_at"),
+        "receipt_hash": receipt.get("receipt_hash"),
+        "short_hash": receipt.get("short_hash"),
+        "sources": receipt.get("sources", []),
+        **verdict,
+    }
 
 
 @router.get(

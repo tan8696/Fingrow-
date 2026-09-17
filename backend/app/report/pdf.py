@@ -322,6 +322,61 @@ def export_pdf(report_data: Dict[str, Any]) -> bytes:
         sched_table.setStyle(TableStyle(t_style))
         story.append(KeepTogether(sched_table))
 
+    # --- Decision Receipt ---
+    # The point of the receipt is that a lender can re-derive the figures above
+    # without trusting this document, so the PDF carries the hash, the engine
+    # version and the provenance of every section.
+    receipt = report_data.get("receipt") or {}
+    if receipt:
+        story.append(Spacer(1, 16))
+        story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#1e3a8a"), spaceAfter=8))
+        story.append(Paragraph("Decision Receipt", h2_style))
+        story.append(
+            Paragraph(
+                f"Reference <b>{receipt.get('short_hash', '-')}</b> &nbsp;|&nbsp; "
+                f"Engine v{receipt.get('engine_version', '-')} &nbsp;|&nbsp; "
+                f"Scheme rules {receipt.get('rules_fingerprint', '-')} &nbsp;|&nbsp; "
+                f"Issued {receipt.get('issued_at', '-')}",
+                body_style,
+            )
+        )
+        story.append(Spacer(1, 6))
+
+        source_rows = [["Section", "Basis", "Source", "Detail"]]
+        for entry in receipt.get("sources", []):
+            source_rows.append([
+                Paragraph(str(entry.get("field", "")).replace("_", " ").title(), bullet_style),
+                Paragraph(str(entry.get("kind", "")).title(), bullet_style),
+                Paragraph(str(entry.get("source", "")), bullet_style),
+                Paragraph(str(entry.get("detail", "")), bullet_style),
+            ])
+
+        if len(source_rows) > 1:
+            src_table = Table(source_rows, colWidths=[75, 55, 110, 300])
+            src_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e3a8a")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTSIZE", (0, 0), (-1, -1), 7),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ]))
+            story.append(KeepTogether(src_table))
+
+        story.append(Spacer(1, 6))
+        session_id = report_data.get("session_id")
+        verify_hint = f" Verify at /api/verify/{session_id}." if session_id else ""
+        story.append(
+            Paragraph(
+                "Every figure in the financial tables above was produced by a fixed rule "
+                "engine from the inputs recorded on this receipt, and can be re-derived "
+                f"independently.{verify_hint} The language model contributed the narrative "
+                "sections only and cannot alter any number in this report.",
+                footer_style,
+            )
+        )
+
     # --- Footer ---
     story.append(Spacer(1, 14))
     story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#cbd5e1"), spaceAfter=6))

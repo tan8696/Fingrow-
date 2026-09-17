@@ -192,6 +192,9 @@ class FullReportResponse(BaseModel):
     amortization: AmortizationResponse
     market_intelligence: FeasibilityReport
     osm_summary: OSMSummaryResponse
+    # Provenance for every section plus a hash the financials can be
+    # re-derived from. See app/core/receipt.py and GET /api/verify/{id}.
+    receipt: Optional[Dict[str, Any]] = None
 
 
 class CalculatorResponse(BaseModel):

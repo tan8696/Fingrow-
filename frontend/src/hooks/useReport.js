@@ -258,6 +258,17 @@ export async function submitLoanApplication(payload) {
   };
 }
 
+/**
+ * Ask the server to re-derive a stored report's financials from its receipt.
+ * Deliberately has no offline fallback: an unreachable server means the figures
+ * were NOT re-derived, and saying otherwise would defeat the whole point.
+ */
+export async function verifyReport(sessionId) {
+  const res = await fetch(`${API_BASE}/verify/${encodeURIComponent(sessionId)}`);
+  if (!res.ok) throw new Error(`Verification failed with status ${res.status}`);
+  return res.json();
+}
+
 export async function fetchMarketPrices() {
   const data = await safeFetchJson(`${API_BASE}/market-prices`);
   if (data && (data.crops || data.prices)) {
