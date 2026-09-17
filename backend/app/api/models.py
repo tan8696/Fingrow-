@@ -181,6 +181,50 @@ class OSMSummaryResponse(BaseModel):
     suppliers: Optional[List[dict]] = None
 
 
+class FailureMode(BaseModel):
+    """One concrete way the proposal could fail, traced to a supplied figure."""
+    risk: str
+    severity: str = Field(..., description="high | medium | low")
+    mechanism: str
+    evidence: str
+    mitigation: str
+
+    @field_validator("severity")
+    @classmethod
+    def _known_severity(cls, v: str) -> str:
+        allowed = {"high", "medium", "low"}
+        normalised = str(v).strip().lower()
+        if normalised not in allowed:
+            raise ValueError(f"severity must be one of {sorted(allowed)}, got '{v}'")
+        return normalised
+
+
+class StressTestReport(BaseModel):
+    """The adversarial review of an already-recommended proposal."""
+    verdict: str = Field(..., description="proceed | proceed_with_changes | reconsider")
+    headline: str
+    failure_modes: List[FailureMode] = Field(..., min_length=1)
+    what_would_have_to_be_true: List[str] = Field(default_factory=list)
+    break_even_pressure: str = ""
+
+    @field_validator("verdict")
+    @classmethod
+    def _known_verdict(cls, v: str) -> str:
+        allowed = {"proceed", "proceed_with_changes", "reconsider"}
+        normalised = str(v).strip().lower().replace(" ", "_")
+        if normalised not in allowed:
+            raise ValueError(f"verdict must be one of {sorted(allowed)}, got '{v}'")
+        return normalised
+
+
+class StressTestRequest(BaseModel):
+    """Optional extra context for a stress test on a stored report."""
+    expected_annual_income: Optional[float] = Field(
+        None, ge=0,
+        description="Expected yearly income. Without it, repayment capacity is treated as unproven.",
+    )
+
+
 class RepaymentPlanRequest(BaseModel):
     """Inputs for checking a repayment schedule against real earning months."""
     margin_capital: float = Field(..., gt=0, description="Borrower's own contribution in INR")

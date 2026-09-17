@@ -269,6 +269,27 @@ export async function verifyReport(sessionId) {
   return res.json();
 }
 
+/**
+ * Run the adversarial review of a stored report.
+ * No offline fallback by design: a fabricated critique would be worse than
+ * none, since the borrower may act on it.
+ */
+export async function runStressTest(sessionId, expectedAnnualIncome) {
+  const res = await fetch(`${API_BASE}/stress-test/${encodeURIComponent(sessionId)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(
+      expectedAnnualIncome ? { expected_annual_income: expectedAnnualIncome } : {}
+    ),
+  });
+  if (!res.ok) {
+    const err = new Error(`Stress test failed with status ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+
 export async function fetchMarketPrices() {
   const data = await safeFetchJson(`${API_BASE}/market-prices`);
   if (data && (data.crops || data.prices)) {

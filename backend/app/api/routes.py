@@ -18,6 +18,8 @@ from fastapi.responses import Response
 
 from app.api.models import (
     RepaymentPlanRequest,
+    StressTestReport,
+    StressTestRequest,
     AdvisoryRequest,
     AmortizationResponse,
     CalculatorRequest,
@@ -62,6 +64,7 @@ from app.core.calculator import SchemeError, calculate_finances
 from app.core.geocoder import LocationNotFoundError, geocode_location
 from app.core.mandi import DEFAULT_STATE, fetch_live_prices, sample_prices
 from app.core.crop_calendar import align_schedule, repayment_capacity
+from app.core.stress import generate_stress_test
 from app.core.receipt import (
     ENGINE_VERSION,
     KIND_MODEL,
@@ -349,6 +352,64 @@ async def generate_report(req: AdvisoryRequest) -> FullReportResponse:
     )
     save_session(session_id, full_response.model_dump())
     return full_response
+
+
+@router.post(
+    "/stress-test/{session_id}",
+    response_model=StressTestReport,
+    tags=["Full Advisory Report"],
+    summary="Argue the case against a generated report",
+    responses={404: {"model": ErrorResponse}},
+)
+async def stress_test(session_id: str, req: Optional[StressTestRequest] = None) -> StressTestReport:
+    """
+    Re-examine a stored report from the opposite direction: what would make
+    this proposal fail.
+
+    Runs against the same ground truth the recommendation used — the
+    deterministic financials, the measured competitor density, and the
+    instalments the crop calendar flagged as falling in months with no income —
+    so the critique is specific to this proposal rather than generic caution.
+    """
+    report = get_session(session_id)
+    if report is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No report found for session '{session_id}'.",
+        )
+
+    osm_summary = report.get("osm_summary") or {}
+    alignment = report.get("repayment_alignment")
+    amortization = report.get("amortization") or {}
+
+    capacity = None
+    if req and req.expected_annual_income:
+        capacity = repayment_capacity(
+            quarterly_emi=float(amortization.get("quarterly_emi") or 0),
+            expected_annual_income=req.expected_annual_income,
+            income_month_count=len((alignment or {}).get("income_months", [])) or 12,
+        )
+
+    try:
+        return generate_stress_test(
+            location=report.get("display_name") or report.get("location") or "",
+            category=report.get("business_category") or "",
+            financials=report.get("financials") or {},
+            amortization=amortization,
+            osm_summary=osm_summary,
+            alignment=alignment,
+            capacity=capacity,
+            competitor_names=[
+                c.get("name") for c in (osm_summary.get("competitors") or []) if c.get("name")
+            ],
+        )
+    except EnvironmentError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"LLM service not configured: {e}",
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
 
 
 @router.post(
