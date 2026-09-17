@@ -1,9 +1,30 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { fetchDemoStatus, seedDemoData, wipeDemoData } from '../hooks/useReport';
 
 const PROFILE_AVATAR = `${import.meta.env.BASE_URL}images/profile-ramesha.jpg`;
 
 export default function Settings({ userLanguage, setUserLanguage, locationText, languages, onLogout, userProfile, onOpenKyc }) {
+  const [demo, setDemo] = useState(null);
+  const [demoBusy, setDemoBusy] = useState(false);
+
+  useEffect(() => {
+    fetchDemoStatus().then(setDemo).catch(() => setDemo({ has_demo_data: false }));
+  }, []);
+
+  const runDemoAction = async (action) => {
+    setDemoBusy(true);
+    try {
+      await (action === 'seed' ? seedDemoData() : wipeDemoData());
+      setDemo(await fetchDemoStatus());
+      // Other views hold their own copies of this data, so reload rather
+      // than leave the dashboard showing figures that no longer exist.
+      window.location.reload();
+    } finally {
+      setDemoBusy(false);
+    }
+  };
+
   const { t } = useTranslation();
   const [prefs, setPrefs] = useState({ smsAlerts: true, emailAlerts: false, voiceAssistant: true, marketTrends: true });
   const [toast, setToast] = useState(null);
@@ -67,8 +88,12 @@ export default function Settings({ userLanguage, setUserLanguage, locationText, 
                 <span className="material-symbols-outlined text-primary text-[20px]" title="KYC Verified">verified</span>
               )}
             </div>
-            <p className="font-body-md text-body-md text-on-surface-variant">{t('settings.district')}</p>
-            <p className="font-body-md text-body-md text-on-surface-variant">{t('settings.mobile')}</p>
+            <p className="font-body-md text-body-md text-on-surface-variant">
+              District: {userProfile?.district || locationText || 'Not set'}
+            </p>
+            <p className="font-body-md text-body-md text-on-surface-variant">
+              Mobile: {userProfile?.phone ? `+91 ${userProfile.phone}` : 'Not set'}
+            </p>
             <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-4">
               {userProfile?.kycVerified ? (
                 <span className="px-3 py-1 bg-primary/10 text-primary rounded-full font-label-sm text-label-sm border border-primary/20 flex items-center gap-1">
@@ -146,6 +171,53 @@ export default function Settings({ userLanguage, setUserLanguage, locationText, 
           <PreferenceRow title={t('settings.voice_assistant')} desc={t('settings.voice_assistant_desc')} checked={prefs.voiceAssistant} onChange={() => togglePref('voiceAssistant')} />
           <PreferenceRow title={t('settings.market_trends')} desc={t('settings.market_trends_desc')} checked={prefs.marketTrends} onChange={() => togglePref('marketTrends')} />
         </div>
+      </div>
+
+      {/* Demonstration data */}
+      <div className="bg-surface-container-lowest rounded-2xl p-6 md:p-8 shadow-sm border border-surface-variant">
+        <div className="flex items-start gap-3 mb-4">
+          <div className="w-11 h-11 rounded-2xl bg-tertiary-container/30 flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-on-tertiary-container">science</span>
+          </div>
+          <div className="min-w-0">
+            <p className="font-label-lg text-label-lg text-on-surface font-semibold">Demonstration data</p>
+            <p className="font-body-md text-body-md text-on-surface-variant mt-1">
+              Your account starts empty. Load a sample portfolio to explore the app
+              with realistic figures, then clear it whenever you like. Seeded records
+              are removed on clearing; anything you created yourself is kept.
+            </p>
+          </div>
+        </div>
+
+        {demo?.has_demo_data ? (
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full font-label-sm text-label-sm bg-tertiary-container/25 text-on-tertiary-container w-fit">
+              <span className="material-symbols-outlined text-[16px]">info</span>
+              Showing sample data ({demo.loans} loans, {demo.harvest_lots} harvest lots)
+            </span>
+            <button
+              onClick={() => runDemoAction('wipe')}
+              disabled={demoBusy}
+              className="flex items-center justify-center gap-2 px-6 py-3 min-h-[48px] rounded-xl font-label-lg text-label-lg text-error bg-error-container/20 hover:bg-error-container/40 transition-colors disabled:opacity-60"
+            >
+              <span className={`material-symbols-outlined text-[20px] ${demoBusy ? 'animate-spin' : ''}`}>
+                {demoBusy ? 'progress_activity' : 'delete_sweep'}
+              </span>
+              Clear sample data
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => runDemoAction('seed')}
+            disabled={demoBusy}
+            className="flex items-center justify-center gap-2 px-6 py-3 min-h-[48px] rounded-xl font-label-lg text-label-lg bg-primary text-on-primary hover:bg-surface-tint transition-colors disabled:opacity-60"
+          >
+            <span className={`material-symbols-outlined text-[20px] ${demoBusy ? 'animate-spin' : ''}`}>
+              {demoBusy ? 'progress_activity' : 'download'}
+            </span>
+            Load sample data
+          </button>
+        )}
       </div>
 
       {/* About + Logout */}

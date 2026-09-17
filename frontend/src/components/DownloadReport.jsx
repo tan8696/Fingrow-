@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { getPDFUrl } from "../hooks/useReport";
+import { downloadReportPdf } from "../hooks/useReport";
 
 export default function DownloadReport({ sessionId, t }) {
   const [downloading, setDownloading] = useState(false);
@@ -9,15 +9,8 @@ export default function DownloadReport({ sessionId, t }) {
     setDownloading(true);
     setError(null);
     try {
-      const url = getPDFUrl(sessionId);
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("PDF generation failed on server");
-      const blob = await res.blob();
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = `feasibility_report_${sessionId.slice(0, 8)}.pdf`;
-      link.click();
-      URL.revokeObjectURL(link.href);
+      // Carries the session token, which a plain link cannot.
+      await downloadReportPdf(sessionId);
     } catch (err) {
       setError(err.message);
     } finally {

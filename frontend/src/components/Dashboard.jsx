@@ -318,8 +318,12 @@ export default function Dashboard({ currentView, setCurrentView, onLogout, userP
               <span className="font-headline-md text-[18px] text-primary tracking-tight">FinGrow</span>
             </div>
             <div className="hidden md:flex flex-col min-w-0">
-              <span className="font-label-lg text-label-lg text-on-surface">{t('nav.greeting')}</span>
-              <span className="font-label-sm text-label-sm text-on-surface-variant">{t('nav.cluster_role')}</span>
+              <span className="font-label-lg text-label-lg text-on-surface truncate">
+                {userProfile?.name || t('nav.greeting')}
+              </span>
+              <span className="font-label-sm text-label-sm text-on-surface-variant truncate">
+                {userProfile?.type === 'farmer' ? 'Farmer / Agri-Business' : 'Retail / Shop Owner'}
+              </span>
             </div>
           </div>
 

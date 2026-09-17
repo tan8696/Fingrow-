@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
-export default function OnboardingWizard({ onComplete }) {
+export default function OnboardingWizard({ onComplete, defaultName = '' }) {
   const { t, i18n } = useTranslation();
-  const [userName, setUserName] = useState('');
+  // Prefilled from the name given at signup, but still editable here.
+  const [userName, setUserName] = useState(defaultName);
   const [userAvatar, setUserAvatar] = useState(null);
   const [selectedRole, setSelectedRole] = useState(null);
   const [gender, setGender] = useState('');

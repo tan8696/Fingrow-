@@ -39,15 +39,16 @@ const CATEGORY_LABELS = {
 
 export default function CommunityProof({ cluster, locationName, businessCategory, lang = 'en' }) {
   const clusterName = cluster?.cluster_name || locationName || 'Your District';
-  const activeCount = cluster?.active_enterprises || 142;
-  const successRate = cluster?.success_rate || '94%';
-  const topCategories = cluster?.top_categories || ['Organic Poultry', 'Dairy Hub', 'Pulses Processing'];
+  // No invented social proof: these render only when the server actually
+  // reports them. The old defaults (142 entrepreneurs, a 94% success rate, a
+  // peer count derived from them) described a community that did not exist.
+  const activeCount = cluster?.active_enterprises ?? null;
+  const successRate = cluster?.success_rate ?? null;
+  const topCategories = cluster?.top_categories || [];
   const events = cluster?.events || [];
 
   const catLabel = CATEGORY_LABELS[businessCategory] || (businessCategory || '').replace(/_/g, ' ');
-
-  // Simulated "peer proof" stat based on category + cluster
-  const peersInCategory = Math.max(8, Math.floor(activeCount * 0.12));
+  const peersInCategory = cluster?.peers_in_category ?? null;
 
   const stats = [
     {
@@ -69,7 +70,7 @@ export default function CommunityProof({ cluster, locationName, businessCategory
       label: catLabel || (lang === 'hi' ? 'आपकी श्रेणी' : 'Your Category'),
       sub: lang === 'hi' ? 'समान व्यवसाय' : lang === 'mr' ? 'समान व्यवसाय' : 'Similar businesses',
     },
-  ];
+  ].filter((stat) => stat.value !== null && stat.value !== undefined);
 
   return (
     <div className="community-proof">
@@ -90,8 +91,16 @@ export default function CommunityProof({ cluster, locationName, businessCategory
         </div>
       </div>
 
+      {stats.length === 0 && events.length === 0 && (
+        <p className="font-body-md text-body-md text-on-surface-variant py-4">
+          Not enough activity in your cluster yet. As people nearby apply for
+          loans and log harvests, their progress will appear here.
+        </p>
+      )}
+
       {/* Stat cards */}
-      <div className="grid grid-cols-3 gap-3 mb-5">
+      {stats.length > 0 && (
+      <div className={`grid gap-3 mb-5 ${stats.length === 3 ? 'grid-cols-3' : stats.length === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
         {stats.map((stat, i) => (
           <div key={i} className="p-4 rounded-xl bg-surface-container-low text-center">
             <span className="text-2xl block mb-2">{stat.icon}</span>
@@ -103,6 +112,7 @@ export default function CommunityProof({ cluster, locationName, businessCategory
           </div>
         ))}
       </div>
+      )}
 
       {/* Peer proof banner */}
       <div className="p-4 rounded-xl bg-primary/5 border border-primary/15 flex items-start gap-3 mb-4">

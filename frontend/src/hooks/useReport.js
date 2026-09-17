@@ -1,9 +1,20 @@
 const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:8000/api" : "/api");
 
-// Helper to safely fetch JSON from backend or return null on offline/HTML response
+import { authHeaders, handleUnauthorized } from "./auth";
+
+// Helper to safely fetch JSON from backend or return null on offline/HTML response.
+// Every call carries the session token; a 401 means the session is dead, which
+// the app must react to rather than quietly showing an empty dashboard.
 async function safeFetchJson(url, options = {}) {
   try {
-    const res = await fetch(url, options);
+    const res = await fetch(url, {
+      ...options,
+      headers: { ...authHeaders(), ...(options.headers || {}) },
+    });
+    if (res.status === 401) {
+      handleUnauthorized();
+      return null;
+    }
     const contentType = res.headers.get("content-type") || "";
     if (res.ok && contentType.includes("application/json")) {
       return await res.json();
@@ -238,6 +249,33 @@ export async function calculateOnly(margin_capital) {
   };
 }
 
+/**
+ * Download a report PDF.
+ *
+ * The endpoint needs a session, and a plain <a href> cannot carry an
+ * Authorization header — so the file is fetched as a blob and saved from
+ * memory. Putting the token in the URL instead would leak it into browser
+ * history, server logs and the Referer header.
+ */
+export async function downloadReportPdf(sessionId) {
+  const res = await fetch(getPDFUrl(sessionId), { headers: authHeaders() });
+  if (res.status === 401) {
+    handleUnauthorized();
+    throw new Error("Your session expired. Sign in again to download the report.");
+  }
+  if (!res.ok) throw new Error(`Could not download the report (${res.status}).`);
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `fingrow-report-${sessionId}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 export function getPDFUrl(sessionId) {
   return `${API_BASE}/report/${sessionId}/pdf`;
 }
@@ -264,7 +302,9 @@ export async function submitLoanApplication(payload) {
  * were NOT re-derived, and saying otherwise would defeat the whole point.
  */
 export async function verifyReport(sessionId) {
-  const res = await fetch(`${API_BASE}/verify/${encodeURIComponent(sessionId)}`);
+  const res = await fetch(`${API_BASE}/verify/${encodeURIComponent(sessionId)}`, {
+    headers: authHeaders(),
+  });
   if (!res.ok) throw new Error(`Verification failed with status ${res.status}`);
   return res.json();
 }
@@ -277,7 +317,7 @@ export async function verifyReport(sessionId) {
 export async function runStressTest(sessionId, expectedAnnualIncome) {
   const res = await fetch(`${API_BASE}/stress-test/${encodeURIComponent(sessionId)}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(
       expectedAnnualIncome ? { expected_annual_income: expectedAnnualIncome } : {}
     ),
@@ -288,6 +328,21 @@ export async function runStressTest(sessionId, expectedAnnualIncome) {
     throw err;
   }
   return res.json();
+}
+
+/** Whether this account currently holds seeded demonstration data. */
+export async function fetchDemoStatus() {
+  return (await safeFetchJson(`${API_BASE}/demo/status`)) || { has_demo_data: false };
+}
+
+/** Fill this account with a demonstration portfolio. */
+export async function seedDemoData() {
+  return safeFetchJson(`${API_BASE}/demo/seed`, { method: "POST" });
+}
+
+/** Remove the seeded records, leaving anything the account created itself. */
+export async function wipeDemoData() {
+  return safeFetchJson(`${API_BASE}/demo/seed`, { method: "DELETE" });
 }
 
 export async function fetchMarketPrices() {
@@ -319,7 +374,9 @@ export async function approveLoanApplication(applicationId, body = {}) {
 
 export async function fetchLoanStatement(applicationId) {
   try {
-    const res = await fetch(`${API_BASE}/loans/${applicationId}/statement`);
+    const res = await fetch(`${API_BASE}/loans/${applicationId}/statement`, {
+      headers: authHeaders(),
+    });
     if (res.ok) return await res.blob();
   } catch (e) {
     // fallback
@@ -508,7 +565,7 @@ export function sprayProtocolUrl(location = "") {
 
 export async function downloadWeatherProtocol(location = "") {
   try {
-    const res = await fetch(sprayProtocolUrl(location));
+    const res = await fetch(sprayProtocolUrl(location), { headers: authHeaders() });
     if (res.ok) {
       const blob = await res.blob();
       const disposition = res.headers.get("content-disposition") || "";

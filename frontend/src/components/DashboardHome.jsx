@@ -87,6 +87,12 @@ const Input = ({ label, children, hint }) => (
 
 const fieldCls = 'w-full h-14 px-4 rounded-xl bg-surface-container-low text-on-surface font-body-md text-[15px] focus:outline-none focus:ring-2 focus:ring-primary border border-transparent focus:border-primary transition-all';
 
+const DASHBOARD_TABS = [
+  { id: 'overview', icon: 'grid_view', label: 'Overview' },
+  { id: 'loans', icon: 'account_balance', label: 'Loans' },
+  { id: 'farm', icon: 'agriculture', label: 'Farm' },
+];
+
 export default function DashboardHome({ onNavigate, onNewReport, report, hasLiveReport, userProfile }) {
   const { t, i18n } = useTranslation();
   const currentLang = i18n.language || 'en';
@@ -103,6 +109,7 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
   const [dataLoaded, setDataLoaded] = useState(false);
 
   const isFarmer = userProfile?.type === 'farmer';
+  const [tab, setTab] = useState('overview');
 
   const [loanModal, setLoanModal] = useState(false);
   const [harvestModal, setHarvestModal] = useState(false);
@@ -217,12 +224,10 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
     return ordered.slice(0, 3);
   })();
 
-  const reportDisplay = report || {
-    business_category: 'Organic Poultry Farm',
-    display_name: 'Vidarbha Region, Maharashtra',
-    financials: { project_cost: 600000, loan_amount: 480000, margin_contribution: 120000, selected_scheme: 'Maha-Krushi Scheme', interest_rate_pct: 7.0, tenure_months: 84 },
-  };
-  const fin = reportDisplay.financials || {};
+  // No stand-in plan: an account with no report shows an empty state rather
+  // than a specimen business it never asked for.
+  const reportDisplay = report || null;
+  const fin = reportDisplay?.financials || {};
 
   const months = cashflowData.months || [];
   const shownMonths = months;
@@ -261,7 +266,7 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
           <span className="quick-action__icon">🏦</span>
           <span className="quick-action__label">{t('dashboard_home.apply_btn')}</span>
         </button>
-        <button className="quick-action" onClick={() => { feasibilityPanelRef.current?.scrollIntoView({ behavior: 'smooth' }); onNavigate('feasibility'); }}>
+        <button className="quick-action" onClick={() => { setTab('overview'); requestAnimationFrame(() => feasibilityPanelRef.current?.scrollIntoView({ behavior: 'smooth' })); onNavigate('feasibility'); }}>
           <span className="quick-action__icon">📊</span>
           <span className="quick-action__label">{t('dashboard_home.run_report')}</span>
         </button>
@@ -436,326 +441,371 @@ export default function DashboardHome({ onNavigate, onNewReport, report, hasLive
       </section>
 
       {/* ═══════════════════════════════════════════════════════════
-          5. MAIN LAYOUT — Loans + Sidebar
-         ═══════════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        <div className="lg:col-span-8 flex flex-col gap-6">
+          Tabbed detail. The dashboard used to stack every panel into one
+          very long scroll; grouping them keeps each view to about a screen.
+          ═══════════════════════════════════════════════════════════ */}
+      <div role="tablist" aria-label="Dashboard sections" className="flex gap-1 p-1 rounded-2xl bg-surface-container-low border border-outline-variant w-full sm:w-fit">
+        {DASHBOARD_TABS.map((entry) => (
+          <button
+            key={entry.id}
+            role="tab"
+            aria-selected={tab === entry.id}
+            onClick={() => setTab(entry.id)}
+            className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 sm:px-6 py-3 min-h-[48px] rounded-xl font-label-lg text-label-lg transition-colors ${
+              tab === entry.id
+                ? 'bg-primary text-on-primary shadow-sm'
+                : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[20px]">{entry.icon}</span>
+            <span className="hidden xs:inline sm:inline">{entry.label}</span>
+          </button>
+        ))}
+      </div>
 
-          {/* Active loans — simplified visual cards */}
-          <section className="chart-section">
-            <div className="chart-section__header">
-              <span className="chart-section__emoji">💰</span>
-              <h2 className="chart-section__title">{t('dashboard_home.active_loans')}</h2>
-              <button
-                onClick={() => onNavigate('history')}
-                className="ml-auto text-primary font-label-sm text-label-sm font-semibold hover:underline flex items-center gap-1"
-              >
-                {t('inline.view_all')} <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-              </button>
-            </div>
+      {tab === 'overview' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-7 flex flex-col gap-6">
+    {/* Advisory AI widget */}
+    <section className="chart-section">
+      <div className="chart-section__header">
+        <span className="chart-section__emoji">🤖</span>
+        <h2 className="chart-section__title">{t('nav.ask_bot')}</h2>
+        <span className="ml-auto status-badge status-badge--green">
+          {t('inline.active')}
+        </span>
+      </div>
 
-            <div className="flex flex-col gap-3">
-              {loans.length === 0 && !dataError && (
-                <div className="p-8 text-center flex flex-col items-center gap-3">
-                  <span className="text-4xl">📑</span>
-                  <p className="text-on-surface-variant font-body-md text-body-md">
-                    {t('inline.no_loans_yet_apply_to_get_started')}
-                  </p>
-                </div>
-              )}
-              {dataError && loans.length === 0 && (
-                <div className="p-8 text-center bg-error-container/20 rounded-2xl text-error font-body-md text-body-md">{dataError}</div>
-              )}
+      <div className="p-4 rounded-xl bg-surface-container-low flex flex-col gap-3">
+        <span className="font-label-sm text-label-sm text-on-surface-variant">
+          {t('inline.ask_in_english_or')}
+        </span>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const input = e.currentTarget.elements.namedItem('advisor-query');
+            const text = input.value.trim();
+            if (text) openChatWith(text);
+          }}
+          className="flex gap-2"
+        >
+          <input
+            name="advisor-query"
+            placeholder="Ask about loans, subsidies…"
+            className="flex-1 w-full h-11 px-4 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-[13px] focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+          />
+          <button type="submit" className="shrink-0 w-11 h-11 rounded-xl bg-primary text-on-primary flex items-center justify-center hover:bg-primary-container transition-colors">
+            <span className="material-symbols-outlined text-[18px]">send</span>
+          </button>
+        </form>
+      </div>
 
-              {activeApps.map((loan) => (
-                <div key={loan.id} className="p-5 rounded-2xl bg-surface-container-low hover:bg-surface-container transition-colors flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                  <div className="flex items-center gap-4 min-w-0">
-                    <ProgressRing current={loan.months_paid || 0} total={loan.tenure_months || 84} size={56} />
-                    <div className="flex flex-col min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-headline-md text-[17px] leading-snug font-bold text-on-surface">{loan.name}</span>
-                        <span className="status-badge status-badge--green">Active</span>
-                      </div>
-                      <span className="font-label-sm text-label-sm text-on-surface-variant">
-                        Outstanding: <strong className="text-on-surface">{fmtINR(loan.outstanding_principal)}</strong> • EMI: <strong className="text-on-surface">{fmtINR(loan.amount)}/mo</strong>
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 self-end md:self-center shrink-0">
-                    <button
-                      onClick={() => setTrackingLoan(loan)}
-                      className="px-3.5 py-2 rounded-xl bg-surface-container-lowest text-on-surface font-label-sm text-label-sm shadow-sm hover:bg-surface transition-colors"
-                    >
-                      View
-                    </button>
-                    <button
-                      onClick={() => payNextInstalment(loan)}
-                      disabled={payingId === loan.id}
-                      className="px-3.5 py-2 rounded-xl bg-primary text-on-primary font-label-sm text-label-sm hover:bg-primary-container disabled:opacity-60 transition-colors flex items-center gap-1.5"
-                    >
-                      {payingId === loan.id && <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>}
-                      Pay EMI
-                    </button>
-                  </div>
-                </div>
-              ))}
+      <div className="flex flex-col gap-2 mt-3">
+        <span className="font-label-sm text-label-sm text-on-surface-variant font-semibold">Try asking:</span>
+        {[
+          { q: 'How much EMI for ₹5 lakh loan?', icon: '🧮' },
+          { q: 'Am I eligible for subsidy?', icon: '🎁' },
+          { q: 'Best loan for my farm?', icon: '🌱' },
+        ].map((prompt, i) => (
+          <button
+            key={i}
+            onClick={() => openChatWith(prompt.q)}
+            className="w-full text-left p-3 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface font-label-sm text-label-sm transition-colors flex items-center gap-3"
+          >
+            <span className="text-xl">{prompt.icon}</span>
+            <span className="truncate">{prompt.q}</span>
+            <span className="material-symbols-outlined text-[16px] text-on-surface-variant ml-auto shrink-0">chevron_right</span>
+          </button>
+        ))}
+      </div>
+    </section>
+          </div>
+          <div className="lg:col-span-5 flex flex-col gap-6">
+    {/* Feasibility quick peek */}
+    <section className="chart-section" ref={feasibilityPanelRef}>
+      <div className="chart-section__header">
+        <span className="chart-section__emoji">📊</span>
+        <h2 className="chart-section__title">Your Business Plan</h2>
+        {hasLiveReport && (
+          <span className="ml-auto px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-label-sm text-label-sm font-bold">
+            Live
+          </span>
+        )}
+      </div>
 
-              {pendingApps.map((loan) => (
-                <div key={loan.id} className="p-5 rounded-2xl bg-surface-container-low/70 hover:bg-surface-container transition-colors flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                  <div className="flex items-center gap-4 min-w-0">
-                    <span className="text-3xl">⏳</span>
-                    <div className="flex flex-col min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-headline-md text-[17px] leading-snug font-bold text-on-surface">{loan.name}</span>
-                        <span className="status-badge status-badge--yellow">Under Review</span>
-                      </div>
-                      <span className="font-label-sm text-label-sm text-on-surface-variant">
-                        Requested: <strong className="text-on-surface">{fmtINR(loan.amount)}</strong> • Applied: {fmtDateLabel(loan.date)}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => onNavigate('history')}
-                    className="px-4 py-2 rounded-xl bg-primary text-on-primary font-label-sm text-label-sm hover:bg-primary-container transition-colors shadow-sm"
-                  >
-                    Track
-                  </button>
-                </div>
-              ))}
-            </div>
-          </section>
+      {!reportDisplay ? (
+        <div className="py-8 text-center flex flex-col items-center gap-3">
+          <span className="material-symbols-outlined text-[40px] text-outline">assessment</span>
+          <p className="font-body-md text-body-md text-on-surface-variant max-w-[240px]">
+            No business plan yet. Run a feasibility analysis and your project cost,
+            loan split and subsidy will appear here.
+          </p>
+        </div>
+      ) : (
+      <div className="flex flex-col items-center gap-4">
+        <h4 className="font-headline-md text-[16px] font-semibold text-on-surface text-center">
+          {reportDisplay.business_category || 'Business Venture'}
+        </h4>
+        <p className="font-label-sm text-label-sm text-on-surface-variant text-center">
+          {reportDisplay.display_name || ''} • Total {fmtINR(fin.project_cost)}
+        </p>
 
-          {/* Mandi watchlist — simplified with sparklines */}
-          <section className="chart-section">
-            <div className="chart-section__header">
-              <span className="chart-section__emoji">🛒</span>
-              <h2 className="chart-section__title">Mandi Prices (Live)</h2>
-              <span className="ml-auto flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-primary animate-ping" />
-                <span className="font-label-sm text-label-sm text-primary font-semibold">Live</span>
-              </span>
-            </div>
-
-            {watchCrops.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {watchCrops.map(crop => (
-                  <div key={crop.id} className="p-4 rounded-xl bg-surface-container-low flex flex-col gap-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="font-headline-md text-[18px] font-bold text-on-surface">{crop.name}</h4>
-                        <span className="font-label-sm text-label-sm text-on-surface-variant">{crop.mandi}</span>
-                      </div>
-                      <span className={`status-badge ${crop.trend === 'up' ? 'status-badge--green' : crop.trend === 'down' ? 'status-badge--red' : 'status-badge--yellow'}`}>
-                        {crop.trend === 'up' ? '▲' : crop.trend === 'down' ? '▼' : '◆'} {crop.trendPercent}%
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="font-headline-lg text-[22px] font-bold text-on-surface">₹{crop.price.toLocaleString('en-IN')}<span className="font-label-sm text-label-sm font-normal text-on-surface-variant">/qtl</span></span>
-                      <CropSparkline trend={crop.trend} width={56} height={24} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="p-8 text-center text-on-surface-variant font-body-md text-body-md">
-                <span className="text-4xl block mb-2">🏪</span>
-                Market feed loading…
-              </div>
-            )}
-
-            <div className="flex items-center justify-center pt-3">
-              <button onClick={() => onNavigate('market')} className="font-label-sm text-label-sm text-primary font-semibold hover:underline flex items-center gap-1">
-                {t('dashboard_home.all_prices')} <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-              </button>
-            </div>
-          </section>
+        {/* Visual Pie Chart showing loan breakdown */}
+        <div className="relative">
+          <LoanPieChart
+            marginAmount={fin.margin_contribution || fin.project_cost * 0.1 || 60000}
+            loanAmount={fin.loan_amount || fin.project_cost * 0.9 || 540000}
+            subsidyAmount={Math.min((fin.project_cost || 0) * 0.25, 500000)}
+            size={160}
+          />
         </div>
 
-        {/* Right column */}
-        <div className="lg:col-span-4 flex flex-col gap-6">
-
-          {/* Advisory AI widget */}
-          <section className="chart-section">
-            <div className="chart-section__header">
-              <span className="chart-section__emoji">🤖</span>
-              <h2 className="chart-section__title">{t('nav.ask_bot')}</h2>
-              <span className="ml-auto status-badge status-badge--green">
-                {t('inline.active')}
-              </span>
-            </div>
-
-            <div className="p-4 rounded-xl bg-surface-container-low flex flex-col gap-3">
-              <span className="font-label-sm text-label-sm text-on-surface-variant">
-                {t('inline.ask_in_english_or')}
-              </span>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const input = e.currentTarget.elements.namedItem('advisor-query');
-                  const text = input.value.trim();
-                  if (text) openChatWith(text);
-                }}
-                className="flex gap-2"
-              >
-                <input
-                  name="advisor-query"
-                  placeholder="Ask about loans, subsidies…"
-                  className="flex-1 w-full h-11 px-4 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-[13px] focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
-                />
-                <button type="submit" className="shrink-0 w-11 h-11 rounded-xl bg-primary text-on-primary flex items-center justify-center hover:bg-primary-container transition-colors">
-                  <span className="material-symbols-outlined text-[18px]">send</span>
-                </button>
-              </form>
-            </div>
-
-            <div className="flex flex-col gap-2 mt-3">
-              <span className="font-label-sm text-label-sm text-on-surface-variant font-semibold">Try asking:</span>
-              {[
-                { q: 'How much EMI for ₹5 lakh loan?', icon: '🧮' },
-                { q: 'Am I eligible for subsidy?', icon: '🎁' },
-                { q: 'Best loan for my farm?', icon: '🌱' },
-              ].map((prompt, i) => (
-                <button
-                  key={i}
-                  onClick={() => openChatWith(prompt.q)}
-                  className="w-full text-left p-3 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface font-label-sm text-label-sm transition-colors flex items-center gap-3"
-                >
-                  <span className="text-xl">{prompt.icon}</span>
-                  <span className="truncate">{prompt.q}</span>
-                  <span className="material-symbols-outlined text-[16px] text-on-surface-variant ml-auto shrink-0">chevron_right</span>
-                </button>
-              ))}
-            </div>
-          </section>
-
-          {/* Weather mini */}
-          {isFarmer && (
-            <section className="chart-section">
-              <div className="chart-section__header">
-                <span className="chart-section__emoji">{weather ? (weather.risk?.score >= 6 ? '🌧️' : '☀️') : '🌤️'}</span>
-                <h2 className="chart-section__title">Weather</h2>
-              </div>
-
-              {weather ? (
-                <div className="flex flex-col items-center gap-4">
-                  <div className="flex items-center gap-4 w-full p-4 rounded-xl bg-surface-container-low">
-                    <span className="text-4xl">{weather.current?.temperature_c > 35 ? '🔥' : weather.current?.temperature_c < 15 ? '🥶' : '🌡️'}</span>
-                    <div className="flex flex-col">
-                      <span className="font-headline-lg text-[28px] font-bold text-on-surface leading-none">
-                        {weather.current?.temperature_c != null ? Math.round(weather.current.temperature_c) : '—'}°C
-                      </span>
-                      <span className="font-label-sm text-label-sm text-on-surface-variant">{weather.current?.condition?.label}</span>
-                    </div>
-                    <div className="ml-auto flex flex-col text-right font-label-sm text-label-sm text-on-surface-variant">
-                      <span>💧 {weather.current?.humidity_pct ?? '—'}%</span>
-                      <span>💨 {weather.current?.wind_kph ?? '—'} km/h</span>
-                    </div>
-                  </div>
-                  <WeatherGauge score={weather.risk?.score || 0} size={130} />
-                  <p className="font-body-md text-[13px] text-on-surface-variant text-center px-2">
-                    {(weather.risk?.advisories || [])[0]?.title || 'Conditions look good — no weather warnings.'}
-                  </p>
-                </div>
-              ) : (
-                <div className="p-6 text-center text-on-surface-variant">
-                  <span className="text-3xl block mb-2">🌤️</span>
-                  <span className="font-label-sm text-label-sm">{weatherFailed ? 'Feed unavailable' : 'Loading weather...'}</span>
-                </div>
-              )}
-
-              <button
-                onClick={() => onNavigate('weather')}
-                className="w-full h-12 mt-3 rounded-xl bg-surface-container text-on-surface font-label-sm text-label-sm hover:bg-surface-container-high transition-colors flex items-center justify-center gap-2"
-              >
-                <span className="text-lg">🌦️</span> See Full Weather & Risk
-              </button>
-            </section>
-          )}
-
-          {/* Feasibility quick peek */}
-          <section className="chart-section" ref={feasibilityPanelRef}>
-            <div className="chart-section__header">
-              <span className="chart-section__emoji">📊</span>
-              <h2 className="chart-section__title">Your Business Plan</h2>
-              <span className="ml-auto px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-label-sm text-label-sm font-bold">
-                {hasLiveReport ? 'Live' : 'Sample'}
-              </span>
-            </div>
-
-            <div className="flex flex-col items-center gap-4">
-              <h4 className="font-headline-md text-[16px] font-semibold text-on-surface text-center">
-                {reportDisplay.business_category || 'Business Venture'}
-              </h4>
-              <p className="font-label-sm text-label-sm text-on-surface-variant text-center">
-                {reportDisplay.display_name || ''} • Total {fmtINR(fin.project_cost)}
-              </p>
-
-              {/* Visual Pie Chart showing loan breakdown */}
-              <div className="relative">
-                <LoanPieChart
-                  marginAmount={fin.margin_contribution || fin.project_cost * 0.1 || 60000}
-                  loanAmount={fin.loan_amount || fin.project_cost * 0.9 || 540000}
-                  subsidyAmount={Math.min((fin.project_cost || 0) * 0.25, 500000)}
-                  size={160}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 w-full text-center">
-                <div className="p-3 rounded-xl bg-surface-container-low">
-                  <span className="block font-label-sm text-label-sm text-on-surface-variant">Interest</span>
-                  <span className="block font-headline-md text-[18px] font-bold text-on-surface">{fin.interest_rate_pct || '—'}%</span>
-                </div>
-                <div className="p-3 rounded-xl bg-surface-container-low">
-                  <span className="block font-label-sm text-label-sm text-on-surface-variant">Tenure</span>
-                  <span className="block font-headline-md text-[18px] font-bold text-on-surface">{fin.tenure_months ? Math.round(fin.tenure_months / 12) + ' yrs' : '—'}</span>
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={() => onNavigate('feasibility')}
-              className="w-full h-12 mt-3 rounded-xl bg-primary text-on-primary font-label-lg text-label-lg hover:bg-primary-container transition-colors shadow-sm flex items-center justify-center gap-2"
-            >
-              📄 Open Full Report
-            </button>
-            <button
-              onClick={onNewReport || (() => onNavigate('feasibility'))}
-              className="w-full h-11 mt-2 rounded-xl bg-surface-container text-on-surface font-label-sm text-label-sm hover:bg-surface-container-high transition-colors"
-            >
-              {hasLiveReport ? '🔄 Generate New Report' : '✨ Generate Your First Report'}
-            </button>
-          </section>
-
-          {/* Cluster co-op pulse — upgraded to Community Proof */}
-          <section className="chart-section">
-            <div className="chart-section__header">
-              <span className="chart-section__emoji">🤝</span>
-              <h2 className="chart-section__title">Community</h2>
-            </div>
-            <CommunityProof
-              cluster={cluster}
-              locationName={report?.display_name || 'Vidarbha Region'}
-              businessCategory={report?.business_category || 'dairy'}
-              lang={currentLang}
-            />
-          </section>
-
-          {/* Smart Subsidy Matching */}
-          <section className="chart-section">
-            <div className="chart-section__header">
-              <span className="chart-section__emoji">🎯</span>
-              <h2 className="chart-section__title">
-                {currentLang === 'hi' ? 'पात्र योजनाएँ' : currentLang === 'mr' ? 'पात्र योजना' : 'Eligible Schemes'}
-              </h2>
-            </div>
-            <SubsidyMatcher
-              userProfile={userProfile}
-              projectCost={report?.financials?.project_cost || 500000}
-              businessCategory={report?.business_category || ''}
-            />
-          </section>
+        <div className="grid grid-cols-2 gap-3 w-full text-center">
+          <div className="p-3 rounded-xl bg-surface-container-low">
+            <span className="block font-label-sm text-label-sm text-on-surface-variant">Interest</span>
+            <span className="block font-headline-md text-[18px] font-bold text-on-surface">{fin.interest_rate_pct || '—'}%</span>
+          </div>
+          <div className="p-3 rounded-xl bg-surface-container-low">
+            <span className="block font-label-sm text-label-sm text-on-surface-variant">Tenure</span>
+            <span className="block font-headline-md text-[18px] font-bold text-on-surface">{fin.tenure_months ? Math.round(fin.tenure_months / 12) + ' yrs' : '—'}</span>
+          </div>
         </div>
       </div>
+      )}
+
+      {reportDisplay && (
+        <button
+          onClick={() => onNavigate('feasibility')}
+          className="w-full h-12 mt-3 rounded-xl bg-primary text-on-primary font-label-lg text-label-lg hover:bg-primary-container transition-colors shadow-sm flex items-center justify-center gap-2"
+        >
+          📄 Open Full Report
+        </button>
+      )}
+      <button
+        onClick={onNewReport || (() => onNavigate('feasibility'))}
+        className="w-full h-11 mt-2 rounded-xl bg-surface-container text-on-surface font-label-sm text-label-sm hover:bg-surface-container-high transition-colors"
+      >
+        {hasLiveReport ? '🔄 Generate New Report' : '✨ Generate Your First Report'}
+      </button>
+    </section>
+          </div>
+        </div>
+      )}
+
+      {tab === 'loans' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-7 flex flex-col gap-6">
+    {/* Active loans — simplified visual cards */}
+    <section className="chart-section">
+      <div className="chart-section__header">
+        <span className="chart-section__emoji">💰</span>
+        <h2 className="chart-section__title">{t('dashboard_home.active_loans')}</h2>
+        <button
+          onClick={() => onNavigate('history')}
+          className="ml-auto text-primary font-label-sm text-label-sm font-semibold hover:underline flex items-center gap-1"
+        >
+          {t('inline.view_all')} <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        {loans.length === 0 && !dataError && (
+          <div className="p-8 text-center flex flex-col items-center gap-3">
+            <span className="text-4xl">📑</span>
+            <p className="text-on-surface-variant font-body-md text-body-md">
+              {t('inline.no_loans_yet_apply_to_get_started')}
+            </p>
+          </div>
+        )}
+        {dataError && loans.length === 0 && (
+          <div className="p-8 text-center bg-error-container/20 rounded-2xl text-error font-body-md text-body-md">{dataError}</div>
+        )}
+
+        {activeApps.map((loan) => (
+          <div key={loan.id} className="p-5 rounded-2xl bg-surface-container-low hover:bg-surface-container transition-colors flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4 min-w-0">
+              <ProgressRing current={loan.months_paid || 0} total={loan.tenure_months || 84} size={56} />
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-headline-md text-[17px] leading-snug font-bold text-on-surface">{loan.name}</span>
+                  <span className="status-badge status-badge--green">Active</span>
+                </div>
+                <span className="font-label-sm text-label-sm text-on-surface-variant">
+                  Outstanding: <strong className="text-on-surface">{fmtINR(loan.outstanding_principal)}</strong> • EMI: <strong className="text-on-surface">{fmtINR(loan.amount)}/mo</strong>
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 self-end md:self-center shrink-0">
+              <button
+                onClick={() => setTrackingLoan(loan)}
+                className="px-3.5 py-2 rounded-xl bg-surface-container-lowest text-on-surface font-label-sm text-label-sm shadow-sm hover:bg-surface transition-colors"
+              >
+                View
+              </button>
+              <button
+                onClick={() => payNextInstalment(loan)}
+                disabled={payingId === loan.id}
+                className="px-3.5 py-2 rounded-xl bg-primary text-on-primary font-label-sm text-label-sm hover:bg-primary-container disabled:opacity-60 transition-colors flex items-center gap-1.5"
+              >
+                {payingId === loan.id && <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>}
+                Pay EMI
+              </button>
+            </div>
+          </div>
+        ))}
+
+        {pendingApps.map((loan) => (
+          <div key={loan.id} className="p-5 rounded-2xl bg-surface-container-low/70 hover:bg-surface-container transition-colors flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4 min-w-0">
+              <span className="text-3xl">⏳</span>
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-headline-md text-[17px] leading-snug font-bold text-on-surface">{loan.name}</span>
+                  <span className="status-badge status-badge--yellow">Under Review</span>
+                </div>
+                <span className="font-label-sm text-label-sm text-on-surface-variant">
+                  Requested: <strong className="text-on-surface">{fmtINR(loan.amount)}</strong> • Applied: {fmtDateLabel(loan.date)}
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={() => onNavigate('history')}
+              className="px-4 py-2 rounded-xl bg-primary text-on-primary font-label-sm text-label-sm hover:bg-primary-container transition-colors shadow-sm"
+            >
+              Track
+            </button>
+          </div>
+        ))}
+      </div>
+    </section>
+          </div>
+          <div className="lg:col-span-5 flex flex-col gap-6">
+    {/* Smart Subsidy Matching */}
+    <section className="chart-section">
+      <div className="chart-section__header">
+        <span className="chart-section__emoji">🎯</span>
+        <h2 className="chart-section__title">
+          {currentLang === 'hi' ? 'पात्र योजनाएँ' : currentLang === 'mr' ? 'पात्र योजना' : 'Eligible Schemes'}
+        </h2>
+      </div>
+      <SubsidyMatcher
+        userProfile={userProfile}
+        projectCost={report?.financials?.project_cost || 500000}
+        businessCategory={report?.business_category || ''}
+      />
+    </section>
+          </div>
+        </div>
+      )}
+
+      {tab === 'farm' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-7 flex flex-col gap-6">
+    {/* Mandi watchlist — simplified with sparklines */}
+    <section className="chart-section">
+      <div className="chart-section__header">
+        <span className="chart-section__emoji">🛒</span>
+        <h2 className="chart-section__title">Mandi Prices (Live)</h2>
+        <span className="ml-auto flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-primary animate-ping" />
+          <span className="font-label-sm text-label-sm text-primary font-semibold">Live</span>
+        </span>
+      </div>
+
+      {watchCrops.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {watchCrops.map(crop => (
+            <div key={crop.id} className="p-4 rounded-xl bg-surface-container-low flex flex-col gap-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h4 className="font-headline-md text-[18px] font-bold text-on-surface">{crop.name}</h4>
+                  <span className="font-label-sm text-label-sm text-on-surface-variant">{crop.mandi}</span>
+                </div>
+                <span className={`status-badge ${crop.trend === 'up' ? 'status-badge--green' : crop.trend === 'down' ? 'status-badge--red' : 'status-badge--yellow'}`}>
+                  {crop.trend === 'up' ? '▲' : crop.trend === 'down' ? '▼' : '◆'} {crop.trendPercent}%
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="font-headline-lg text-[22px] font-bold text-on-surface">₹{crop.price.toLocaleString('en-IN')}<span className="font-label-sm text-label-sm font-normal text-on-surface-variant">/qtl</span></span>
+                <CropSparkline trend={crop.trend} width={56} height={24} />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="p-8 text-center text-on-surface-variant font-body-md text-body-md">
+          <span className="text-4xl block mb-2">🏪</span>
+          Market feed loading…
+        </div>
+      )}
+
+      <div className="flex items-center justify-center pt-3">
+        <button onClick={() => onNavigate('market')} className="font-label-sm text-label-sm text-primary font-semibold hover:underline flex items-center gap-1">
+          {t('dashboard_home.all_prices')} <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+        </button>
+      </div>
+    </section>
+          </div>
+          <div className="lg:col-span-5 flex flex-col gap-6">
+    {/* Weather mini */}
+    {isFarmer && (
+      <section className="chart-section">
+        <div className="chart-section__header">
+          <span className="chart-section__emoji">{weather ? (weather.risk?.score >= 6 ? '🌧️' : '☀️') : '🌤️'}</span>
+          <h2 className="chart-section__title">Weather</h2>
+        </div>
+
+        {weather ? (
+          <div className="flex flex-col items-center gap-4">
+            <div className="flex items-center gap-4 w-full p-4 rounded-xl bg-surface-container-low">
+              <span className="text-4xl">{weather.current?.temperature_c > 35 ? '🔥' : weather.current?.temperature_c < 15 ? '🥶' : '🌡️'}</span>
+              <div className="flex flex-col">
+                <span className="font-headline-lg text-[28px] font-bold text-on-surface leading-none">
+                  {weather.current?.temperature_c != null ? Math.round(weather.current.temperature_c) : '—'}°C
+                </span>
+                <span className="font-label-sm text-label-sm text-on-surface-variant">{weather.current?.condition?.label}</span>
+              </div>
+              <div className="ml-auto flex flex-col text-right font-label-sm text-label-sm text-on-surface-variant">
+                <span>💧 {weather.current?.humidity_pct ?? '—'}%</span>
+                <span>💨 {weather.current?.wind_kph ?? '—'} km/h</span>
+              </div>
+            </div>
+            <WeatherGauge score={weather.risk?.score || 0} size={130} />
+            <p className="font-body-md text-[13px] text-on-surface-variant text-center px-2">
+              {(weather.risk?.advisories || [])[0]?.title || 'Conditions look good — no weather warnings.'}
+            </p>
+          </div>
+        ) : (
+          <div className="p-6 text-center text-on-surface-variant">
+            <span className="text-3xl block mb-2">🌤️</span>
+            <span className="font-label-sm text-label-sm">{weatherFailed ? 'Feed unavailable' : 'Loading weather...'}</span>
+          </div>
+        )}
+
+        <button
+          onClick={() => onNavigate('weather')}
+          className="w-full h-12 mt-3 rounded-xl bg-surface-container text-on-surface font-label-sm text-label-sm hover:bg-surface-container-high transition-colors flex items-center justify-center gap-2"
+        >
+          <span className="text-lg">🌦️</span> See Full Weather & Risk
+        </button>
+      </section>
+    )}
+    {/* Cluster co-op pulse — upgraded to Community Proof */}
+    <section className="chart-section">
+      <div className="chart-section__header">
+        <span className="chart-section__emoji">🤝</span>
+        <h2 className="chart-section__title">Community</h2>
+      </div>
+      <CommunityProof
+        cluster={cluster}
+        locationName={report?.display_name || 'Vidarbha Region'}
+        businessCategory={report?.business_category || 'dairy'}
+        lang={currentLang}
+      />
+    </section>
+          </div>
+        </div>
+      )}
 
       {/* ---- Loan application modal ---- */}
       {loanModal && <LoanApplyModal

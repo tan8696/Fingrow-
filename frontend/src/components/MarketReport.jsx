@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getPDFUrl, submitLoanApplication } from '../hooks/useReport';
+import { downloadReportPdf, submitLoanApplication } from '../hooks/useReport';
 import { computeEMI, formatINR } from './ScenarioCalculator';
 import { LoanPieChart, EMIAreaChart, ViabilityDonut, SWOTGrid } from './VisualCharts';
 import WhatsAppShare from './WhatsAppShare';
@@ -134,8 +134,8 @@ export default function MarketReport({ report, onReset, onGoHome, onGoToHistory 
   };
 
   const handleDownloadPDF = () => {
-    if (pdfHref) {
-      window.open(pdfHref, '_blank');
+    if (report?.session_id) {
+      downloadReportPdf(report.session_id).catch((err) => alert(err.message));
     } else {
       window.print();
     }
@@ -226,7 +226,7 @@ export default function MarketReport({ report, onReset, onGoHome, onGoToHistory 
     setSubmittedApp(null);
   };
 
-  const pdfHref = report?.session_id ? getPDFUrl(report.session_id) : null;
+  const pdfHref = report?.session_id || null;
 
   return (
     <>
