@@ -1142,3 +1142,72 @@
 .gov-shell {
   font-feature-settings: "tnum" 1;
 }
+
+/* ---------------------------------------------------------------------------
+   Government portal form language
+   These portals read as documents, not apps: square corners, defined 1px
+   borders instead of soft shadows, and section headings anchored by a rule.
+   Applied here rather than across 35 components so the whole surface moves
+   together, the same way the palette tokens do.
+   --------------------------------------------------------------------------- */
+
+/* Square off the Material rounding. rounded-full is left alone: avatars,
+   status pills and the tricolour dots are meant to stay round. */
+.gov-shell [class*="rounded-3xl"],
+.gov-shell [class*="rounded-2xl"],
+.gov-shell [class*="rounded-xl"],
+.gov-shell [class*="rounded-lg"],
+.gov-shell [class*="rounded-md"] {
+  border-radius: 2px;
+}
+
+.gov-shell [class*="rounded-full"] {
+  border-radius: 9999px;
+}
+
+/* Cards are defined by their edge, not by a drop shadow. */
+.gov-shell [class*="shadow-sm"],
+.gov-shell [class*="shadow-md"],
+.gov-shell [class*="shadow-lg"],
+.gov-shell [class*="shadow-xl"],
+.gov-shell [class*="shadow-2xl"] {
+  box-shadow: none;
+  border: 1px solid var(--color-outline-variant);
+}
+
+/* Hover lift belongs to product UI, not to a records portal. */
+.gov-shell [class*="hover:shadow"]:hover {
+  box-shadow: none;
+}
+
+/* Section headings carry a saffron rule, the commonest NIC/ministry motif. */
+.gov-shell .chart-section__title,
+.gov-shell .gov-section-title {
+  border-left: 4px solid #ff9933;
+  padding-left: 10px;
+  line-height: 1.25;
+}
+
+/* Inputs read as form fields on a paper form. */
+.gov-shell input,
+.gov-shell select,
+.gov-shell textarea {
+  border-radius: 2px;
+}
+
+/* Data tables: dark header row, hairline rules, banded body. */
+.gov-shell table thead th {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: 600;
+  text-align: left;
+}
+
+.gov-shell table tbody tr:nth-child(even) {
+  background: var(--color-surface-container-low);
+}
+
+.gov-shell table td,
+.gov-shell table th {
+  border: 1px solid var(--color-outline-variant);
+}

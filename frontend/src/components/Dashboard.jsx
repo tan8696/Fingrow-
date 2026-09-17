@@ -11,6 +11,7 @@ import Settings from './Settings';
 import SchemeCalculator from './SchemeCalculator';
 import KYCModal from './KYCModal';
 import { generateReport, fetchNotifications } from '../hooks/useReport';
+import GovPageHeader from './GovPageHeader';
 
 const PROFILE_AVATAR = `${import.meta.env.BASE_URL}images/profile-ramesha.jpg`;
 
@@ -377,6 +378,8 @@ export default function Dashboard({ currentView, setCurrentView, onLogout, userP
 
         {/* Main canvas */}
         <main className="px-2 sm:px-4 md:px-8 pb-28 md:pb-10 bg-background min-h-screen pt-16 md:pt-20">
+          <GovPageHeader view={currentView} onNavigate={setCurrentView} />
+
           {!userProfile?.kycVerified && (
             <div className="mb-4 bg-error-container/20 border border-error-container rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm animate-in">
               <div className="flex items-center gap-3">
