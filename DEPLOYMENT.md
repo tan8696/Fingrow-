@@ -1,8 +1,9 @@
 # Deploying FinGrow
 
 The frontend is already on Vercel. The backend is not deployed anywhere, which
-is why signing in on the live site returns a 404 — the browser asks
-`https://<your-site>.vercel.app/api/auth/signup`, and nothing there answers it.
+is why signing in on the live site returns a 404. The browser asks
+`https://sih-project-rosy-delta.vercel.app/api/auth/signup`, and Vercel
+answers `NOT_FOUND` because only the frontend was ever deployed.
 
 This guide puts the API on Render's free plan and points the Vercel build at
 it. Budget about fifteen minutes.
@@ -12,7 +13,7 @@ it. Budget about fifteen minutes.
 ## 1. Deploy the API to Render
 
 1. Sign in at [render.com](https://render.com) with your GitHub account.
-2. **New → Blueprint**, then pick the `Fingrow-` repository.
+2. **New → Blueprint**, then pick the `tan8696/Fingrow-` repository.
    Render reads [`render.yaml`](render.yaml) and proposes a service called
    `fingrow-api`. Accept it.
 3. Render will ask for the values marked secret:
@@ -29,29 +30,33 @@ it. Budget about fifteen minutes.
 5. Confirm it is alive by opening `https://fingrow-api.onrender.com/api/health`
    — it should return `{"status":"ok", ...}`.
 
-### If your Vercel project is not called `fingrow`
+### If you rename the Vercel project
 
-`render.yaml` sets `CORS_ORIGIN_REGEX` to match `fingrow.vercel.app` and its
-preview URLs. If your site is on a different name or a custom domain, edit that
-variable in the Render dashboard, or the browser will block every request:
+`render.yaml` sets `CORS_ORIGIN_REGEX` to match
+`sih-project-rosy-delta.vercel.app` and the project's preview URLs. Rename the
+site and the browser will block every request until you update that variable in
+the Render dashboard:
 
 ```
-^https://your-project-name(-[a-z0-9-]+)?\.vercel\.app$
+^https://your-project-name-[a-z0-9-]+\.vercel\.app$
 ```
 
-For a custom domain, put it in `CORS_ORIGINS` instead (comma separated).
+For a custom domain, put the full origin in `CORS_ORIGINS` instead (comma
+separated).
 
 ---
 
 ## 2. Point Vercel at the API
 
-1. Vercel dashboard → the `fingrow` project → **Settings → Environment
+1. Vercel dashboard → the `sih-project` project → **Settings → Environment
    Variables**.
 2. Add, for all environments:
 
    ```
    VITE_API_URL = https://fingrow-api.onrender.com/api
    ```
+
+   (Replace the host with whatever Render gave you in step 4.)
 
    The `/api` suffix matters — the frontend appends paths like `/auth/signup`
    directly to it.

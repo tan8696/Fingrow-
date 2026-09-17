@@ -29,10 +29,11 @@ services:
       - key: APP_ENV
         value: production
 
-      # Matches the Vercel production domain and its per-commit previews.
-      # Change `fingrow` if the Vercel project is renamed.
+      # Matches the live Vercel domain and its per-commit preview URLs.
+      # Current site: https://sih-project-rosy-delta.vercel.app
+      # If the Vercel project is renamed, change the prefix here to match.
       - key: CORS_ORIGIN_REGEX
-        value: ^https://fingrow(-[a-z0-9-]+)?\.vercel\.app$
+        value: ^https://sih-project-[a-z0-9-]+\.vercel\.app$
 
       # Any custom domain goes here, comma separated.
       - key: CORS_ORIGINS
