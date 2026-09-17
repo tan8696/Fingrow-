@@ -3,9 +3,10 @@ Translation Wrapper — MyMemory (Free) / Bhashini (Pending Approval)
 ====================================================================
 Translates the LLM's English JSON report fields into the user's native language.
 
-Primary: MyMemory Translation API (free, no key required, supports Indian languages).
-Secondary: Bhashini ULCA API (government-backed, 22 Indian regional languages — pending approval).
-Final Fallback: Return original English (graceful degradation — never crash).
+Primary: Bhashini (Government of India, IndicTrans v2). Batches the whole
+report into one request and needs only BHASHINI_API_KEY.
+Fallback: MyMemory (free, no key, one request per string, 500-char truncation).
+Final fallback: return the original English — degrade, never crash.
 
 Supported target language codes (ISO 639-1 + BCP-47):
   hi = Hindi, mr = Marathi, ta = Tamil, te = Telugu, bn = Bengali,
@@ -15,6 +16,7 @@ Supported target language codes (ISO 639-1 + BCP-47):
 
 import logging
 import os
+from functools import lru_cache
 from typing import Dict, Any, List
 
 import httpx
@@ -22,6 +24,9 @@ import httpx
 logger = logging.getLogger(__name__)
 
 BHASHINI_API_URL = "https://dhruva-api.bhashini.gov.in/services/inference/pipeline"
+BHASHINI_CONFIG_URL = "https://meity-auth.ulcacontrib.org/ulca/apis/v0/model/getModelsPipeline"
+# Bhashini's standard translation pipeline.
+BHASHINI_PIPELINE_ID = "64392f96daac500b55c543cd"
 MYMEMORY_API_URL = "https://api.mymemory.translated.net/get"
 
 # Fields in the FeasibilityReport JSON that require translation
@@ -85,46 +90,77 @@ def _translate_via_mymemory(texts: List[str], target_lang: str) -> List[str]:
 # Bhashini Translation (Secondary — pending approval)
 # ---------------------------------------------------------------------------
 
+@lru_cache(maxsize=32)
+def _bhashini_service_id(target_lang: str, api_key: str) -> str:
+    """
+    The translation model Bhashini currently serves for en -> target_lang.
+
+    Looked up rather than hardcoded so a model rotation on Bhashini's side does
+    not silently break translation. Cached because the answer does not change
+    within a run (every Indic target currently resolves to the same IndicTrans
+    model, so this is normally a single call per process).
+    """
+    resp = httpx.post(
+        BHASHINI_CONFIG_URL,
+        json={
+            "pipelineTasks": [{
+                "taskType": "translation",
+                "config": {"language": {"sourceLanguage": "en", "targetLanguage": target_lang}},
+            }],
+            "pipelineRequestConfig": {"pipelineId": BHASHINI_PIPELINE_ID},
+        },
+        headers={"Authorization": api_key, "Content-Type": "application/json"},
+        timeout=30.0,
+    )
+    resp.raise_for_status()
+    return resp.json()["pipelineResponseConfig"][0]["config"][0]["serviceId"]
+
+
 def _translate_via_bhashini(texts: List[str], target_lang: str) -> List[str]:
     """
-    Translate a list of English texts to target_lang via Bhashini ULCA API.
-    Sends a single batched request to minimize latency.
+    Translate a batch of English strings to target_lang via Bhashini.
+
+    The whole report goes in a single request — Bhashini accepts a list and
+    returns the translations in the same order, so a report costs one round
+    trip rather than one per field.
+
+    Authentication is the inference API key alone, sent as ``Authorization``.
+    There is no ULCA handshake and no user ID: those belong to the older
+    getModelsPipeline credential scheme, which this key is not issued under.
     """
     api_key = os.getenv("BHASHINI_API_KEY", "")
     if not api_key or api_key == "your_bhashini_api_key_here":
-        raise EnvironmentError("BHASHINI_API_KEY not configured (pending approval).")
+        raise EnvironmentError("BHASHINI_API_KEY not configured.")
 
-    payload = {
-        "pipelineTasks": [
-            {
+    service_id = _bhashini_service_id(target_lang, api_key)
+
+    resp = httpx.post(
+        BHASHINI_API_URL,
+        json={
+            "pipelineTasks": [{
                 "taskType": "translation",
                 "config": {
-                    "language": {
-                        "sourceLanguage": "en",
-                        "targetLanguage": target_lang,
-                    }
+                    "language": {"sourceLanguage": "en", "targetLanguage": target_lang},
+                    "serviceId": service_id,
                 },
-            }
-        ],
-        "inputData": {
-            "input": [{"source": text} for text in texts],
+            }],
+            "inputData": {"input": [{"source": text} for text in texts]},
         },
-    }
+        headers={"Authorization": api_key, "Content-Type": "application/json"},
+        timeout=60.0,
+    )
+    resp.raise_for_status()
+    outputs = resp.json()["pipelineResponse"][0]["output"]
 
-    headers = {
-        "Authorization": api_key,
-        "Content-Type": "application/json",
-        "userID": os.getenv("BHASHINI_USER_ID", ""),
-        "ulcaApiKey": api_key,
-    }
+    if len(outputs) != len(texts):
+        # Results are matched back to fields by position, so a short response
+        # would silently shift every translation onto the wrong field.
+        raise ValueError(
+            f"Bhashini returned {len(outputs)} translations for {len(texts)} inputs."
+        )
 
-    with httpx.Client(timeout=20.0) as client:
-        resp = client.post(BHASHINI_API_URL, json=payload, headers=headers)
-        resp.raise_for_status()
-        data = resp.json()
-
-    outputs = data["pipelineResponse"][0]["output"]
-    return [item["target"] for item in outputs]
+    # An empty target would blank a field; keep the English in that case.
+    return [out.get("target") or original for out, original in zip(outputs, texts)]
 
 
 # ---------------------------------------------------------------------------
