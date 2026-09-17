@@ -1,5 +1,8 @@
 import React, { useState, useEffect, Suspense, lazy, useCallback } from 'react';
 import { clearSession, fetchMe, getStoredUser, getToken, logout, onUnauthorized, updateProfile } from './hooks/auth';
+import { applyAccessibility } from './hooks/accessibility';
+import GovHeader from './components/GovHeader';
+import GovFooter from './components/GovFooter';
 
 const Login = lazy(() => import('./components/Login'));
 const Dashboard = lazy(() => import('./components/Dashboard'));
@@ -25,6 +28,7 @@ function App() {
     if (localStorage.getItem('theme') === 'dark') {
       document.documentElement.classList.add('dark');
     }
+    applyAccessibility();
   }, []);
 
   // Validate any stored session against the server on startup.
@@ -110,21 +114,27 @@ function App() {
   const needsOnboarding = user && !profile.type;
 
   return (
-    <Suspense fallback={<Splash>Loading...</Splash>}>
-      {!user ? (
-        <Login onAuthenticated={setUser} />
-      ) : needsOnboarding ? (
-        <OnboardingWizard onComplete={handleProfileComplete} defaultName={user.name} />
-      ) : (
-        <Dashboard
-          currentView={currentView}
-          setCurrentView={setCurrentView}
-          onLogout={handleLogout}
-          userProfile={{ ...profile, name: user.name, phone: user.phone }}
-          onKycComplete={handleKycComplete}
-        />
-      )}
-    </Suspense>
+    <div className="gov-shell min-h-screen flex flex-col bg-background">
+      <GovHeader compact={Boolean(user) && !needsOnboarding} />
+      <main id="main-content" className="flex-1">
+        <Suspense fallback={<Splash>Loading...</Splash>}>
+          {!user ? (
+            <Login onAuthenticated={setUser} />
+          ) : needsOnboarding ? (
+            <OnboardingWizard onComplete={handleProfileComplete} defaultName={user.name} />
+          ) : (
+            <Dashboard
+              currentView={currentView}
+              setCurrentView={setCurrentView}
+              onLogout={handleLogout}
+              userProfile={{ ...profile, name: user.name, phone: user.phone }}
+              onKycComplete={handleKycComplete}
+            />
+          )}
+        </Suspense>
+      </main>
+      <GovFooter />
+    </div>
   );
 }
 

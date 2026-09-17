@@ -128,26 +128,6 @@ export default function Login({ onAuthenticated }) {
         {/* Right: the form */}
         <div className="flex flex-col justify-center p-6 md:p-12 bg-surface relative z-10">
 
-          <div className="flex justify-end mb-4">
-            <div className="flex items-center bg-surface-container-low rounded-xl p-1 gap-1 border border-outline-variant">
-              {['en', 'mr', 'hi'].map((code) => (
-                <button
-                  key={code}
-                  type="button"
-                  onClick={() => i18n.changeLanguage(code)}
-                  className={`px-3 py-1 rounded-lg font-label-sm text-label-sm transition-all ${
-                    (i18n.language || 'en') === code
-                      ? 'bg-primary text-on-primary font-bold shadow-sm'
-                      : 'text-on-surface-variant hover:text-on-surface'
-                  }`}
-                  aria-label={`Select ${code}`}
-                >
-                  {code === 'en' ? 'EN' : code === 'mr' ? 'मराठी' : 'हिन्दी'}
-                </button>
-              ))}
-            </div>
-          </div>
-
           <div className="md:hidden mb-8">
             <LoginGallery className="w-full h-44 rounded-2xl" />
           </div>

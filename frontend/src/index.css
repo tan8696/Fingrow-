@@ -2,53 +2,53 @@
 @source ".";
 
 @theme {
-  --color-error: #ba1a1a;
-  --color-primary-container: #00855d;
-  --color-primary: #006948;
-  --color-secondary-fixed: #dae2fd;
-  --color-surface-container: #e9efe9;
-  --color-surface-tint: #006c4a;
-  --color-outline-variant: #bccac0;
+  --color-error: #b3261e;
+  --color-primary-container: #1a5296;
+  --color-primary: #123a6d;
+  --color-secondary-fixed: #dcefe1;
+  --color-surface-container: #eef1f6;
+  --color-surface-tint: #123a6d;
+  --color-outline-variant: #c3cedb;
   --color-on-secondary: #ffffff;
-  --color-on-error-container: #93000a;
-  --color-inverse-surface: #2c322e;
-  --color-on-tertiary-fixed: #410004;
-  --color-on-secondary-container: #5c647a;
-  --color-error-container: #ffdad6;
-  --color-tertiary-fixed: #ffdad7;
-  --color-inverse-primary: #68dba9;
+  --color-on-error-container: #8c1d18;
+  --color-inverse-surface: #22303f;
+  --color-on-tertiary-fixed: #301900;
+  --color-on-secondary-container: #0a4720;
+  --color-error-container: #f9dedc;
+  --color-tertiary-fixed: #ffe2c2;
+  --color-inverse-primary: #a9c3e4;
   --color-on-error: #ffffff;
-  --color-tertiary-container: #ba5551;
-  --color-on-tertiary-fixed-variant: #7f2928;
-  --color-surface-container-high: #e4eae4;
-  --color-on-secondary-fixed: #131b2e;
-  --color-primary-fixed-dim: #68dba9;
-  --color-surface-container-highest: #dee4de;
-  --color-tertiary-fixed-dim: #ffb3ae;
-  --color-on-surface: #171d19;
+  --color-tertiary-container: #ff9933;
+  --color-on-tertiary-fixed-variant: #733f00;
+  --color-surface-container-high: #e3e8f0;
+  --color-on-secondary-fixed: #05270f;
+  --color-primary-fixed-dim: #a9c3e4;
+  --color-surface-container-highest: #d9e0ea;
+  --color-tertiary-fixed-dim: #ffc584;
+  --color-on-surface: #1a1a1a;
   --color-on-tertiary: #ffffff;
-  --color-tertiary: #9b3e3b;
+  --color-tertiary: #a45a00;
   --color-surface-container-lowest: #ffffff;
-  --color-surface-dim: #d5dcd6;
-  --color-primary-fixed: #85f8c4;
-  --color-on-secondary-fixed-variant: #3f465c;
-  --color-on-primary-fixed: #002114;
-  --color-secondary-fixed-dim: #bec6e0;
-  --color-on-primary-container: #f5fff7;
-  --color-background: #f5fbf5;
+  --color-surface-dim: #d7dde7;
+  --color-primary-fixed: #d6e3f5;
+  --color-on-secondary-fixed-variant: #0a4720;
+  --color-on-primary-fixed: #08203f;
+  --color-secondary-fixed-dim: #b4dcc1;
+  --color-on-primary-container: #ffffff;
+  --color-background: #eef1f6;
   --color-on-primary: #ffffff;
-  --color-on-primary-fixed-variant: #005137;
-  --color-surface: #f5fbf5;
-  --color-surface-bright: #f5fbf5;
-  --color-inverse-on-surface: #ecf2ec;
-  --color-secondary-container: #dae2fd;
-  --color-secondary: #565e74;
-  --color-on-tertiary-container: #fffbff;
-  --color-surface-variant: #dee4de;
-  --color-outline: #6d7a72;
-  --color-on-background: #171d19;
-  --color-surface-container-low: #eff5ef;
-  --color-on-surface-variant: #3d4a42;
+  --color-on-primary-fixed-variant: #0d2e57;
+  --color-surface: #eef1f6;
+  --color-surface-bright: #ffffff;
+  --color-inverse-on-surface: #eef1f6;
+  --color-secondary-container: #dcefe1;
+  --color-secondary: #0f6b32;
+  --color-on-tertiary-container: #4a2800;
+  --color-surface-variant: #dde4ec;
+  --color-outline: #6b7b8c;
+  --color-on-background: #1a1a1a;
+  --color-surface-container-low: #f7f9fc;
+  --color-on-surface-variant: #41505f;
 
   --spacing-margin-desktop: 2.5rem;
   --spacing-card-padding-mobile: 1.5rem;
@@ -1071,4 +1071,74 @@
     --color-error-container: #93000a;
     --color-on-error-container: #ffdad6;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   High-contrast mode (GIGW / WCAG AAA-leaning)
+   Toggled from the masthead; see src/hooks/accessibility.js. Overrides the
+   palette tokens rather than restyling components, so every screen follows.
+   --------------------------------------------------------------------------- */
+:root[data-high-contrast] {
+  --color-background: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-bright: #ffffff;
+  --color-surface-dim: #ffffff;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #ffffff;
+  --color-surface-container: #ffffff;
+  --color-surface-container-high: #f0f0f0;
+  --color-surface-container-highest: #e6e6e6;
+  --color-surface-variant: #f0f0f0;
+
+  --color-on-background: #000000;
+  --color-on-surface: #000000;
+  --color-on-surface-variant: #000000;
+  --color-outline: #000000;
+  --color-outline-variant: #000000;
+
+  --color-primary: #00006b;
+  --color-primary-container: #00006b;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #ffffff;
+
+  --color-secondary: #00450f;
+  --color-secondary-container: #ffffff;
+  --color-on-secondary-container: #00450f;
+
+  --color-tertiary: #6b3000;
+  --color-tertiary-container: #ffffff;
+  --color-on-tertiary-container: #6b3000;
+
+  --color-error: #9b0000;
+  --color-error-container: #ffffff;
+  --color-on-error-container: #9b0000;
+}
+
+/* Borders carry the structure once the fills go flat. */
+:root[data-high-contrast] .chart-section,
+:root[data-high-contrast] [class*="rounded-2xl"],
+:root[data-high-contrast] [class*="rounded-3xl"],
+:root[data-high-contrast] [class*="rounded-xl"] {
+  border: 2px solid #000000 !important;
+}
+
+:root[data-high-contrast] * {
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+/* Keyboard focus must stay obvious at any contrast setting. */
+:focus-visible {
+  outline: 3px solid #ff9933;
+  outline-offset: 2px;
+}
+
+/* The masthead's skip link target. */
+#main-content {
+  scroll-margin-top: 1rem;
+}
+
+/* Government portals read as documents: squarer corners, defined edges. */
+.gov-shell {
+  font-feature-settings: "tnum" 1;
 }

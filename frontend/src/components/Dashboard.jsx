@@ -251,7 +251,7 @@ export default function Dashboard({ currentView, setCurrentView, onLogout, userP
   return (
     <div className="min-h-screen bg-background text-on-surface font-body-md antialiased">
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col fixed left-0 top-0 h-full w-72 bg-surface-container-low z-50 p-6 shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
+      <aside className="hidden md:flex flex-col fixed left-0 w-72 bg-surface-container-low z-50 p-6 shadow-[0_1px_8px_rgba(0,0,0,0.04)] border-r border-outline-variant" style={{ top: 'var(--gov-header-h, 0px)', height: 'calc(100% - var(--gov-header-h, 0px))' }}>
         <div className="flex flex-col gap-6 h-full">
           <div className="flex items-center gap-3 px-2">
             <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-on-primary shadow-sm">
@@ -308,7 +308,7 @@ export default function Dashboard({ currentView, setCurrentView, onLogout, userP
       {/* Content column */}
       <div className="md:pl-72">
         {/* Top header */}
-        <header className="fixed top-0 right-0 left-0 md:left-72 z-40 h-16 md:h-20 bg-surface/85 backdrop-blur-xl px-4 md:px-8 flex items-center justify-between shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
+        <header className="fixed right-0 left-0 md:left-72 z-40 h-16 md:h-20 bg-surface-container-lowest border-b border-outline-variant px-4 md:px-8 flex items-center justify-between" style={{ top: 'var(--gov-header-h, 0px)' }}>
           <div className="flex items-center gap-2.5 min-w-0">
             {/* Mobile brand */}
             <div className="md:hidden flex items-center gap-2">
@@ -376,7 +376,7 @@ export default function Dashboard({ currentView, setCurrentView, onLogout, userP
         </header>
 
         {/* Main canvas */}
-        <main className="pt-16 md:pt-20 px-2 sm:px-4 md:px-8 pb-28 md:pb-10 bg-background min-h-screen">
+        <main className="px-2 sm:px-4 md:px-8 pb-28 md:pb-10 bg-background min-h-screen pt-16 md:pt-20">
           {!userProfile?.kycVerified && (
             <div className="mb-4 bg-error-container/20 border border-error-container rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm animate-in">
               <div className="flex items-center gap-3">
