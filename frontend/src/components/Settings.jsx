@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fetchDemoStatus, seedDemoData, wipeDemoData } from '../hooks/useReport';
+import { getTheme, toggleTheme } from '../hooks/accessibility';
 
 const PROFILE_AVATAR = `${import.meta.env.BASE_URL}images/profile-ramesha.jpg`;
 
@@ -28,7 +29,7 @@ export default function Settings({ userLanguage, setUserLanguage, locationText, 
   const { t } = useTranslation();
   const [prefs, setPrefs] = useState({ smsAlerts: true, emailAlerts: false, voiceAssistant: true, marketTrends: true });
   const [toast, setToast] = useState(null);
-  const [darkMode, setDarkMode] = useState(() => document.documentElement.classList.contains('dark'));
+  const [darkMode, setDarkMode] = useState(() => getTheme() === 'dark');
 
   const showToast = (msg) => {
     setToast(msg);
@@ -36,15 +37,7 @@ export default function Settings({ userLanguage, setUserLanguage, locationText, 
   };
 
   const toggleDarkMode = () => {
-    const nextDark = !darkMode;
-    setDarkMode(nextDark);
-    if (nextDark) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
+    setDarkMode(toggleTheme() === 'dark');
   };
 
   const togglePref = (key) => {

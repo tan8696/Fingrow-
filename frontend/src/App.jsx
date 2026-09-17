@@ -25,9 +25,7 @@ function App() {
   const [currentView, setCurrentView] = useState('dashboard');
 
   useEffect(() => {
-    if (localStorage.getItem('theme') === 'dark') {
-      document.documentElement.classList.add('dark');
-    }
+    // Restores theme, text size and contrast together.
     applyAccessibility();
   }, []);
 

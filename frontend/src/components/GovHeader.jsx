@@ -5,8 +5,10 @@ import {
   applyAccessibility,
   getFontScale,
   getHighContrast,
+  getTheme,
   stepFontScale,
   toggleHighContrast,
+  toggleTheme,
 } from '../hooks/accessibility';
 
 /**
@@ -36,6 +38,7 @@ export default function GovHeader({ compact = false }) {
   const { i18n } = useTranslation();
   const [scale, setScale] = useState(getFontScale);
   const [contrast, setContrast] = useState(getHighContrast);
+  const [theme, setTheme] = useState(getTheme);
   const [langOpen, setLangOpen] = useState(false);
   const shellRef = useRef(null);
 
@@ -126,6 +129,17 @@ export default function GovHeader({ compact = false }) {
 
             <button
               type="button"
+              onClick={() => setTheme(toggleTheme())}
+              aria-pressed={theme === 'dark'}
+              aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+              title={theme === 'dark' ? 'Light theme' : 'Dark theme'}
+              className="w-7 h-7 rounded hover:bg-white/15 transition-colors"
+            >
+              {theme === 'dark' ? '☀' : '☾'}
+            </button>
+
+            <button
+              type="button"
               onClick={() => setContrast(toggleHighContrast())}
               aria-pressed={contrast}
               aria-label="Toggle high contrast"
@@ -154,7 +168,7 @@ export default function GovHeader({ compact = false }) {
               {langOpen && (
                 <ul
                   role="listbox"
-                  className="absolute right-0 top-full mt-1 z-50 min-w-[160px] py-1 rounded-md bg-white text-[#1a1a1a] shadow-xl border border-[#c3cedb] max-h-[60vh] overflow-auto"
+                  className="absolute right-0 top-full mt-1 z-50 min-w-[160px] py-1 rounded-md bg-surface-container-lowest text-on-surface shadow-xl border border-outline-variant max-h-[60vh] overflow-auto"
                 >
                   {LANGUAGES.map((lang) => (
                     <li key={lang.code}>
@@ -166,8 +180,8 @@ export default function GovHeader({ compact = false }) {
                           i18n.changeLanguage(lang.code);
                           setLangOpen(false);
                         }}
-                        className={`w-full text-left px-3 py-2 hover:bg-[#eef1f6] transition-colors ${
-                          lang.code === current.code ? 'font-bold text-[#123a6d]' : ''
+                        className={`w-full text-left px-3 py-2 hover:bg-surface-container transition-colors ${
+                          lang.code === current.code ? 'font-bold text-primary' : ''
                         }`}
                       >
                         {lang.label}
@@ -190,25 +204,25 @@ export default function GovHeader({ compact = false }) {
 
       {/* Portal identity */}
       {!compact && (
-        <div className="bg-white border-b border-[#c3cedb]">
+        <div className="bg-surface-container-lowest border-b border-outline-variant">
           <div className="max-w-[1400px] mx-auto px-4 py-3 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-12 h-12 rounded-full bg-[#123a6d] text-white flex items-center justify-center shrink-0">
+              <div className="w-12 h-12 rounded-full bg-primary text-on-primary flex items-center justify-center shrink-0">
                 <span className="material-symbols-outlined text-[26px]">agriculture</span>
               </div>
               <div className="min-w-0">
-                <p className="font-bold text-[#123a6d] text-[15px] sm:text-[19px] leading-tight truncate">
+                <p className="font-bold text-primary text-[15px] sm:text-[19px] leading-tight truncate">
                   FinGrow&nbsp;·&nbsp;Rural Enterprise Finance Portal
                 </p>
-                <p className="text-[11px] sm:text-[13px] text-[#41505f] leading-tight truncate">
+                <p className="text-[11px] sm:text-[13px] text-on-surface-variant leading-tight truncate">
                   ग्रामीण उद्यम वित्त पोर्टल&nbsp;·&nbsp;Scheme eligibility, credit structuring and agro-advisory
                 </p>
               </div>
             </div>
 
-            <div className="hidden lg:flex items-center gap-4 shrink-0 text-[11px] text-[#41505f] text-right">
-              <div className="px-3 py-1.5 rounded border border-[#c3cedb] bg-[#f7f9fc]">
-                <p className="font-semibold text-[#123a6d]">Digital India</p>
+            <div className="hidden lg:flex items-center gap-4 shrink-0 text-[11px] text-on-surface-variant text-right">
+              <div className="px-3 py-1.5 rounded border border-outline-variant bg-surface-container-low">
+                <p className="font-semibold text-primary">Digital India</p>
                 <p>Power to Empower</p>
               </div>
             </div>

@@ -1043,33 +1043,64 @@
 }
 
 @layer base {
+  /* Dark theme — the same government palette at night: deep navy surfaces
+     rather than pure black, with the primary lightened so it still reads
+     against them. Saffron and green keep their roles. */
   html.dark {
-    --color-background: #0f1512;
-    --color-surface: #0f1512;
-    --color-surface-bright: #353b37;
-    --color-surface-container-lowest: #0a0f0c;
-    --color-surface-container-low: #171d1a;
-    --color-surface-container: #1b211e;
-    --color-surface-container-high: #252b28;
-    --color-surface-container-highest: #303632;
-    --color-on-surface: #e1e3df;
-    --color-on-surface-variant: #c0c9c1;
-    --color-outline: #8a938c;
-    --color-outline-variant: #404944;
-    --color-primary: #85f8c4;
-    --color-on-primary: #003824;
-    --color-primary-container: #005136;
-    --color-on-primary-container: #a2fbd0;
-    --color-on-background: #e1e3df;
-    --color-surface-variant: #404944;
-    --color-secondary: #bec6e0;
-    --color-on-secondary: #283044;
-    --color-secondary-container: #3e465b;
-    --color-on-secondary-container: #dae2fd;
+    --color-background: #0d1520;
+    --color-on-background: #e6ecf5;
+    --color-surface: #0d1520;
+    --color-surface-bright: #22304a;
+    --color-surface-dim: #080e16;
+    --color-surface-container-lowest: #111c2b;
+    --color-surface-container-low: #16233a;
+    --color-surface-container: #1a2942;
+    --color-surface-container-high: #22304a;
+    --color-surface-container-highest: #2a3a56;
+    --color-surface-variant: #1f2d45;
+
+    --color-on-surface: #e6ecf5;
+    --color-on-surface-variant: #b4c3d6;
+    --color-outline: #6b7f96;
+    --color-outline-variant: #33445e;
+
+    /* Light enough to clear 4.5:1 on the navy surfaces above. */
+    --color-primary: #8ab4e8;
+    --color-on-primary: #08203f;
+    --color-primary-container: #1a3a63;
+    --color-on-primary-container: #cfe0f7;
+    --color-primary-fixed: #1a3a63;
+    --color-primary-fixed-dim: #122c4d;
+    --color-on-primary-fixed: #cfe0f7;
+    --color-on-primary-fixed-variant: #a9c3e4;
+    --color-inverse-primary: #123a6d;
+    --color-surface-tint: #8ab4e8;
+
+    --color-secondary: #7fd69a;
+    --color-on-secondary: #05270f;
+    --color-secondary-container: #18492a;
+    --color-on-secondary-container: #c5ecd2;
+    --color-secondary-fixed: #18492a;
+    --color-secondary-fixed-dim: #103a1f;
+    --color-on-secondary-fixed: #c5ecd2;
+    --color-on-secondary-fixed-variant: #a0dfb4;
+
+    --color-tertiary: #ffb866;
+    --color-on-tertiary: #301900;
+    --color-tertiary-container: #6b3f00;
+    --color-on-tertiary-container: #ffddb8;
+    --color-tertiary-fixed: #6b3f00;
+    --color-tertiary-fixed-dim: #4a2b00;
+    --color-on-tertiary-fixed: #ffddb8;
+    --color-on-tertiary-fixed-variant: #ffc584;
+
     --color-error: #ffb4ab;
     --color-on-error: #690005;
-    --color-error-container: #93000a;
+    --color-error-container: #7f1d18;
     --color-on-error-container: #ffdad6;
+
+    --color-inverse-surface: #e6ecf5;
+    --color-inverse-on-surface: #0d1520;
   }
 }
 
@@ -1210,4 +1241,52 @@
 .gov-shell table td,
 .gov-shell table th {
   border: 1px solid var(--color-outline-variant);
+}
+
+
+/* ---------------------------------------------------------------------------
+   High contrast in dark mode — the inverse pairing, so the toggle does not
+   throw a white page at someone who chose a dark one.
+   --------------------------------------------------------------------------- */
+:root[data-high-contrast].dark {
+  --color-background: #000000;
+  --color-surface: #000000;
+  --color-surface-bright: #000000;
+  --color-surface-dim: #000000;
+  --color-surface-container-lowest: #000000;
+  --color-surface-container-low: #000000;
+  --color-surface-container: #000000;
+  --color-surface-container-high: #1a1a1a;
+  --color-surface-container-highest: #262626;
+  --color-surface-variant: #1a1a1a;
+
+  --color-on-background: #ffffff;
+  --color-on-surface: #ffffff;
+  --color-on-surface-variant: #ffffff;
+  --color-outline: #ffffff;
+  --color-outline-variant: #ffffff;
+
+  --color-primary: #7fd0ff;
+  --color-primary-container: #000000;
+  --color-on-primary: #000000;
+  --color-on-primary-container: #7fd0ff;
+
+  --color-secondary: #7fffa0;
+  --color-secondary-container: #000000;
+  --color-on-secondary-container: #7fffa0;
+
+  --color-tertiary: #ffc866;
+  --color-tertiary-container: #000000;
+  --color-on-tertiary-container: #ffc866;
+
+  --color-error: #ff9a92;
+  --color-error-container: #000000;
+  --color-on-error-container: #ff9a92;
+}
+
+:root[data-high-contrast].dark .chart-section,
+:root[data-high-contrast].dark [class*="rounded-2xl"],
+:root[data-high-contrast].dark [class*="rounded-3xl"],
+:root[data-high-contrast].dark [class*="rounded-xl"] {
+  border-color: #ffffff !important;
 }
