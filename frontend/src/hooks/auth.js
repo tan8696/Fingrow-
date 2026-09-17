@@ -99,6 +99,19 @@ function readableDetail(detail, status) {
       : message;
   }
 
+  // A bare status code leaves the user with nothing to act on, and these two
+  // mean specific, fixable things.
+  if (status === 404) {
+    return (
+      `No API found at ${API_BASE}. If you are running locally, start the ` +
+      'backend (uvicorn on port 8000). If this is a deployed site, ' +
+      'VITE_API_URL must point at the deployed backend.'
+    );
+  }
+  if (status === 502 || status === 503 || status === 504) {
+    return 'The server is not responding. Check that the backend is running, then try again.';
+  }
+
   return `Request failed (${status}).`;
 }
 
