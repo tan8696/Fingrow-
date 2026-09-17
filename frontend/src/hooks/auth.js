@@ -76,12 +76,47 @@ export function handleUnauthorized() {
   if (unauthorizedHandler) unauthorizedHandler();
 }
 
+/**
+ * FastAPI returns `detail` as a plain string for errors we raise ourselves,
+ * but as a list of field objects for schema validation failures. Passing the
+ * list straight to new Error() renders "[object Object]" to the user, so pull
+ * out the first readable message instead.
+ */
+function readableDetail(detail, status) {
+  if (typeof detail === 'string' && detail.trim()) return detail;
+
+  if (Array.isArray(detail) && detail.length) {
+    const first = detail[0];
+    const field = Array.isArray(first?.loc) ? first.loc[first.loc.length - 1] : null;
+    const message = first?.msg || 'is not valid';
+    // "body" is FastAPI's wrapper, not a field the user filled in.
+    return field && field !== 'body'
+      ? `${String(field).replace(/_/g, ' ')}: ${message}`
+      : message;
+  }
+
+  return `Request failed (${status}).`;
+}
+
 async function sendJson(path, body, method = 'POST') {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify(body),
-  });
+  let res;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    // fetch only rejects when the request never reached a server: the backend
+    // is not running, the machine is offline, or CORS blocked it. "Failed to
+    // fetch" means nothing to the person trying to sign up.
+    const error = new Error(
+      `Cannot reach the server at ${API_BASE}. Check that the backend is running.`,
+    );
+    error.status = 0;
+    error.offline = true;
+    throw error;
+  }
 
   let payload = null;
   try {
@@ -91,9 +126,9 @@ async function sendJson(path, body, method = 'POST') {
   }
 
   if (!res.ok) {
-    // The server's message is written for the user ("Password must be at least
-    // 6 characters"), so surface it rather than a status code.
-    const error = new Error(payload?.detail || `Request failed (${res.status})`);
+    // Messages we raise server-side are written for the user ("Password must
+    // be at least 6 characters"), so surface those as they are.
+    const error = new Error(readableDetail(payload?.detail, res.status));
     error.status = res.status;
     throw error;
   }
