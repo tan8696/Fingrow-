@@ -10,13 +10,14 @@ The /calculate endpoint works without ANY external API keys (useful for demos).
 import logging
 import random
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import Response
 
 from app.api.models import (
+    RepaymentPlanRequest,
     AdvisoryRequest,
     AmortizationResponse,
     CalculatorRequest,
@@ -60,6 +61,7 @@ from app.core.amortization import generate_schedule
 from app.core.calculator import SchemeError, calculate_finances
 from app.core.geocoder import LocationNotFoundError, geocode_location
 from app.core.mandi import DEFAULT_STATE, fetch_live_prices, sample_prices
+from app.core.crop_calendar import align_schedule, repayment_capacity
 from app.core.receipt import (
     ENGINE_VERSION,
     KIND_MODEL,
@@ -279,6 +281,13 @@ async def generate_report(req: AdvisoryRequest) -> FullReportResponse:
         pricing_strategy=feasibility_dict["pricing_strategy"],
     )
 
+    # --- Step 5.5: Place the repayment schedule against real earning months ---
+    alignment = align_schedule(
+        schedule=schedule.to_dict()["schedule"],
+        business_category=req.business_category,
+        moratorium_months=scheme.moratorium_months,
+    )
+
     # --- Step 6: Decision receipt (provenance + reproducible hash) ---
     financials_dict = scheme.to_dict()
     receipt = build_receipt(
@@ -313,6 +322,10 @@ async def generate_report(req: AdvisoryRequest) -> FullReportResponse:
                 + ("" if osm_live else " — Overpass unreachable, density not measured"),
             ),
             source(
+                "repayment_alignment", KIND_RULE, "crop calendar (deterministic)",
+                alignment.get("summary", "") + " " + alignment.get("pattern_note", ""),
+            ),
+            source(
                 "market_intelligence", KIND_MODEL, f"Groq {GROQ_MODEL}",
                 "narrative only, grounded in the OSM counts above; excluded from all financial math",
             ),
@@ -332,9 +345,65 @@ async def generate_report(req: AdvisoryRequest) -> FullReportResponse:
         market_intelligence=translated_report,
         osm_summary=OSMSummaryResponse(**osm_result.to_summary_dict(), suppliers=suppliers_list),
         receipt=receipt,
+        repayment_alignment=alignment,
     )
     save_session(session_id, full_response.model_dump())
     return full_response
+
+
+@router.post(
+    "/repayment-plan",
+    tags=["Full Advisory Report"],
+    summary="Check a repayment schedule against the borrower's earning months",
+)
+async def repayment_plan(req: RepaymentPlanRequest) -> dict:
+    """
+    Two questions the loan-sizing rule alone cannot answer:
+
+      1. Do the instalments land in months when this business actually earns?
+      2. Can the expected income carry the annual repayment at all?
+
+    The scheme sizes a loan from the borrower's margin capital, which says
+    nothing about repayment capacity. Both checks here are deterministic.
+    """
+    try:
+        scheme = calculate_finances(req.margin_capital)
+    except SchemeError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+
+    schedule = generate_schedule(
+        loan_amount=scheme.loan_amount,
+        annual_rate_pct=scheme.interest_rate_pct,
+        tenure_months=scheme.tenure_months,
+        moratorium_months=scheme.moratorium_months,
+    )
+
+    disbursement = None
+    if req.disbursement_date:
+        try:
+            disbursement = date.fromisoformat(req.disbursement_date)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"disbursement_date must be an ISO date (YYYY-MM-DD), got '{req.disbursement_date}'.",
+            )
+
+    alignment = align_schedule(
+        schedule=schedule.to_dict()["schedule"],
+        business_category=req.business_category,
+        disbursement=disbursement,
+        moratorium_months=scheme.moratorium_months,
+    )
+
+    return {
+        "financials": scheme.to_dict(),
+        "alignment": alignment,
+        "capacity": repayment_capacity(
+            quarterly_emi=schedule.quarterly_emi,
+            expected_annual_income=req.expected_annual_income or 0.0,
+            income_month_count=len(alignment["income_months"]),
+        ),
+    }
 
 
 @router.get(

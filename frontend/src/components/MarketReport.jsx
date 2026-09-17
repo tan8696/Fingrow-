@@ -6,6 +6,7 @@ import { LoanPieChart, EMIAreaChart, ViabilityDonut, SWOTGrid } from './VisualCh
 import WhatsAppShare from './WhatsAppShare';
 import SupplierMap from './SupplierMap';
 import DecisionReceipt from './DecisionReceipt';
+import RepaymentAlignment from './RepaymentAlignment';
 
 const NEXT_STEPS = [
   {
@@ -238,6 +239,8 @@ export default function MarketReport({ report, onReset, onGoHome, onGoToHistory 
         </div>
       )}
       <DecisionReceipt receipt={report?.receipt} sessionId={report?.session_id} />
+
+      <RepaymentAlignment alignment={report?.repayment_alignment} />
 
       {/* Hero Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">

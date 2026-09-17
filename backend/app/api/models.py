@@ -181,6 +181,19 @@ class OSMSummaryResponse(BaseModel):
     suppliers: Optional[List[dict]] = None
 
 
+class RepaymentPlanRequest(BaseModel):
+    """Inputs for checking a repayment schedule against real earning months."""
+    margin_capital: float = Field(..., gt=0, description="Borrower's own contribution in INR")
+    business_category: str = Field(..., min_length=2, max_length=60)
+    expected_annual_income: Optional[float] = Field(
+        None, ge=0,
+        description="Expected yearly income from the business. Omit to skip the capacity check.",
+    )
+    disbursement_date: Optional[str] = Field(
+        None, description="ISO date (YYYY-MM-DD) the loan is paid out. Defaults to today.",
+    )
+
+
 class FullReportResponse(BaseModel):
     """Complete response combining all modules."""
     session_id: str
@@ -195,6 +208,9 @@ class FullReportResponse(BaseModel):
     # Provenance for every section plus a hash the financials can be
     # re-derived from. See app/core/receipt.py and GET /api/verify/{id}.
     receipt: Optional[Dict[str, Any]] = None
+    # Repayment schedule placed against the borrower's actual earning months.
+    # See app/core/crop_calendar.py.
+    repayment_alignment: Optional[Dict[str, Any]] = None
 
 
 class CalculatorResponse(BaseModel):
