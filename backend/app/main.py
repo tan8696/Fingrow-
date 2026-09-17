@@ -57,14 +57,35 @@ app = FastAPI(
 # ---------------------------------------------------------------------------
 # CORS — allow the React frontend on localhost during development
 # ---------------------------------------------------------------------------
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+    if origin.strip()
+]
+
+# A fixed allowlist is too brittle for local development: Vite moves to 5174
+# when 5173 is taken, browsers reach the same server as either localhost or
+# 127.0.0.1, and `--host` serves it on a LAN address. Any of those used to be
+# refused, which surfaced as an unexplained failure to sign in.
+#
+# Outside production we therefore accept any loopback origin on any port. Set
+# APP_ENV=production on a deployment to restrict it to CORS_ORIGINS alone.
+IS_PRODUCTION = os.getenv("APP_ENV", "development").lower() == "production"
+LOOPBACK_ORIGIN_REGEX = r"^https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$"
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
+    allow_origin_regex=None if IS_PRODUCTION else LOOPBACK_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+logger.info(
+    "CORS: %s%s",
+    ", ".join(CORS_ORIGINS) or "(none)",
+    "" if IS_PRODUCTION else " + any loopback origin (development)",
 )
 
 # ---------------------------------------------------------------------------

@@ -1,4 +1,10 @@
-const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:8000/api" : "/api");
+// Same-origin by default. In development Vite proxies /api to the backend
+// (see vite.config.js), and in production the reverse proxy does the same.
+// Calling http://localhost:8000 directly instead made every request
+// cross-origin, so the app broke whenever it was not opened at exactly
+// http://localhost:5173 — a different port, or 127.0.0.1, and CORS blocked it.
+// Set VITE_API_URL to point at a backend on another host.
+const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
 import { authHeaders, handleUnauthorized } from "./auth";
 
