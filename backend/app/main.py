@@ -73,19 +73,36 @@ CORS_ORIGINS = [
 IS_PRODUCTION = os.getenv("APP_ENV", "development").lower() == "production"
 LOOPBACK_ORIGIN_REGEX = r"^https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$"
 
+# Vercel gives every branch and every commit its own preview URL, so a fixed
+# allowlist can only ever cover the production domain. CORS_ORIGIN_REGEX takes
+# a pattern for those; set it to something like
+#   ^https://fingrow(-[a-z0-9-]+)?\.vercel\.app$
+# which matches the production domain and its previews but nothing else.
+CORS_ORIGIN_REGEX = os.getenv("CORS_ORIGIN_REGEX", "").strip() or None
+
+if IS_PRODUCTION:
+    origin_regex = CORS_ORIGIN_REGEX
+elif CORS_ORIGIN_REGEX:
+    # Accept both in development, so a local frontend and a deployed one can
+    # talk to the same backend while testing.
+    origin_regex = f"({CORS_ORIGIN_REGEX})|({LOOPBACK_ORIGIN_REGEX})"
+else:
+    origin_regex = LOOPBACK_ORIGIN_REGEX
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
-    allow_origin_regex=None if IS_PRODUCTION else LOOPBACK_ORIGIN_REGEX,
+    allow_origin_regex=origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 logger.info(
-    "CORS: %s%s",
+    "CORS allowlist: %s | regex: %s | env: %s",
     ", ".join(CORS_ORIGINS) or "(none)",
-    "" if IS_PRODUCTION else " + any loopback origin (development)",
+    origin_regex or "(none)",
+    "production" if IS_PRODUCTION else "development",
 )
 
 # ---------------------------------------------------------------------------

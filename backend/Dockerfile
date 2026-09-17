@@ -31,4 +31,6 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/api/health || exit 1
 
 # Start Uvicorn
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Shell form so $PORT expands. Render, Railway and Fly all inject it;
+# the default keeps `docker run` working locally.
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}

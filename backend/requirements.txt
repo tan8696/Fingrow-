@@ -1,11 +1,13 @@
+# Runtime dependencies.
+#
+# weasyprint and google-generativeai were removed: neither is imported
+# anywhere. weasyprint in particular needs cairo/pango system libraries and is
+# a common cause of failed builds on slim Python hosts. PDFs use reportlab and
+# the LLM calls go through groq.
 fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
 pydantic>=2.7.0
 httpx>=0.27.0
-google-generativeai>=0.7.0
-weasyprint>=62.0
 reportlab>=4.0.0
 python-dotenv>=1.0.0
-pytest>=8.0.0
-pytest-asyncio>=0.23.0
 groq>=0.11.0

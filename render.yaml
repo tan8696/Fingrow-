@@ -1,0 +1,63 @@
+# Render blueprint for the FinGrow API.
+#
+# Deploy: Render dashboard -> New -> Blueprint -> pick this repository.
+# Render reads this file and creates the service; you then fill in the secret
+# values marked `sync: false`.
+#
+# STORAGE NOTE: the free plan has an ephemeral filesystem, so the SQLite
+# databases are wiped on every deploy and whenever the instance restarts.
+# Accounts created before a restart will not survive it. That is workable for a
+# demo because the app starts empty by design and has a one-click sample data
+# loader, but for anything you need to keep, uncomment the `disk` block below
+# (it requires a paid instance type).
+services:
+  - type: web
+    name: fingrow-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+
+    # disk:
+    #   name: fingrow-data
+    #   mountPath: /var/data
+    #   sizeGB: 1
+
+    envVars:
+      - key: APP_ENV
+        value: production
+
+      # Matches the Vercel production domain and its per-commit previews.
+      # Change `fingrow` if the Vercel project is renamed.
+      - key: CORS_ORIGIN_REGEX
+        value: ^https://fingrow(-[a-z0-9-]+)?\.vercel\.app$
+
+      # Any custom domain goes here, comma separated.
+      - key: CORS_ORIGINS
+        value: ""
+
+      # Required for feasibility reports and the stress test.
+      - key: GROQ_API_KEY
+        sync: false
+
+      # Optional. Without these the app degrades honestly rather than failing:
+      # reports fall back to MyMemory translation, and mandi prices serve a
+      # labelled sample feed.
+      - key: BHASHINI_API_KEY
+        sync: false
+      - key: DATA_GOV_API_KEY
+        sync: false
+
+      # Point these at /var/data/... if you enable the disk above.
+      - key: USERS_DB_PATH
+        value: /tmp/fingrow/users.db
+      - key: SESSION_DB_PATH
+        value: /tmp/fingrow/sessions.db
+      - key: LOANS_DB_PATH
+        value: /tmp/fingrow/loans.db
+      - key: HARVEST_DB_PATH
+        value: /tmp/fingrow/harvest.db
+      - key: ADVISORY_DB_PATH
+        value: /tmp/fingrow/advisory.db
