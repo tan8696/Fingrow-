@@ -67,6 +67,9 @@ from app.core.calculator import SchemeError, calculate_finances
 from app.core.geocoder import LocationNotFoundError, geocode_location
 from app.core.mandi import DEFAULT_STATE, fetch_live_prices, sample_prices
 from app.core.crop_calendar import align_schedule, repayment_capacity
+from app.core.rule_advisory import feasibility_report as rule_feasibility
+from app.core.rule_advisory import stress_test as rule_stress_test
+from app.core.rule_advisory import offline_chat_reply
 from app.core.stress import generate_stress_test
 from app.core.receipt import (
     ENGINE_VERSION,
@@ -256,7 +259,11 @@ async def generate_report(req: AdvisoryRequest, user: Dict[str, Any] = Depends(c
         moratorium_months=scheme.moratorium_months,
     )
 
-    # --- Step 4: LLM Advisory (bounded to real OSM data) ---
+    # --- Step 4: Advisory narrative (LLM, bounded to real OSM data) ---
+    # Any LLM failure — no key, the provider refusing the network, a bad
+    # response — falls back to a narrative built by rules from the same measured
+    # figures. The figures never depended on the model, so a missing model must
+    # not take the whole report down with it. The receipt records which one ran.
     try:
         feasibility = generate_feasibility_report(
             location=geo.display_name,
@@ -266,12 +273,27 @@ async def generate_report(req: AdvisoryRequest, user: Dict[str, Any] = Depends(c
             loan_amount=scheme.loan_amount,
             osm_result=osm_result,
         )
-    except EnvironmentError as e:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                            detail=f"LLM service not configured: {e}")
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY,
-                            detail=f"Advisory generation failed: {e}")
+        narrative_source = source(
+            "market_intelligence", KIND_MODEL, f"Groq {GROQ_MODEL}",
+            "narrative only, grounded in the OSM counts above; excluded from all financial math",
+        )
+    except Exception as e:  # noqa: BLE001 — deliberately broad, see above
+        logger.warning("LLM unavailable (%s: %s); using rule-based narrative.", type(e).__name__, e)
+        feasibility = FeasibilityReport(**rule_feasibility(
+            location=geo.display_name,
+            category=req.business_category,
+            project_cost=scheme.project_cost,
+            margin_capital=scheme.margin_contribution,
+            loan_amount=scheme.loan_amount,
+            osm_result=osm_result,
+            scheme_name=scheme.selected_scheme,
+            interest_rate_pct=scheme.interest_rate_pct,
+        ))
+        narrative_source = source(
+            "market_intelligence", KIND_RULE, "rule-based narrative",
+            f"language model unavailable ({type(e).__name__}); written by rules from the "
+            "competitor count, scheme terms and income pattern above",
+        )
 
     # --- Step 5: Translate ---
     feasibility_dict = feasibility.model_dump()
@@ -324,10 +346,7 @@ async def generate_report(req: AdvisoryRequest, user: Dict[str, Any] = Depends(c
                 "repayment_alignment", KIND_RULE, "crop calendar (deterministic)",
                 alignment.get("summary", "") + " " + alignment.get("pattern_note", ""),
             ),
-            source(
-                "market_intelligence", KIND_MODEL, f"Groq {GROQ_MODEL}",
-                "narrative only, grounded in the OSM counts above; excluded from all financial math",
-            ),
+            narrative_source,
         ],
     )
 
@@ -399,13 +418,16 @@ async def stress_test(session_id: str, req: Optional[StressTestRequest] = None, 
                 c.get("name") for c in (osm_summary.get("competitors") or []) if c.get("name")
             ],
         )
-    except EnvironmentError as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"LLM service not configured: {e}",
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
+    except Exception as e:  # noqa: BLE001 — same reasoning as the report narrative
+        logger.warning("LLM unavailable for stress test (%s: %s); using rules.", type(e).__name__, e)
+        return StressTestReport(**rule_stress_test(
+            category=report.get("business_category") or "",
+            financials=report.get("financials") or {},
+            amortization=amortization,
+            osm_summary=osm_summary,
+            alignment=alignment,
+            capacity=capacity,
+        ))
 
 
 @router.post(
@@ -1472,22 +1494,7 @@ async def chat_endpoint(req: ChatRequest) -> ChatResponse:
             current_view=req.current_view,
         )
         return ChatResponse(**result)
-    except EnvironmentError as e:
-        logger.warning(f"Chat unavailable (no API key): {e}")
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI chat is not configured. Please set GROQ_API_KEY.",
-        )
-    except ValueError as e:
-        logger.warning(f"Chat LLM response error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"AI response error: {e}",
-        )
-    except Exception as e:
-        logger.error(f"Unexpected chat error: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred. Please try again.",
-        )
+    except Exception as e:  # noqa: BLE001 — the assistant must never error mid-demo
+        logger.warning("Chat LLM unavailable (%s: %s); using offline replies.", type(e).__name__, e)
+        return ChatResponse(**offline_chat_reply(req.message, req.language))
 

@@ -196,7 +196,12 @@ def test_endpoint_404s_on_unknown_session():
     assert _authed_client().post("/api/stress-test/nope", json={}).status_code == 404
 
 
-def test_endpoint_reports_unconfigured_llm_as_unavailable(monkeypatch):
+def test_endpoint_falls_back_to_rules_when_the_llm_is_unavailable(monkeypatch):
+    """
+    A missing or unreachable LLM must not fail the stress test. Groq refuses
+    some Indian networks outright, which used to take the feature down with a
+    500 mid-demo; the rules produce the same shape from the same facts.
+    """
     def _no_key():
         raise EnvironmentError("GROQ_API_KEY environment variable is not set.")
 
@@ -205,4 +210,9 @@ def test_endpoint_reports_unconfigured_llm_as_unavailable(monkeypatch):
     save_session("stress-nokey", _stored_report(), user_id=api.user_id)
 
     res = api.post("/api/stress-test/stress-nokey", json={})
-    assert res.status_code == 503
+    assert res.status_code == 200
+    body = res.json()
+    assert body["verdict"] in {"proceed", "proceed_with_changes", "reconsider"}
+    assert body["failure_modes"]
+    # Grounded in the report's own facts, not generic caution.
+    assert any("13" in m["mechanism"] for m in body["failure_modes"])
