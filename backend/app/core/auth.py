@@ -20,6 +20,7 @@ The store follows the same per-call-connection SQLite pattern as the other
 stores in this package.
 """
 
+import base64
 import hashlib
 import hmac
 import json
@@ -253,64 +254,130 @@ def update_profile(
 
 
 # ---------------------------------------------------------------------------
-# Sessions
+# Sessions — signed, self-contained tokens
 # ---------------------------------------------------------------------------
+#
+# Tokens used to be random strings looked up in the sessions table. On Vercel
+# every function instance has its own /tmp database, so a token issued by one
+# instance was unknown to the next and people were signed out mid-session.
+#
+# A token is now `payload.signature`: the payload carries the account's
+# identity and profile, and the HMAC proves it was issued here. Any instance
+# can verify it without a lookup.
+#
+# Revocation is per-process (a denylist in memory). On a single server that is
+# exact; on serverless a logged-out token may still verify on another instance
+# until it expires. The client discards it on logout either way.
+
+_revoked: set = set()
+
+# Profile fields small enough to ride in every request header. Anything else —
+# notably a base64 profile photo — stays out, or the header would carry the
+# whole image and exceed server limits.
+TOKEN_PROFILE_KEYS = {
+    "type", "language", "kycVerified", "gender", "socialCategory",
+    "district", "demo_seeded", "insurance_policy",
+}
+
+
+def _secret() -> bytes:
+    """
+    The signing key. SESSION_SECRET should be set in production.
+
+    Without it, the key is derived from values that are identical across every
+    instance of one Vercel deployment, so tokens verify on any of them. It
+    changes on each redeploy, which signs everyone out — acceptable, since a
+    redeploy also starts every instance with an empty database.
+    """
+    explicit = os.getenv("SESSION_SECRET", "").strip()
+    if explicit:
+        return explicit.encode("utf-8")
+    parts = [os.getenv(name, "") for name in ("VERCEL_DEPLOYMENT_ID", "VERCEL_GIT_COMMIT_SHA", "VERCEL_URL")]
+    return hashlib.sha256(("|".join(parts) + "|fingrow-session-key").encode("utf-8")).digest()
+
+
+def _b64encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+
+def _b64decode(text: str) -> bytes:
+    return base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
+
 
 def _token_hash(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
-def create_token(user_id: str, db_path: Optional[Path] = None) -> str:
-    """Issue a session token. Only its hash is stored."""
-    token = secrets.token_urlsafe(32)
-    expires = datetime.now(timezone.utc) + timedelta(days=SESSION_TTL_DAYS)
-    conn = _connect(db_path)
+def _sign(body: str) -> str:
+    return _b64encode(hmac.new(_secret(), body.encode("ascii"), hashlib.sha256).digest())
+
+
+def issue_token(user: Dict[str, Any]) -> str:
+    """A signed token carrying this account's identity and small profile fields."""
+    now = int(datetime.now(timezone.utc).timestamp())
+    profile = {k: v for k, v in (user.get("profile") or {}).items() if k in TOKEN_PROFILE_KEYS}
+    payload = {
+        "sub": user["user_id"],
+        "phone": user.get("phone"),
+        "name": user.get("name"),
+        "profile": profile,
+        "created_at": user.get("created_at"),
+        "iat": now,
+        "exp": now + SESSION_TTL_DAYS * 86400,
+    }
+    body = _b64encode(json.dumps(payload, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+    return f"{body}.{_sign(body)}"
+
+
+def decode_token(token: str) -> Optional[Dict[str, Any]]:
+    """The verified payload, or None if the token is forged, expired or revoked."""
+    if not token or token.count(".") != 1:
+        return None
+    body, signature = token.split(".")
+    if not hmac.compare_digest(signature, _sign(body)):
+        return None
     try:
-        conn.execute(
-            "INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)",
-            (_token_hash(token), user_id, expires.isoformat()),
-        )
-        conn.commit()
-    finally:
-        conn.close()
-    return token
+        payload = json.loads(_b64decode(body))
+    except (ValueError, UnicodeDecodeError):
+        return None
+    if int(payload.get("exp") or 0) <= int(datetime.now(timezone.utc).timestamp()):
+        return None
+    if _token_hash(token) in _revoked:
+        return None
+    return payload
+
+
+def user_from_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """The same public user shape get_user returns, built from a token alone."""
+    return {
+        "user_id": payload["sub"],
+        "phone": payload.get("phone"),
+        "name": payload.get("name"),
+        "profile": payload.get("profile") or {},
+        "created_at": payload.get("created_at"),
+    }
+
+
+def create_token(user_id: str, db_path: Optional[Path] = None) -> str:
+    """Issue a token for an account known to this instance."""
+    user = get_user(user_id, db_path=db_path)
+    if user is None:
+        raise AuthError("Unknown account.")
+    return issue_token(user)
 
 
 def resolve_token(token: str, db_path: Optional[Path] = None) -> Optional[str]:
-    """The user_id behind a token, or None when it is unknown or expired."""
-    if not token:
-        return None
-    conn = _connect(db_path)
-    try:
-        row = conn.execute(
-            "SELECT user_id, expires_at FROM sessions WHERE token_hash = ?",
-            (_token_hash(token),),
-        ).fetchone()
-        if row is None:
-            return None
-        try:
-            expires = datetime.fromisoformat(row["expires_at"])
-        except ValueError:
-            return None
-        if expires <= datetime.now(timezone.utc):
-            # Clear it out rather than leaving dead rows behind.
-            conn.execute("DELETE FROM sessions WHERE token_hash = ?", (_token_hash(token),))
-            conn.commit()
-            return None
-        return row["user_id"]
-    finally:
-        conn.close()
+    """The user_id behind a valid token, or None."""
+    payload = decode_token(token)
+    return payload["sub"] if payload else None
 
 
 def revoke_token(token: str, db_path: Optional[Path] = None) -> bool:
-    """Log out one session. Returns True when a session was actually removed."""
-    conn = _connect(db_path)
-    try:
-        cur = conn.execute("DELETE FROM sessions WHERE token_hash = ?", (_token_hash(token),))
-        conn.commit()
-        return cur.rowcount > 0
-    finally:
-        conn.close()
+    """Log out one session. Returns True when a live token was revoked."""
+    if decode_token(token) is None:
+        return False
+    _revoked.add(_token_hash(token))
+    return True
 
 
 def count_users(db_path: Optional[Path] = None) -> int:

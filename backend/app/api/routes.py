@@ -16,7 +16,7 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
 
-from app.api.auth_routes import current_user
+from app.api.auth_routes import current_user, reconcile_demo_data, reissue
 from app.core.auth import update_profile
 from app.api.models import (
     FeasibilityReport,
@@ -965,7 +965,12 @@ async def seed_demo_data(user: Dict[str, Any] = Depends(current_user)) -> dict:
     that way until this is called. Every record created here is flagged so the
     UI can label it and so wiping removes exactly what was added.
     """
-    return demo_seed.seed(user["user_id"])
+    result = demo_seed.seed(user["user_id"])
+    # The flag rides in the token so every serverless instance can rebuild the
+    # same sample data; see auth_routes.reconcile_demo_data.
+    refreshed = reissue(user, {"demo_seeded": True})
+    reconcile_demo_data(refreshed["user"])
+    return {**result, **refreshed}
 
 
 @router.delete(
@@ -975,7 +980,10 @@ async def seed_demo_data(user: Dict[str, Any] = Depends(current_user)) -> dict:
 )
 async def wipe_demo_data(user: Dict[str, Any] = Depends(current_user)) -> dict:
     """Removes only seeded records. Anything the account created itself stays."""
-    return demo_seed.wipe(user["user_id"])
+    result = demo_seed.wipe(user["user_id"])
+    refreshed = reissue(user, {"demo_seeded": False})
+    reconcile_demo_data(refreshed["user"])
+    return {**result, **refreshed}
 
 
 @router.get(
@@ -1308,12 +1316,12 @@ async def enrol_insurance(
         )
 
     policy = new_policy(req.crop, req.area_acres, req.sum_insured, req.season)
-    updated = update_profile(user["user_id"], {"insurance_policy": policy})
-    if updated is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found.")
+    # Carried in the token like the rest of the profile, so it survives on
+    # whichever instance serves the next request.
+    refreshed = reissue(user, {"insurance_policy": policy})
 
     logger.info("Enrolled %s in policy %s", user["user_id"], policy["policy_id"])
-    return {"enrolled": True, "policy": policy}
+    return {"enrolled": True, "policy": policy, **refreshed}
 
 
 @router.post(

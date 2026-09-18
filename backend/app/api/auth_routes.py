@@ -16,12 +16,13 @@ from pydantic import BaseModel, Field
 from app.core.auth import (
     AuthError,
     authenticate,
-    create_token,
     create_user,
+    decode_token,
     get_user,
-    resolve_token,
+    issue_token,
     revoke_token,
     update_profile,
+    user_from_payload,
 )
 
 logger = logging.getLogger(__name__)
@@ -64,26 +65,61 @@ class AuthResponse(BaseModel):
 # Dependencies
 # ---------------------------------------------------------------------------
 
+# The sample-data state this instance last reconciled each account to.
+_demo_reconciled: Dict[str, bool] = {}
+
+
+def reconcile_demo_data(user: Dict[str, Any]) -> None:
+    """
+    Make this instance's copy of an account's sample data match its token.
+
+    Seeded data is deterministic, so any instance can rebuild it. Without this,
+    a serverless instance other than the one that seeded would show an empty
+    dashboard to someone who had just loaded the sample portfolio. Checked
+    once per account per instance.
+    """
+    user_id = user["user_id"]
+    wanted = bool((user.get("profile") or {}).get("demo_seeded"))
+    if not wanted or _demo_reconciled.get(user_id):
+        return
+    from app.core import demo_seed  # local import: demo_seed imports the stores
+
+    # Restore only, never delete. A client still holding an older token would
+    # otherwise wipe data it had just seeded — and the settings page reloads
+    # straight after seeding, which would do exactly that.
+    if not demo_seed.status(user_id)["has_demo_data"]:
+        demo_seed.seed(user_id)
+    _demo_reconciled[user_id] = True
+
+
 def current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
 ) -> Dict[str, Any]:
-    """Resolve the bearer token to a user, or reject the request."""
-    token = credentials.credentials if credentials else ""
-    user_id = resolve_token(token)
-    if not user_id:
+    """
+    Resolve the bearer token to a user, or reject the request.
+
+    Identity comes from the signed token itself rather than a database lookup,
+    so it holds whichever serverless instance serves the request.
+    """
+    payload = decode_token(credentials.credentials if credentials else "")
+    if payload is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Sign in to continue.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    user = get_user(user_id)
-    if user is None:
-        # Token outlived the account it belonged to.
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="This account no longer exists.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    user = user_from_payload(payload)
+
+    # Where this instance holds the account, its database is the freshest
+    # record, so it wins over the token. That keeps a single server — including
+    # local development — exact even for a client holding an older token. The
+    # token's copy only fills in on a serverless instance that never saw the
+    # account.
+    stored = get_user(user["user_id"])
+    if stored is not None:
+        user = {**user, "name": stored["name"], "profile": {**user["profile"], **stored["profile"]}}
+
+    reconcile_demo_data(user)
     return user
 
 
@@ -91,10 +127,26 @@ def optional_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
 ) -> Optional[Dict[str, Any]]:
     """Same, but returns None for anonymous callers instead of rejecting."""
-    if not credentials:
-        return None
-    user_id = resolve_token(credentials.credentials)
-    return get_user(user_id) if user_id else None
+    payload = decode_token(credentials.credentials) if credentials else None
+    return user_from_payload(payload) if payload else None
+
+
+def reissue(user: Dict[str, Any], profile_changes: Dict[str, Any], name: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Apply profile changes and return {user, token}.
+
+    The token is the source of truth for the profile, so every change must come
+    back with a fresh one. The local database is updated as well when this
+    instance has the account; on a serverless instance that never saw it, that
+    write simply finds nothing, and the token still carries the change.
+    """
+    merged = {
+        **user,
+        "name": name or user.get("name"),
+        "profile": {**(user.get("profile") or {}), **(profile_changes or {})},
+    }
+    update_profile(user["user_id"], profile_changes or {}, name=name)
+    return {"user": merged, "token": issue_token(merged)}
 
 
 # ---------------------------------------------------------------------------
@@ -108,7 +160,7 @@ async def signup(req: SignupRequest) -> AuthResponse:
         user = create_user(req.phone, req.password, req.name, req.profile)
     except AuthError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
-    return AuthResponse(token=create_token(user["user_id"]), user=user)
+    return AuthResponse(token=issue_token(user), user=user)
 
 
 @router.post("/login", response_model=AuthResponse, summary="Sign in")
@@ -118,7 +170,7 @@ async def login(req: LoginRequest) -> AuthResponse:
     except AuthError as exc:
         # 401 rather than 400: the credentials were understood and refused.
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc))
-    return AuthResponse(token=create_token(user["user_id"]), user=user)
+    return AuthResponse(token=issue_token(user), user=user)
 
 
 @router.post("/logout", summary="Revoke the current session")
@@ -140,7 +192,4 @@ async def patch_profile(
     req: ProfileUpdate,
     user: Dict[str, Any] = Depends(current_user),
 ) -> dict:
-    updated = update_profile(user["user_id"], req.profile, name=req.name)
-    if updated is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found.")
-    return {"user": updated}
+    return reissue(user, req.profile, name=req.name)

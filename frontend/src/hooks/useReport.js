@@ -6,7 +6,7 @@
 // Set VITE_API_URL to point at a backend on another host.
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
-import { authHeaders, handleUnauthorized } from "./auth";
+import { adoptSession, authHeaders, handleUnauthorized } from "./auth";
 
 // Helper to safely fetch JSON from backend or return null on offline/HTML response.
 // Every call carries the session token; a 401 means the session is dead, which
@@ -341,14 +341,23 @@ export async function fetchDemoStatus() {
   return (await safeFetchJson(`${API_BASE}/demo/status`)) || { has_demo_data: false };
 }
 
-/** Fill this account with a demonstration portfolio. */
+/**
+ * Fill this account with a demonstration portfolio.
+ * The response carries a re-issued token whose profile records the seeding, so
+ * any serverless instance can rebuild the same data. It must be adopted before
+ * the page reloads.
+ */
 export async function seedDemoData() {
-  return safeFetchJson(`${API_BASE}/demo/seed`, { method: "POST" });
+  const data = await safeFetchJson(`${API_BASE}/demo/seed`, { method: "POST" });
+  if (data?.token) adoptSession(data.token, data.user);
+  return data;
 }
 
 /** Remove the seeded records, leaving anything the account created itself. */
 export async function wipeDemoData() {
-  return safeFetchJson(`${API_BASE}/demo/seed`, { method: "DELETE" });
+  const data = await safeFetchJson(`${API_BASE}/demo/seed`, { method: "DELETE" });
+  if (data?.token) adoptSession(data.token, data.user);
+  return data;
 }
 
 export async function fetchMarketPrices() {

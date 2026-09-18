@@ -55,6 +55,33 @@ function storeSession(token, user) {
   }
 }
 
+/**
+ * Combine the user the server returned with the one stored locally.
+ *
+ * Large fields such as the profile photo are left out of the session token so
+ * it stays small enough for a request header, which means the server cannot
+ * always send them back. Keep the local copy of anything it did not return.
+ */
+function mergeUser(stored, incoming) {
+  if (!incoming) return stored;
+  return {
+    ...(stored || {}),
+    ...incoming,
+    profile: { ...(stored?.profile || {}), ...(incoming.profile || {}) },
+  };
+}
+
+/**
+ * Adopt a session the server has re-issued. The token carries the profile, so
+ * after any profile change the old token is stale: a serverless instance that
+ * never saw the account would read the out-of-date profile from it.
+ */
+export function adoptSession(token, user) {
+  const merged = mergeUser(getStoredUser(), user);
+  storeSession(token || getToken(), merged);
+  return merged;
+}
+
 export function clearSession() {
   try {
     localStorage.removeItem(TOKEN_KEY);
@@ -191,8 +218,7 @@ export async function fetchMe() {
       return getStoredUser();
     }
     const data = await res.json();
-    storeSession(getToken(), data.user);
-    return data.user;
+    return adoptSession(getToken(), data.user);
   } catch {
     // Offline: trust the stored session until the server says otherwise.
     return getStoredUser();
@@ -201,6 +227,5 @@ export async function fetchMe() {
 
 export async function updateProfile({ name, profile }) {
   const data = await sendJson('/auth/profile', { name, profile }, 'PATCH');
-  storeSession(getToken(), data.user);
-  return data.user;
+  return adoptSession(data.token, data.user);
 }
