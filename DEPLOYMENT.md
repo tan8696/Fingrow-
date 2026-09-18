@@ -42,24 +42,24 @@ key added afterwards.
 
 ---
 
-## The one real limitation: data does not persist
+## Known problem: accounts disappear on the live site
 
 Serverless functions have a read-only filesystem except for `/tmp`, so the
 SQLite databases live there — and `/tmp` only lasts as long as the function
-instance that holds it. **Accounts and data are lost on every redeploy and
-whenever the instance goes cold after a period without traffic.** If requests
-ever spread across several instances at once, each would also see its own
-separate copy.
+instance that holds it.
 
-For a demonstration that is workable, because the app is built to start empty
-and has a one-click **Load sample data** button in Settings:
+**How long that is cannot be predicted.** Tested against the live site on
+18 Sept 2026: one account no longer existed about three minutes after it was
+created — mid-onboarding, so the app dropped back to the login screen — while
+another created shortly afterwards was still there six minutes later. Data
+lives on whichever instance handled the write and disappears when Vercel
+retires that instance, on a schedule the app does not control. An earlier
+version of this document called `/tmp` storage workable for a demonstration.
+It is not.
 
-1. Open the site a few minutes before presenting.
-2. Create an account.
-3. Settings → **Load sample data**.
-
-If you are signed out unexpectedly, the instance was recycled: sign up again
-and reload the sample data.
+Until the API has a real database or a long-running host, the live site cannot
+keep anyone signed in reliably. Local development is unaffected — there the
+databases are ordinary files in `backend/` and persist.
 
 ### When you need data to persist
 
