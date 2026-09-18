@@ -148,7 +148,17 @@ def feasibility_report(
     score = _score(competitors, seasonal, micro)
     rate = f"{interest_rate_pct}%" if interest_rate_pct is not None else "the scheme rate"
 
-    if competitors == 0:
+    if density == "Not measured":
+        competition = (
+            f"The competitor lookup did not complete, so local competition was not "
+            f"measured for this report. Count {label} businesses within {radius} km "
+            f"on foot before relying on the score."
+        )
+        competitor_mapping = (
+            f"Not measured: the OpenStreetMap lookup did not complete. Survey the "
+            f"area within {radius} km before committing capital."
+        )
+    elif competitors == 0:
         competition = (
             f"OpenStreetMap lists no {label} businesses within {radius} km. That can mean "
             f"an unserved market, or simply that local shops are not mapped — worth "

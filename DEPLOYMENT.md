@@ -20,46 +20,55 @@ to configure and `VITE_API_URL` stays unset.
 
 ---
 
-## One-time setup: API keys
+## Optional setup: environment variables
 
-Sign-in, sign-up, the dashboard, loans, harvests and sample data all work with
-no keys at all. Three features need one:
+The live site works with **no configuration at all**: sign-up, sign-in,
+onboarding, sample data, feasibility reports, the stress test, verification and
+PDFs. Setting these improves it:
 
 Vercel dashboard → the `sih-project` project → **Settings → Environment
-Variables**, then add:
+Variables**:
 
-| Variable | Needed for | Without it |
-|---|---|---|
-| `GROQ_API_KEY` | Feasibility reports, stress test | Those return a "not configured" error |
-| `BHASHINI_API_KEY` | Report translation | Falls back to MyMemory |
-| `DATA_GOV_API_KEY` | Live mandi prices | Shows a clearly labelled sample feed |
+| Variable | What it adds |
+|---|---|
+| `SESSION_SECRET` | A private signing key for session tokens. Without it the key is derived from deployment values, some of which are public for a public repository — fine for a demo, not for real users. Any long random string. |
+| `GROQ_API_KEY` | Model-written report narratives. Without it — or if Groq refuses the network — reports use a narrative built by rules from the same measured figures, and the decision receipt says so. |
+| `BHASHINI_API_KEY` | Report translation through Bhashini. Falls back to MyMemory. |
+| `DATA_GOV_API_KEY` | Live AGMARKNET mandi prices. Falls back to a clearly labelled sample feed. |
 
-Copy the values from your local `backend/.env` — never commit that file.
-
-**Then redeploy** (Deployments → the latest one → ⋯ → Redeploy). Functions
-read environment variables at start-up, so a running deployment will not see a
-key added afterwards.
+Copy the values from your local `backend/.env` — never commit that file — then
+**redeploy**, since functions only read environment variables at start-up.
 
 ---
 
-## Known problem: accounts disappear on the live site
+## How data behaves on the live site
 
 Serverless functions have a read-only filesystem except for `/tmp`, so the
-SQLite databases live there — and `/tmp` only lasts as long as the function
-instance that holds it.
+SQLite databases live there, and `/tmp` only lasts as long as the function
+instance that holds it. Vercel retires instances on its own schedule — tested
+on 18 Sept 2026, one account was gone after about three minutes.
 
-**How long that is cannot be predicted.** Tested against the live site on
-18 Sept 2026: one account no longer existed about three minutes after it was
-created — mid-onboarding, so the app dropped back to the login screen — while
-another created shortly afterwards was still there six minutes later. Data
-lives on whichever instance handled the write and disappears when Vercel
-retires that instance, on a schedule the app does not control. An earlier
-version of this document called `/tmp` storage workable for a demonstration.
-It is not.
+What that no longer breaks:
 
-Until the API has a real database or a long-running host, the live site cannot
-keep anyone signed in reliably. Local development is unaffected — there the
-databases are ordinary files in `backend/` and persist.
+- **Staying signed in.** Session tokens are signed and carry the account's
+  identity and profile, so any instance can verify one without a lookup.
+- **Onboarding.** The profile rides in the token, so a fresh instance knows
+  onboarding is done.
+- **Sample data.** A fresh instance rebuilds it from a flag in the token, since
+  seeded data is deterministic.
+- **Reports.** The report is returned in full when it is generated.
+
+What still depends on the instance, and needs a shared database to fix:
+
+- **Signing in again after signing out.** Signing in checks the password
+  against a stored hash; an instance that never saw the account does not have
+  one. Stay signed in during a demo.
+- **Records you create yourself** — a logged harvest, an applied-for loan, a
+  saved report's verify/PDF/stress-test link — live on the instance that
+  created them.
+
+For a demonstration: open the site shortly before presenting, create an account,
+and load the sample data from Settings.
 
 ### When you need data to persist
 

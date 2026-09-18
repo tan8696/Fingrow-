@@ -134,7 +134,11 @@ def test_unreachable_overpass_is_not_reported_as_a_measurement():
 
     osm_source = next(s for s in body["receipt"]["sources"] if s["field"] == "osm_summary")
     assert "Overpass unreachable" in osm_source["detail"]
-    assert osm_source["source"] == "default sparse profile"
+    assert osm_source["source"] == "not measured"
+    # It used to report two competitors nobody had counted; the narrative then
+    # repeated that as fact.
+    assert body["osm_summary"]["competitor_count"] == 0
+    assert body["osm_summary"]["density_level"] == "Not measured"
 
 
 def test_margin_beyond_every_scheme_limit_is_rejected():

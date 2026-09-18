@@ -92,3 +92,14 @@ def test_report_endpoint_survives_an_llm_that_refuses_the_network(client):
     assert narrative["kind"] == "rule"
     assert "Refused" in narrative["detail"]
     assert client.get(f"/api/verify/{body['session_id']}").json()["status"] == "verified"
+
+
+def test_rule_report_does_not_claim_a_count_it_never_took():
+    """A failed lookup is 'not measured', never 'OpenStreetMap lists none'."""
+    unmeasured = OSMResult(
+        query_location="Akola", radius_km=5, business_category="dairy",
+        competitor_count=0, competitors=[], density_level="Not measured", osm_tags_used=[],
+    )
+    report = feasibility_report("Akola", "dairy", 1, 1, 1, unmeasured)
+    assert "not measured" in report["competitor_mapping"].lower()
+    assert "lists no" not in report["analysis"]

@@ -120,7 +120,7 @@ def _build_overpass_query(lat: float, lon: float, radius_m: int, tags: List[tupl
 
     union_body = "\n".join(union_parts)
     return f"""
-[out:json][timeout:25];
+[out:json][timeout:18];
 (
 {union_body}
 );
@@ -162,7 +162,7 @@ def fetch_competitors(
     query = _build_overpass_query(lat, lon, radius_m, tags)
     logger.info(f"Fetching OSM data for category='{business_category}' at ({lat},{lon}) r={radius_km}km")
 
-    with httpx.Client(timeout=30.0) as client:
+    with httpx.Client(timeout=18.0) as client:
         try:
             response = client.post(
                 OVERPASS_URL,

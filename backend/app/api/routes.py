@@ -8,6 +8,8 @@ The /calculate endpoint works without ANY external API keys (useful for demos).
 """
 
 import logging
+import os
+from concurrent.futures import ThreadPoolExecutor
 import random
 import uuid
 from datetime import date, datetime, timedelta, timezone
@@ -117,6 +119,11 @@ from app.report.pdf import export_pdf
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+# Upper bound for each OpenStreetMap lookup inside a report. The two run in
+# parallel, so a report spends at most this long on them in total, which keeps
+# it inside a 60-second serverless function limit alongside geocoding.
+OSM_BUDGET_S = float(os.getenv("OSM_BUDGET_S", "20"))
+
 
 # ---------------------------------------------------------------------------
 # Helper: Convert core objects → response models
@@ -210,41 +217,53 @@ async def generate_report(req: AdvisoryRequest, user: Dict[str, Any] = Depends(c
         geo = _get_fallback_location(req.location)
         geo_live = False
 
-    # --- Step 2: OSM Competitor Fetch ---
-    osm_live = True
-    try:
-        osm_result = fetch_competitors(
-            lat=geo.latitude,
-            lon=geo.longitude,
-            business_category=req.business_category,
-            radius_km=req.radius_km,
-        )
-    except Exception as e:
-        logger.warning(f"OSM fetch failed: {e}. Falling back to default sparse competitor profile.")
-        osm_live = False
-        from app.core.osm_fetcher import OSMResult
-        osm_result = OSMResult(
-            query_location=geo.display_name,
-            radius_km=req.radius_km,
-            business_category=req.business_category,
-            competitor_count=2,
-            competitors=[],
-            density_level="Sparse",
-            osm_tags_used=[],
+    # --- Steps 2 and 2.5: competitors and suppliers from OpenStreetMap ---
+    # Both depend only on the geocoded point, so they run side by side. Run in
+    # sequence they could take 60s between them — the whole serverless budget
+    # — because the public Overpass servers are slow toward cloud-hosted IPs.
+    from app.core.osm_fetcher import OSMResult
+
+    def _competitors():
+        return fetch_competitors(
+            lat=geo.latitude, lon=geo.longitude,
+            business_category=req.business_category, radius_km=req.radius_km,
         )
 
-    # --- Step 2.5: OSM Supplier Fetch ---
-    try:
-        supplier_result = fetch_suppliers(
-            lat=geo.latitude,
-            lon=geo.longitude,
+    def _suppliers():
+        return fetch_suppliers(
+            lat=geo.latitude, lon=geo.longitude,
             business_category=req.business_category,
-            radius_km=req.radius_km * 2, # broader radius for suppliers
+            radius_km=req.radius_km * 2,  # suppliers are sought over a wider area
         )
-        suppliers_list = [s.to_dict() for s in supplier_result.suppliers]
-    except Exception as e:
-        logger.warning(f"Supplier fetch failed: {e}. Defaulting to empty suppliers.")
-        suppliers_list = []
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        competitor_job = pool.submit(_competitors)
+        supplier_job = pool.submit(_suppliers)
+
+        osm_live = True
+        try:
+            osm_result = competitor_job.result(timeout=OSM_BUDGET_S)
+        except Exception as e:  # noqa: BLE001 — timeout, network or parse failure
+            logger.warning("Competitor lookup failed (%s: %s); density not measured.", type(e).__name__, e)
+            osm_live = False
+            # Zero with an explicit "not measured" label. This used to report
+            # two competitors that nobody had counted, which the narrative then
+            # repeated as fact.
+            osm_result = OSMResult(
+                query_location=geo.display_name,
+                radius_km=req.radius_km,
+                business_category=req.business_category,
+                competitor_count=0,
+                competitors=[],
+                density_level="Not measured",
+                osm_tags_used=[],
+            )
+
+        try:
+            suppliers_list = [s.to_dict() for s in supplier_job.result(timeout=OSM_BUDGET_S).suppliers]
+        except Exception as e:  # noqa: BLE001 — suppliers are supplementary
+            logger.warning("Supplier lookup failed (%s: %s); omitting suppliers.", type(e).__name__, e)
+            suppliers_list = []
 
     # --- Step 3: Financial Calculation (deterministic, never fails unless bad input) ---
     try:
@@ -337,7 +356,7 @@ async def generate_report(req: AdvisoryRequest, user: Dict[str, Any] = Depends(c
             ),
             source(
                 "osm_summary", KIND_OBSERVATION,
-                "OpenStreetMap Overpass API" if osm_live else "default sparse profile",
+                "OpenStreetMap Overpass API" if osm_live else "not measured",
                 f"{osm_result.competitor_count} competitors within {osm_result.radius_km} km; "
                 f"tags {', '.join(osm_result.osm_tags_used) or 'none'}"
                 + ("" if osm_live else " — Overpass unreachable, density not measured"),

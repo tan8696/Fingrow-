@@ -164,7 +164,7 @@ def fetch_suppliers(
         f"at ({lat},{lon}) r={radius_km}km"
     )
 
-    with httpx.Client(timeout=30.0) as client:
+    with httpx.Client(timeout=18.0) as client:
         try:
             response = client.post(
                 OVERPASS_URL,
