@@ -1,107 +1,99 @@
 # Deploying FinGrow
 
-The frontend is already on Vercel. The backend is not deployed anywhere, which
-is why signing in on the live site returns a 404. The browser asks
-`https://sih-project-rosy-delta.vercel.app/api/auth/signup`, and Vercel
-answers `NOT_FOUND` because only the frontend was ever deployed.
+Live site: https://sih-project-rosy-delta.vercel.app
 
-This guide puts the API on Render's free plan and points the Vercel build at
-it. Budget about fifteen minutes.
+Both the frontend and the API deploy to Vercel automatically on every push to
+`main`. There is no second service to set up.
 
 ---
 
-## 1. Deploy the API to Render
+## How it fits together
 
-1. Sign in at [render.com](https://render.com) with your GitHub account.
-2. **New → Blueprint**, then pick the `tan8696/Fingrow-` repository.
-   Render reads [`render.yaml`](render.yaml) and proposes a service called
-   `fingrow-api`. Accept it.
-3. Render will ask for the values marked secret:
+- **Frontend** — Vite builds `frontend/` into static files.
+- **API** — [`api/index.py`](api/index.py) is a Vercel serverless function
+  that loads the FastAPI app from `backend/`. [`vercel.json`](vercel.json)
+  rewrites every `/api/*` request to it, and the app sees the original path, so
+  its routes match exactly as they do locally.
 
-   | Variable | Needed? | What happens without it |
-   |---|---|---|
-   | `GROQ_API_KEY` | **Yes** | Feasibility reports and the stress test return 503 |
-   | `BHASHINI_API_KEY` | Optional | Report translation falls back to MyMemory |
-   | `DATA_GOV_API_KEY` | Optional | Mandi prices serve a clearly labelled sample feed |
-
-   Copy them from your local `backend/.env`.
-4. Deploy, and wait for the first build. When it finishes Render shows a URL
-   like `https://fingrow-api.onrender.com`.
-5. Confirm it is alive by opening `https://fingrow-api.onrender.com/api/health`
-   — it should return `{"status":"ok", ...}`.
-
-### If you rename the Vercel project
-
-`render.yaml` sets `CORS_ORIGIN_REGEX` to match
-`sih-project-rosy-delta.vercel.app` and the project's preview URLs. Rename the
-site and the browser will block every request until you update that variable in
-the Render dashboard:
-
-```
-^https://your-project-name-[a-z0-9-]+\.vercel\.app$
-```
-
-For a custom domain, put the full origin in `CORS_ORIGINS` instead (comma
-separated).
+Because the API is served from the same origin as the site, there is no CORS
+to configure and `VITE_API_URL` stays unset.
 
 ---
 
-## 2. Point Vercel at the API
+## One-time setup: API keys
 
-1. Vercel dashboard → the `sih-project` project → **Settings → Environment
-   Variables**.
-2. Add, for all environments:
+Sign-in, sign-up, the dashboard, loans, harvests and sample data all work with
+no keys at all. Three features need one:
 
-   ```
-   VITE_API_URL = https://fingrow-api.onrender.com/api
-   ```
+Vercel dashboard → the `sih-project` project → **Settings → Environment
+Variables**, then add:
 
-   (Replace the host with whatever Render gave you in step 4.)
+| Variable | Needed for | Without it |
+|---|---|---|
+| `GROQ_API_KEY` | Feasibility reports, stress test | Those return a "not configured" error |
+| `BHASHINI_API_KEY` | Report translation | Falls back to MyMemory |
+| `DATA_GOV_API_KEY` | Live mandi prices | Shows a clearly labelled sample feed |
 
-   The `/api` suffix matters — the frontend appends paths like `/auth/signup`
-   directly to it.
-3. **Redeploy.** Vite inlines environment variables at build time, so an
-   existing deployment will not pick this up until it is rebuilt.
+Copy the values from your local `backend/.env` — never commit that file.
+
+**Then redeploy** (Deployments → the latest one → ⋯ → Redeploy). Functions
+read environment variables at start-up, so a running deployment will not see a
+key added afterwards.
 
 ---
 
-## 3. Check it
+## The one real limitation: data does not persist
 
-Open the live site and create an account. If it fails, the error now names the
-cause:
+Serverless functions have a read-only filesystem except for `/tmp`, so the
+SQLite databases live there — and `/tmp` only lasts as long as the function
+instance that holds it. **Accounts and data are lost on every redeploy and
+whenever the instance goes cold after a period without traffic.** If requests
+ever spread across several instances at once, each would also see its own
+separate copy.
+
+For a demonstration that is workable, because the app is built to start empty
+and has a one-click **Load sample data** button in Settings:
+
+1. Open the site a few minutes before presenting.
+2. Create an account.
+3. Settings → **Load sample data**.
+
+If you are signed out unexpectedly, the instance was recycled: sign up again
+and reload the sample data.
+
+### When you need data to persist
+
+Run the API somewhere with a real disk instead. [`render.yaml`](render.yaml)
+sets that up on Render:
+
+1. [render.com](https://render.com) → **New → Blueprint** → pick
+   `tan8696/Fingrow-`, and give it the API keys above.
+2. Uncomment the `disk` block in `render.yaml` and change the `*_DB_PATH`
+   values from `/tmp/fingrow/` to `/var/data/` (Render disks need a paid
+   instance, about $7/month).
+3. In Vercel, set `VITE_API_URL=https://<your-render-service>.onrender.com/api`
+   and redeploy. The frontend then talks to Render instead of its own `/api`.
+
+The longer-term fix is a hosted database rather than SQLite files, which would
+let the Vercel functions keep data on their own.
+
+---
+
+## Troubleshooting
+
+The sign-in screen names the cause when something is wrong:
 
 | Message | Meaning |
 |---|---|
-| `No API found at …` | `VITE_API_URL` is unset or wrong, or you have not redeployed since setting it |
-| `Cannot reach the server at …` | The API is down, or CORS is rejecting your domain — check `CORS_ORIGIN_REGEX` |
-| `The server is not responding` | The API is starting up; wait a moment and retry |
-
----
-
-## Two things to know about the free plan
-
-**It sleeps.** Render spins a free service down after about fifteen minutes of
-inactivity, and the next request has to wait roughly fifty seconds for it to
-start again. Before demonstrating, open the `/api/health` URL once to wake it
-up, and keep the tab open.
-
-**Storage is temporary.** The free plan has no persistent disk, so the SQLite
-databases are wiped on every deploy and every restart. Accounts created before
-a restart will not survive it.
-
-That matters less here than it would for a real service, because the app is
-designed to start empty and has a one-click sample data loader in Settings. For
-a judged demo, create your account on the day and load the sample data.
-
-If you need data to persist, uncomment the `disk` block in `render.yaml` and
-change the `*_DB_PATH` variables from `/tmp/fingrow/` to `/var/data/`. Render
-disks require a paid instance (about $7/month).
+| `No API found at /api` | The deployment has no API function — check the build log for `api/index.py` |
+| `Cannot reach the server at …` | The network request never completed |
+| `The server is not responding` | The function failed to start — check Vercel's runtime logs |
 
 ---
 
 ## Running locally
 
-Deployment is optional. Two terminals:
+Two terminals:
 
 ```bash
 cd backend && python -m uvicorn app.main:app --reload
@@ -111,5 +103,5 @@ cd backend && python -m uvicorn app.main:app --reload
 cd frontend && npm run dev
 ```
 
-Leave `VITE_API_URL` unset locally — Vite proxies `/api` to port 8000, which
-keeps requests same-origin and avoids CORS entirely.
+Vite proxies `/api` to port 8000, so requests stay same-origin locally too.
+Local data is kept in `backend/*.db` and does persist.
