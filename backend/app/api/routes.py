@@ -93,6 +93,7 @@ from app.core.loan_schedule import (
     schedule_to_csv,
 )
 from app.core import demo_seed
+from app.core.db import storage_info
 from app.core.cluster import build_activity
 from app.core.harvest_store import (
     delete_harvest,
@@ -144,8 +145,18 @@ def _amortization_to_response(schedule) -> AmortizationResponse:
 
 @router.get("/health", tags=["System"])
 async def health_check() -> dict:
-    """Liveness probe — returns 200 if the server is running."""
-    return {"status": "ok", "service": "AI Business Advisory Assistant"}
+    """
+    Liveness probe, plus where data is being kept.
+
+    `storage.persistent` is false when accounts live in a serverless /tmp that
+    is wiped on restart — the one condition that quietly breaks logging back
+    in, so it is worth being able to check from outside.
+    """
+    return {
+        "status": "ok",
+        "service": "AI Business Advisory Assistant",
+        "storage": storage_info(),
+    }
 
 
 @router.get("/categories", tags=["Reference"])

@@ -16,12 +16,11 @@ lock serializes schema initialization.
 import json
 import logging
 import os
-import sqlite3
 import threading
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from app.core.db import ensure_column
+from app.core.db import connect, ensure_column
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +55,7 @@ def _ensure_schema(db_path: Path) -> None:
         if resolved in _initialized_paths:
             return
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = sqlite3.connect(str(db_path))
+        conn = connect(db_path)
         try:
             conn.execute(_SCHEMA)
             ensure_column(conn, "report_sessions", "user_id", "TEXT")
@@ -82,11 +81,14 @@ def save_session(
     """
     path = _resolve(db_path)
     _ensure_schema(path)
-    conn = sqlite3.connect(str(path))
+    conn = connect(path)
     try:
+        # ON CONFLICT rather than INSERT OR REPLACE: the latter is SQLite-only.
         conn.execute(
-            "INSERT OR REPLACE INTO report_sessions (session_id, report_json, user_id) "
-            "VALUES (?, ?, ?)",
+            "INSERT INTO report_sessions (session_id, report_json, user_id) "
+            "VALUES (?, ?, ?) "
+            "ON CONFLICT (session_id) DO UPDATE SET "
+            "report_json = excluded.report_json, user_id = excluded.user_id",
             (session_id, json.dumps(report_data, ensure_ascii=False), user_id),
         )
         conn.commit()
@@ -107,7 +109,7 @@ def get_session(
     """
     path = _resolve(db_path)
     _ensure_schema(path)
-    conn = sqlite3.connect(str(path))
+    conn = connect(path)
     try:
         row = conn.execute(
             "SELECT report_json FROM report_sessions WHERE session_id = ?"
@@ -126,7 +128,7 @@ def delete_session(session_id: str, db_path: Optional[Path] = None) -> bool:
     """Remove a stored session. Returns True if a row was deleted."""
     path = _resolve(db_path)
     _ensure_schema(path)
-    conn = sqlite3.connect(str(path))
+    conn = connect(path)
     try:
         cur = conn.execute(
             "DELETE FROM report_sessions WHERE session_id = ?", (session_id,)

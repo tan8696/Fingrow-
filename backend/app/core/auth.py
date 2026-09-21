@@ -27,12 +27,13 @@ import json
 import logging
 import os
 import secrets
-import sqlite3
 import threading
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
+
+from app.core.db import connect
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +90,7 @@ def _ensure_schema(db_path: Path) -> None:
         if resolved in _initialized_paths:
             return
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = sqlite3.connect(str(db_path))
+        conn = connect(db_path)
         try:
             conn.executescript(_SCHEMA)
             conn.commit()
@@ -98,12 +99,11 @@ def _ensure_schema(db_path: Path) -> None:
         _initialized_paths.add(resolved)
 
 
-def _connect(db_path: Optional[Path] = None) -> sqlite3.Connection:
+def _connect(db_path: Optional[Path] = None):
+    """A connection whose rows read by column name (see app.core.db)."""
     path = _resolve(db_path)
     _ensure_schema(path)
-    conn = sqlite3.connect(str(path))
-    conn.row_factory = sqlite3.Row
-    return conn
+    return connect(path)
 
 
 # ---------------------------------------------------------------------------
@@ -146,7 +146,7 @@ def _normalise_phone(phone: str) -> str:
 # Accounts
 # ---------------------------------------------------------------------------
 
-def _row_to_user(row: sqlite3.Row) -> Dict[str, Any]:
+def _row_to_user(row) -> Dict[str, Any]:
     """Public shape of a user — never includes the password hash."""
     return {
         "user_id": row["user_id"],
@@ -179,19 +179,20 @@ def create_user(
     user_id = str(uuid.uuid4())
     conn = _connect(db_path)
     try:
-        conn.execute(
+        # ON CONFLICT DO NOTHING: a taken phone number inserts nothing rather
+        # than raising and aborting the transaction (see app/core/db.py).
+        cur = conn.execute(
             "INSERT INTO users (user_id, phone, name, password_hash, profile_json) "
-            "VALUES (?, ?, ?, ?, ?)",
+            "VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
             (
                 user_id, normalised, str(name).strip(), hash_password(password),
                 json.dumps(profile or {}, ensure_ascii=False),
             ),
         )
         conn.commit()
+        if cur.rowcount != 1:
+            raise AuthError("An account with this mobile number already exists.")
         row = conn.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)).fetchone()
-    except sqlite3.IntegrityError:
-        conn.rollback()
-        raise AuthError("An account with this mobile number already exists.")
     finally:
         conn.close()
 

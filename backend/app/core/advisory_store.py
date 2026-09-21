@@ -15,12 +15,11 @@ once per database file.
 import json
 import logging
 import os
-import sqlite3
 import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from app.core.db import ensure_column
+from app.core.db import connect, ensure_column
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +60,7 @@ def _ensure_schema(db_path: Path) -> None:
         if resolved in _initialized_paths:
             return
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = sqlite3.connect(str(db_path))
+        conn = connect(db_path)
         try:
             conn.executescript(_SCHEMA)
             ensure_column(conn, "insurance_claims", "user_id", "TEXT")
@@ -85,17 +84,17 @@ def save_claim(
     """Insert a new insurance claim. Returns True when inserted (no overwrite)."""
     path = _resolve(db_path)
     _ensure_schema(path)
-    conn = sqlite3.connect(str(path))
+    conn = connect(path)
     try:
-        conn.execute(
-            "INSERT INTO insurance_claims (claim_id, claim_json, user_id) VALUES (?, ?, ?)",
+        cur = conn.execute(
+            "INSERT INTO insurance_claims (claim_id, claim_json, user_id) VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
             (claim_id, json.dumps(claim_data, ensure_ascii=False), user_id),
         )
         conn.commit()
-        return True
-    except sqlite3.IntegrityError:
-        conn.rollback()
-        return False
+        # A duplicate id inserts nothing rather than raising. Letting the
+        # insert fail instead would abort the transaction, which Postgres then
+        # has to roll back before the connection is usable again.
+        return cur.rowcount == 1
     finally:
         conn.close()
 
@@ -107,7 +106,7 @@ def list_claims(
     """Return stored claims, newest first."""
     path = _resolve(db_path)
     _ensure_schema(path)
-    conn = sqlite3.connect(str(path))
+    conn = connect(path)
     try:
         rows = conn.execute(
             "SELECT claim_id, claim_json FROM insurance_claims"
@@ -134,7 +133,7 @@ def delete_claim(
     """Remove a stored claim. Returns True if a row was deleted."""
     path = _resolve(db_path)
     _ensure_schema(path)
-    conn = sqlite3.connect(str(path))
+    conn = connect(path)
     try:
         cur = conn.execute(
             "DELETE FROM insurance_claims WHERE claim_id = ?"
@@ -160,17 +159,17 @@ def save_reminder(
     """Insert a new field reminder. Returns True when inserted (no overwrite)."""
     path = _resolve(db_path)
     _ensure_schema(path)
-    conn = sqlite3.connect(str(path))
+    conn = connect(path)
     try:
-        conn.execute(
-            "INSERT INTO field_reminders (reminder_id, reminder_json, user_id) VALUES (?, ?, ?)",
+        cur = conn.execute(
+            "INSERT INTO field_reminders (reminder_id, reminder_json, user_id) VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
             (reminder_id, json.dumps(reminder_data, ensure_ascii=False), user_id),
         )
         conn.commit()
-        return True
-    except sqlite3.IntegrityError:
-        conn.rollback()
-        return False
+        # A duplicate id inserts nothing rather than raising. Letting the
+        # insert fail instead would abort the transaction, which Postgres then
+        # has to roll back before the connection is usable again.
+        return cur.rowcount == 1
     finally:
         conn.close()
 
@@ -182,7 +181,7 @@ def list_reminders(
     """Return stored reminders, newest first."""
     path = _resolve(db_path)
     _ensure_schema(path)
-    conn = sqlite3.connect(str(path))
+    conn = connect(path)
     try:
         rows = conn.execute(
             "SELECT reminder_id, reminder_json FROM field_reminders"
@@ -209,7 +208,7 @@ def delete_reminder(
     """Remove a stored reminder. Returns True if a row was deleted."""
     path = _resolve(db_path)
     _ensure_schema(path)
-    conn = sqlite3.connect(str(path))
+    conn = connect(path)
     try:
         cur = conn.execute(
             "DELETE FROM field_reminders WHERE reminder_id = ?"

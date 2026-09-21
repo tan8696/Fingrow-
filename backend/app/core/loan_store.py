@@ -15,12 +15,11 @@ once per database file.
 import json
 import logging
 import os
-import sqlite3
 import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from app.core.db import ensure_column
+from app.core.db import connect, ensure_column
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +54,7 @@ def _ensure_schema(db_path: Path) -> None:
         if resolved in _initialized_paths:
             return
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = sqlite3.connect(str(db_path))
+        conn = connect(db_path)
         try:
             conn.execute(_SCHEMA)
             ensure_column(conn, "loan_applications", "user_id", "TEXT")
@@ -79,18 +78,18 @@ def save_application(
     """
     path = _resolve(db_path)
     _ensure_schema(path)
-    conn = sqlite3.connect(str(path))
+    conn = connect(path)
     try:
-        conn.execute(
+        cur = conn.execute(
             "INSERT INTO loan_applications (application_id, application_json, user_id) "
-            "VALUES (?, ?, ?)",
+            "VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
             (application_id, json.dumps(application_data, ensure_ascii=False), user_id),
         )
         conn.commit()
-        return True
-    except sqlite3.IntegrityError:
-        conn.rollback()
-        return False
+        # A duplicate id inserts nothing rather than raising. Letting the
+        # insert fail instead would abort the transaction, which Postgres then
+        # has to roll back before the connection is usable again.
+        return cur.rowcount == 1
     finally:
         conn.close()
 
@@ -113,7 +112,7 @@ def update_application(
     current.update(updates)
     path = _resolve(db_path)
     _ensure_schema(path)
-    conn = sqlite3.connect(str(path))
+    conn = connect(path)
     try:
         conn.execute(
             "UPDATE loan_applications SET application_json = ? WHERE application_id = ?",
@@ -139,7 +138,7 @@ def get_application(
     """
     path = _resolve(db_path)
     _ensure_schema(path)
-    conn = sqlite3.connect(str(path))
+    conn = connect(path)
     try:
         if user_id is None:
             row = conn.execute(
@@ -172,7 +171,7 @@ def list_applications(
     """
     path = _resolve(db_path)
     _ensure_schema(path)
-    conn = sqlite3.connect(str(path))
+    conn = connect(path)
     try:
         if user_id is None:
             rows = conn.execute(

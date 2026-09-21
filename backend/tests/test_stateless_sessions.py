@@ -9,15 +9,19 @@ local database — exactly what a fresh instance looks like — and checking the
 signed token alone still works.
 """
 
-import sqlite3
-
 from app.api import auth_routes
 from app.core import auth
+from app.core.db import connect
 
 
 def _forget_account(user_id):
-    """Make this process look like a fresh instance that never saw the account."""
-    conn = sqlite3.connect(str(auth.DB_PATH))
+    """
+    Make this process look like a fresh instance that never saw the account.
+
+    Goes through app.core.db rather than opening the SQLite file directly, so
+    the suite exercises the same path whether it runs on SQLite or Postgres.
+    """
+    conn = connect(auth.DB_PATH)
     try:
         conn.execute("DELETE FROM users WHERE user_id = ?", (user_id,))
         conn.commit()

@@ -58,33 +58,44 @@ What that no longer breaks:
   seeded data is deterministic.
 - **Reports.** The report is returned in full when it is generated.
 
-What still depends on the instance, and needs a shared database to fix:
+What still depends on the instance, until a database is connected (below):
 
 - **Signing in again after signing out.** Signing in checks the password
   against a stored hash; an instance that never saw the account does not have
-  one. Stay signed in during a demo.
-- **Records you create yourself** — a logged harvest, an applied-for loan, a
-  saved report's verify/PDF/stress-test link — live on the instance that
-  created them.
+  one.
+- **Records you create yourself**, such as a logged harvest, an applied-for loan,
+  or a saved report's verify/PDF/stress-test link. These live on the instance
+  that created them.
 
-For a demonstration: open the site shortly before presenting, create an account,
-and load the sample data from Settings.
+### Make data permanent: connect a Postgres database
 
-### When you need data to persist
+This takes about a minute and stays free. Nothing needs copying: Vercel passes
+the connection details to the API itself.
 
-Run the API somewhere with a real disk instead. [`render.yaml`](render.yaml)
-sets that up on Render:
+1. Vercel dashboard → `sih-project` → **Storage** → **Create Database**.
+2. Choose **Neon** (Serverless Postgres), accept the free plan, and keep the
+   region Vercel suggests, because it matches where the API runs. A distant region
+   makes every page slower.
+3. **Connect** it to `sih-project` for Production (and Preview if you want).
+   Vercel adds `DATABASE_URL` to the project's environment variables.
+4. **Redeploy**: Deployments → the latest one → ⋯ → **Redeploy**. Functions
+   only read environment variables at start-up.
 
-1. [render.com](https://render.com) → **New → Blueprint** → pick
-   `tan8696/Fingrow-`, and give it the API keys above.
-2. Uncomment the `disk` block in `render.yaml` and change the `*_DB_PATH`
-   values from `/tmp/fingrow/` to `/var/data/` (Render disks need a paid
-   instance, about $7/month).
-3. In Vercel, set `VITE_API_URL=https://<your-render-service>.onrender.com/api`
-   and redeploy. The frontend then talks to Render instead of its own `/api`.
+Then open
+[`/api/health`](https://sih-project-rosy-delta.vercel.app/api/health) and check
+it says `"engine": "postgres", "persistent": true`. Before connecting it says
+`"engine": "sqlite", "persistent": false`.
 
-The longer-term fix is a hosted database rather than SQLite files, which would
-let the Vercel functions keep data on their own.
+The API creates its tables on first use. Accounts made before connecting lived
+in `/tmp` and are not carried over, so sign up again once.
+
+Supabase works the same way; it sets `POSTGRES_URL`, which is also read. See
+[`backend/app/core/db.py`](backend/app/core/db.py) for how one set of store
+code runs on both SQLite and Postgres.
+
+[`render.yaml`](render.yaml) remains as an alternative host for the API if you
+ever need one, but with a database connected the Vercel setup needs nothing
+else.
 
 ---
 
@@ -94,7 +105,8 @@ The sign-in screen names the cause when something is wrong:
 
 | Message | Meaning |
 |---|---|
-| `No API found at /api` | The deployment has no API function — check the build log for `api/index.py` |
+| `No API found at /api` | The deployment has no API function; check the build log for `api/index.py` |
+| Signing in says the password is wrong for an account that exists | Data is in temporary storage and the instance was recycled. `/api/health` will show `"persistent": false`. Connect a database (above) |
 | `Cannot reach the server at …` | The network request never completed |
 | `The server is not responding` | The function failed to start — check Vercel's runtime logs |
 
@@ -114,3 +126,8 @@ cd frontend && npm run dev
 
 Vite proxies `/api` to port 8000, so requests stay same-origin locally too.
 Local data is kept in `backend/*.db` and does persist.
+
+To run the test suite against Postgres as well as SQLite, point
+`TEST_DATABASE_URL` at a **disposable** database; the suite drops the app's
+tables at the start of the run. A real `DATABASE_URL` is always ignored by
+the tests.

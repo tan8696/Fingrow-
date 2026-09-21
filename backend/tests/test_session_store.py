@@ -9,6 +9,7 @@ temporary database file so the development/production store is never touched.
 import json
 
 from app.core import session_store
+from app.core.db import USING_POSTGRES
 
 SAMPLE_REPORT = {
     "session_id": "abc-123",
@@ -55,9 +56,11 @@ def test_report_survives_new_connection(tmp_path):
     loaded = session_store.get_session("abc-123", db_path=db)
     assert loaded == SAMPLE_REPORT
 
-    # The data was actually written to disk, not kept in memory
-    assert db.exists()
-    assert db.stat().st_size > len(json.dumps(SAMPLE_REPORT, ensure_ascii=False))
+    # The data was actually written to disk, not kept in memory. On Postgres
+    # there is no local file; the round trip above is the whole assertion.
+    if not USING_POSTGRES:
+        assert db.exists()
+        assert db.stat().st_size > len(json.dumps(SAMPLE_REPORT, ensure_ascii=False))
 
 
 def test_get_unknown_session_returns_none(tmp_path):
